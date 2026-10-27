@@ -1,0 +1,114 @@
+{
+  "checkedAt": "2026-10-27T09:56:06.238261Z",
+  "scope": "Playlist retrieval/parsing only; media availability depends on the user network.",
+  "results": [
+    {
+      "name": "fanmingming · 综合电视",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
+      "origin": "https://github.com/fanmingming/live",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 93,
+      "cctv": 33,
+      "elapsedMs": 899
+    },
+    {
+      "name": "fanmingming · ITV",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/itv.m3u",
+      "origin": "https://github.com/fanmingming/live",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 189,
+      "cctv": 47,
+      "elapsedMs": 1052
+    },
+    {
+      "name": "fanmingming · IPv6（需 IPv6 网络）",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u",
+      "origin": "https://github.com/fanmingming/live",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 82,
+      "cctv": 24,
+      "elapsedMs": 254
+    },
+    {
+      "name": "HerbertHe · 国内频道",
+      "url": "https://m3u.ibert.me/cn.m3u",
+      "origin": "https://github.com/HerbertHe/iptv-sources",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 163,
+      "cctv": 29,
+      "elapsedMs": 1205
+    },
+    {
+      "name": "ssili126 · TV",
+      "url": "https://raw.githubusercontent.com/ssili126/tv/main/itvlist.m3u",
+      "origin": "https://github.com/ssili126/tv",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 3,
+      "cctv": 1,
+      "elapsedMs": 387
+    },
+    {
+      "name": "综合电视 IPTV",
+      "url": "http://193.123.86.190:14888/TV/iptv.php",
+      "origin": "https://9280.kstore.vip/newwex.json",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 112,
+      "cctv": 29,
+      "elapsedMs": 1651
+    },
+    {
+      "name": "Kimentanm IPTV",
+      "url": "https://down.nigx.cn/raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u",
+      "origin": "https://9280.kstore.vip/newwex.json",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 119,
+      "cctv": 25,
+      "elapsedMs": 2715
+    },
+    {
+      "name": "斗鱼一起看",
+      "url": "https://sub.ottiptv.cc/douyuyqk.m3u",
+      "origin": "https://9763.kstore.vip/aowu.json",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 937,
+      "cctv": 0,
+      "elapsedMs": 7191
+    },
+    {
+      "name": "YY轮播",
+      "url": "https://sub.ottiptv.cc/yylunbo.m3u",
+      "origin": "https://9763.kstore.vip/aowu.json",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 446,
+      "cctv": 0,
+      "elapsedMs": 11957
+    },
+    {
+      "name": "虎牙一起看",
+      "url": "https://sub.ottiptv.cc/huyayqk.m3u",
+      "origin": "https://9763.kstore.vip/aowu.json",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "reason": "请求超时",
+      "elapsedMs": 30554
+    },
+    {
+      "name": "B站直播",
+      "url": "https://sub.ottiptv.cc/bililive.m3u",
+      "origin": "https://9763.kstore.vip/aowu.json",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "reason": "请求超时",
+      "elapsedMs": 31176
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "repo": "media-kit/libmpv-win32-video-build",
+    "ref": "2023-09-24",
+    "commit": "1bcaec8512fde263befaf47432ac59302b56a66d",
+    "source": "https://codeload.github.com/media-kit/libmpv-win32-video-build/tar.gz/1bcaec8512fde263befaf47432ac59302b56a66d",
+    "file": "media-kit-libmpv-win32-video-build-2023-09-24.tar.gz",
+    "sha256": "d8ff8d973edf50c6771b8586e4dee2b30c2f2e1113eeb4a286100809d9536053"
+  },
+  {
+    "repo": "media-kit/libmpv-android-video-build",
+    "ref": "v1.1.7",
+    "commit": "fe8c3ac1a91c09aa6fb1deccbc833f1bafa54768",
+    "source": "https://codeload.github.com/media-kit/libmpv-android-video-build/tar.gz/fe8c3ac1a91c09aa6fb1deccbc833f1bafa54768",
+    "file": "media-kit-libmpv-android-video-build-v1.1.7.tar.gz",
+    "sha256": "c278bc8789ebaad45a23afd9588bb77e051714892f7f0367356e1cc6ebfe4c62"
+  },
+  {
+    "repo": "sk3llo/ffmpeg-kit",
+    "ref": "windows-8.1.2",
+    "commit": "e8a5f4bda136bcf33597b085136bc7688b6a4e59",
+    "source": "https://codeload.github.com/sk3llo/ffmpeg-kit/tar.gz/e8a5f4bda136bcf33597b085136bc7688b6a4e59",
+    "file": "sk3llo-ffmpeg-kit-windows-8.1.2.tar.gz",
+    "sha256": "32dc0998298330320beb0f743b28938b866d1da440e5583ef3461016fc3dec09"
+  },
+  {
+    "repo": "sk3llo/ffmpeg_kit_flutter_android",
+    "ref": "min",
+    "source": "https://codeload.github.com/sk3llo/ffmpeg_kit_flutter_android/tar.gz/5c82cf3bed3914fb6f52b6bce58d77c8719b9dde",
+    "file": "sk3llo-ffmpeg_kit_flutter_android-min.tar.gz",
+    "sha256": "e6355c3271343088fa90372f746ca964ac7fd60f07a4cc35722cf768fea2abac",
+    "commit": "5c82cf3bed3914fb6f52b6bce58d77c8719b9dde"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "ref": "n8.1.2",
+    "source": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n8.1.2",
+    "file": "FFmpeg-FFmpeg-n8.1.2.tar.gz",
+    "sha256": "9fd092511605bbebafe095ea6d38d9e40f34d12f7386e1258372df8be0576eb7"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "ref": "n6.0",
+    "source": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/n6.0",
+    "file": "FFmpeg-FFmpeg-n6.0.tar.gz",
+    "sha256": "9a1fa94608300e835bf89bdfcd7d77deceba67bff3494f609816f84bd69a459e"
+  },
+  {
+    "repo": "mpv-player/mpv",
+    "ref": "652a1dd90711839acdccc08004056d25514ef2d8",
+    "source": "https://codeload.github.com/mpv-player/mpv/tar.gz/652a1dd90711839acdccc08004056d25514ef2d8",
+    "file": "mpv-player-mpv-652a1dd90711839acdccc08004056d25514ef2d8.tar.gz",
+    "sha256": "926dce4dfb918cbbac603ad5d453d453d0036d1e00e77baaf5d76ca99ce7a419"
+  },
+  {
+    "repo": "mpv-player/mpv",
+    "ref": "78d43740f52db817d98bcf24fb30a76ab6fa13ff",
+    "source": "https://codeload.github.com/mpv-player/mpv/tar.gz/78d43740f52db817d98bcf24fb30a76ab6fa13ff",
+    "file": "mpv-player-mpv-78d43740f52db817d98bcf24fb30a76ab6fa13ff.tar.gz",
+    "sha256": "678889728708141e97d283b2a7ef9953aa3102127a4c2aacefaf1adcb211915d"
+  },
+  {
+    "source": "https://repo.maven.apache.org/maven2/com/antonkarpenko/ffmpeg-kit-min/2.2.3/ffmpeg-kit-min-2.2.3.pom",
+    "file": "ffmpeg-kit-min-2.2.3.pom",
+    "sha256": "c05d02fc9d17a167df4123d17aae6bb11f01bc61766fe095512f61cabe612c6f"
+  },
+  {
+    "source": "https://repo.maven.apache.org/maven2/com/antonkarpenko/ffmpeg-kit-min/2.2.3/ffmpeg-kit-min-2.2.3-sources.jar",
+    "file": "ffmpeg-kit-min-2.2.3-sources.jar",
+    "sha256": "08ac5cb6c97ac299ab0fa4d17e37f0cfe0b7ec88c47f8b49021f3ae9ed9f49fc"
+  }
+]

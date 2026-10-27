@@ -1,0 +1,104 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../../../app/app_services.dart';
+import '../../sources/application/source_probe.dart';
+import '../../sources/presentation/block_source_button.dart';
+import '../domain/catalog_item.dart';
+
+final class SourceChoices extends StatefulWidget {
+  const SourceChoices({
+    super.key,
+    required this.services,
+    required this.items,
+    required this.onSelected,
+    required this.onBlock,
+  });
+  final AppServices services;
+  final List<CatalogItem> items;
+  final ValueChanged<CatalogItem> onSelected;
+  final Future<void> Function(String) onBlock;
+  @override
+  State<SourceChoices> createState() => _SourceChoicesState();
+}
+
+final class _SourceChoicesState extends State<SourceChoices> {
+  late final SourceProbe _probe;
+  final _tested = <String>{};
+  final _blocked = <String>{};
+  bool _loading = false;
+  @override
+  void initState() {
+    super.initState();
+    _probe = SourceProbe(widget.services.sources, widget.services.network);
+    unawaited(_probeNew());
+  }
+
+  @override
+  void didUpdateWidget(SourceChoices oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    unawaited(_probeNew());
+  }
+
+  Future<void> _probeNew() async {
+    if (_loading) return;
+    final ids = widget.items.map((i) => i.sourceId).toSet().difference(_tested);
+    if (ids.isEmpty) return;
+    _loading = true;
+    _tested.addAll(ids);
+    try {
+      final sources = await widget.services.sources.all();
+      if (!mounted) return;
+      await _probe.run(
+        sources.where((s) => ids.contains(s.id)).toList(),
+        preserveStatuses: true,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          for (final id in ids) {
+            _probe.statuses[id] = '检测失败，可重新打开选择器重试';
+          }
+        });
+      }
+    } finally {
+      _loading = false;
+      if (mounted) unawaited(_probeNew());
+    }
+  }
+
+  @override
+  void dispose() {
+    _probe.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _probe,
+    builder: (context, _) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(12),
+          child: Text('正在检测渠道接口延迟；API 可用不代表视频可播。播放线路会单独检测媒体响应。'),
+        ),
+        for (final item in widget.items)
+          if (!_blocked.contains(item.sourceId))
+            ListTile(
+              title: Text(item.title),
+              subtitle: Text(
+                '${item.year} ${item.remarks} · ${_probe.statuses[item.sourceId] ?? '等待接口检测'}',
+              ),
+              onTap: () => widget.onSelected(item),
+              trailing: BlockSourceButton(
+                name: '此来源',
+                onBlock: () async {
+                  await widget.onBlock(item.sourceId);
+                  if (mounted) setState(() => _blocked.add(item.sourceId));
+                },
+              ),
+            ),
+      ],
+    ),
+  );
+}

@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "checkedAt": "2026-10-27",
+  "source": "https://bbs.qiqiv.cn/thread-5210-1-1.html",
+  "lists": [
+    {
+      "name": "fanmingming · 综合电视",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
+      "origin": "https://github.com/fanmingming/live"
+    },
+    {
+      "name": "HerbertHe · 国内频道",
+      "url": "https://m3u.ibert.me/cn.m3u",
+      "origin": "https://github.com/HerbertHe/iptv-sources"
+    },
+    {
+      "name": "fanmingming · ITV",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/itv.m3u",
+      "origin": "https://github.com/fanmingming/live"
+    },
+    {
+      "name": "fanmingming · IPv6（需 IPv6 网络）",
+      "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/ipv6.m3u",
+      "origin": "https://github.com/fanmingming/live"
+    },
+    {
+      "name": "ssili126 · TV",
+      "url": "https://raw.githubusercontent.com/ssili126/tv/main/itvlist.m3u",
+      "origin": "https://github.com/ssili126/tv"
+    },
+    {
+      "name": "Kimentanm IPTV",
+      "url": "https://down.nigx.cn/raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u",
+      "origin": "https://9280.kstore.vip/newwex.json"
+    },
+    {
+      "name": "综合电视 IPTV",
+      "url": "http://193.123.86.190:14888/TV/iptv.php",
+      "headers": {
+        "User-Agent": "bingcha/1.1 (mianfeifenxiang) "
+      },
+      "origin": "https://9280.kstore.vip/newwex.json"
+    },
+    {
+      "name": "虎牙一起看",
+      "url": "https://sub.ottiptv.cc/huyayqk.m3u",
+      "headers": {
+        "User-Agent": "okHttp/Mod-1.5.0.0"
+      },
+      "origin": "https://9763.kstore.vip/aowu.json"
+    },
+    {
+      "name": "斗鱼一起看",
+      "url": "https://sub.ottiptv.cc/douyuyqk.m3u",
+      "headers": {
+        "User-Agent": "okHttp/Mod-1.5.0.0"
+      },
+      "origin": "https://9763.kstore.vip/aowu.json"
+    },
+    {
+      "name": "B站直播",
+      "url": "https://sub.ottiptv.cc/bililive.m3u",
+      "headers": {
+        "User-Agent": "okHttp/Mod-1.5.0.0"
+      },
+      "origin": "https://9763.kstore.vip/aowu.json"
+    },
+    {
+      "name": "YY轮播",
+      "url": "https://sub.ottiptv.cc/yylunbo.m3u",
+      "headers": {
+        "User-Agent": "okHttp/Mod-1.5.0.0"
+      },
+      "origin": "https://9763.kstore.vip/aowu.json"
+    }
+  ]
+}

@@ -1,0 +1,722 @@
+{
+  "checkedAt": "2026-10-27T09:43:39.225405Z",
+  "scope": "Local development machine; listing/API only, not media playback. Timeout, connectivity, rate-limit and 5xx are inconclusive.",
+  "results": [
+    {
+      "url": "http://39kan.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 1385
+    },
+    {
+      "url": "http://aosikazy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "available",
+      "items": 50,
+      "defaultEnabled": true,
+      "elapsedMs": 1972
+    },
+    {
+      "url": "http://api.1080zyku.com/inc/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源连接中断或响应不完整",
+      "elapsedMs": 744
+    },
+    {
+      "url": "http://api.apibdzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25417
+    },
+    {
+      "url": "http://api.apilyzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 452
+    },
+    {
+      "url": "http://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25409
+    },
+    {
+      "url": "http://api.kuapi.cc/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 438
+    },
+    {
+      "url": "http://api.ukuapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源连接中断或响应不完整",
+      "elapsedMs": 783
+    },
+    {
+      "url": "http://api.ykapi.net/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 439
+    },
+    {
+      "url": "http://apittzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 1285
+    },
+    {
+      "url": "http://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源连接中断或响应不完整",
+      "elapsedMs": 1449
+    },
+    {
+      "url": "http://cj.ffzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 1356
+    },
+    {
+      "url": "http://cj.lziapi.com/api.php/provide/vod/from/lzm3u8",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 1541
+    },
+    {
+      "url": "http://collect.wolongzyw.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 336
+    },
+    {
+      "url": "http://feisuzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 457
+    },
+    {
+      "url": "http://gwcms.cttv.vip/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 453
+    },
+    {
+      "url": "http://haiwaikan.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源连接中断或响应不完整",
+      "elapsedMs": 821
+    },
+    {
+      "url": "http://hongniuzy2.com/api.php/provide/vod/from/hnm3u8",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 5681
+    },
+    {
+      "url": "http://jyzyapi.com/provide/vod/from/jinyingm3u8",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25413
+    },
+    {
+      "url": "http://kudian10.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "http",
+      "httpStatus": 404,
+      "reason": "服务返回错误 404",
+      "elapsedMs": 84
+    },
+    {
+      "url": "http://lehootv.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25425
+    },
+    {
+      "url": "http://lovedan.net/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25010
+    },
+    {
+      "url": "http://m3u8.apiyhzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25001
+    },
+    {
+      "url": "http://m3u8.bdxzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 445
+    },
+    {
+      "url": "http://m3u8.tiankongapi.com/api.php/provide/vod/from/tkm3u8",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 19757
+    },
+    {
+      "url": "http://prinevillesda.org/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25406
+    },
+    {
+      "url": "http://sdzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25412
+    },
+    {
+      "url": "http://sdzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 2781
+    },
+    {
+      "url": "http://sdzyapi.com/api.php/provide/vod/from/sdm3u8",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 24266
+    },
+    {
+      "url": "http://siwazyw.cc/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源连接中断或响应不完整",
+      "elapsedMs": 1476
+    },
+    {
+      "url": "http://slapibf.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25003
+    },
+    {
+      "url": "http://tangrenjie.tv/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 381
+    },
+    {
+      "url": "http://tangrenjie.tv/api.php/provide/vod/at/xm",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 389
+    },
+    {
+      "url": "http://vipmv.cc/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 7276
+    },
+    {
+      "url": "http://vod-demo.onrender.com/pubdovod.php",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "http",
+      "httpStatus": 404,
+      "reason": "服务返回错误 404",
+      "elapsedMs": 1278
+    },
+    {
+      "url": "http://www.ahjiuman.com/api.php/provide/vod/at/json",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "http",
+      "httpStatus": 404,
+      "reason": "服务返回错误 404",
+      "elapsedMs": 300
+    },
+    {
+      "url": "http://www.kuaibozy.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25413
+    },
+    {
+      "url": "http://www.zzrhgg.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 410
+    },
+    {
+      "url": "http://ys9.cttv.vip/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 472
+    },
+    {
+      "url": "http://zuidazy.me/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 4353
+    },
+    {
+      "url": "https://360zy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 1774
+    },
+    {
+      "url": "https://49zyw.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 7623
+    },
+    {
+      "url": "https://api.apibdzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 5651
+    },
+    {
+      "url": "https://api.niuniuzy.me/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 20733
+    },
+    {
+      "url": "https://api.ukuapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 903
+    },
+    {
+      "url": "https://api.wujinapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25415
+    },
+    {
+      "url": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 16361
+    },
+    {
+      "url": "https://bfzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 24998
+    },
+    {
+      "url": "https://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 1501
+    },
+    {
+      "url": "https://caiji.moduapi.cc/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25408
+    },
+    {
+      "url": "https://caiji.qhzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 448
+    },
+    {
+      "url": "https://cj.lziapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 2097
+    },
+    {
+      "url": "https://cj.yayazy.net/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 1653
+    },
+    {
+      "url": "https://collect.wolongzyw.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 928
+    },
+    {
+      "url": "https://haiwaikan.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 1056
+    },
+    {
+      "url": "https://hhzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 5428
+    },
+    {
+      "url": "https://hhzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 21139
+    },
+    {
+      "url": "https://hw8.live/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 3535
+    },
+    {
+      "url": "https://ikunzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 922
+    },
+    {
+      "url": "https://iqyi.xiaohuangrentv.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 451
+    },
+    {
+      "url": "https://jszyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 13780
+    },
+    {
+      "url": "https://kanju3.com/",
+      "kind": "kanju",
+      "status": "available",
+      "items": 15,
+      "defaultEnabled": true,
+      "elapsedMs": 731
+    },
+    {
+      "url": "https://m3u8.apiyhzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25001
+    },
+    {
+      "url": "https://p2100.net/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 6637
+    },
+    {
+      "url": "https://subocaiji.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 4363
+    },
+    {
+      "url": "https://suoniapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25012
+    },
+    {
+      "url": "https://wu5mv.com/",
+      "kind": "macCmsHtml",
+      "status": "available",
+      "items": 133,
+      "defaultEnabled": true,
+      "elapsedMs": 316
+    },
+    {
+      "url": "https://www.911ysw.top/tianyi.php/provide/vod/",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 1191
+    },
+    {
+      "url": "https://www.feisuzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "unavailable",
+      "defaultEnabled": false,
+      "failureKind": "invalid",
+      "httpStatus": null,
+      "reason": "接口没有返回有效的影片列表",
+      "elapsedMs": 760
+    },
+    {
+      "url": "https://www.heimuer.tv/api.php/provide/vod",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 1487
+    },
+    {
+      "url": "https://www.hongniuzy2.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "timeout",
+      "httpStatus": null,
+      "reason": "请求超时",
+      "elapsedMs": 25420
+    },
+    {
+      "url": "https://www.huyaapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "available",
+      "items": 20,
+      "defaultEnabled": true,
+      "elapsedMs": 17981
+    },
+    {
+      "url": "https://www.kuaikan-api.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 574
+    },
+    {
+      "url": "https://www.kuaiyunzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 444
+    },
+    {
+      "url": "https://xzcjz.com/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "无法连接，请检查网络和来源地址",
+      "elapsedMs": 454
+    },
+    {
+      "url": "https://yyff.540734621.xyz/api.php/provide/vod/",
+      "kind": "cms",
+      "status": "inconclusive",
+      "defaultEnabled": true,
+      "failureKind": "network",
+      "httpStatus": null,
+      "reason": "来源的安全连接验证失败",
+      "elapsedMs": 489
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "source": "https://bbs.qiqiv.cn/thread-5210-1-1.html",
+  "checkedAt": "2026-10-27",
+  "urls": [
+    {
+      "name": "饭太硬",
+      "url": "http://www.饭太硬.net/tv",
+      "inspection": "返回 HTML"
+    },
+    {
+      "name": "饭太硬备用 art",
+      "url": "http://www.饭太硬.art/tv",
+      "inspection": "返回图片包装配置"
+    },
+    {
+      "name": "饭太硬备用 xxooo",
+      "url": "http://fty.xxooo.cf/tv",
+      "inspection": "HTTP 请求失败"
+    },
+    {
+      "name": "饭太硬备用 888484",
+      "url": "http://fty.888484.xyz/tv",
+      "inspection": "返回 HTML"
+    },
+    {
+      "name": "饭太硬备用 333232",
+      "url": "http://fty.333232.xyz/tv",
+      "inspection": "返回 HTML"
+    },
+    {
+      "name": "小米",
+      "url": "https://gh-proxy.org/raw.githubusercontent.com/ggrrttyyiii/CatVodSpider/refs/heads/main/json/demo.json",
+      "inspection": "40 个 Spider 条目；央视频列表要求 click 脚本"
+    },
+    {
+      "name": "肥猫",
+      "url": "http://肥猫.net/tv",
+      "inspection": "38 个 Spider 条目；直播 type 3"
+    },
+    {
+      "name": "王二小",
+      "url": "https://9280.kstore.vip/newwex.json",
+      "inspection": "99 个 Spider 条目；提取 2 个直播列表"
+    },
+    {
+      "name": "嗷呜",
+      "url": "https://9763.kstore.vip/aowu.json",
+      "inspection": "78 个 Spider 条目；提取 6 个直播列表，与王二小重合 2 个"
+    },
+    {
+      "name": "摸鱼儿",
+      "url": "http://我不是.摸鱼儿.top",
+      "inspection": "HTTP 请求失败"
+    },
+    {
+      "name": "集多",
+      "url": "http://rihou.cc:88/demo.php",
+      "inspection": "HTTP 请求失败"
+    },
+    {
+      "name": "潇洒",
+      "url": "https://9877.kstore.space/one.json",
+      "inspection": "HTTP 请求失败"
+    },
+    {
+      "name": "欧歌",
+      "url": "https://xn--jory77o.v.nxog.top/m",
+      "inspection": "连接失败"
+    },
+    {
+      "name": "小虎斑",
+      "url": "http://hb.小虎斑.site:25252/仅供测试",
+      "inspection": "返回 HTML"
+    },
+    {
+      "name": "南风",
+      "url": "https://gh-proxy.com/raw.githubusercontent.com/yoursmile66/TVBox/refs/heads/main/XC.json",
+      "inspection": "返回加密配置"
+    },
+    {
+      "name": "少儿频道",
+      "url": "https://gh-proxy.com/raw.githubusercontent.com/lubin776/0/refs/heads/main/tvbox/b2.json",
+      "inspection": "25 个条目；唯一 type 1 是 csp_Bili，不是 CMS API"
+    },
+    {
+      "name": "戏曲音乐",
+      "url": "https://z.qiqiv.cn/666",
+      "inspection": "跳转 /666/ 后返回加密配置"
+    }
+  ]
+}
