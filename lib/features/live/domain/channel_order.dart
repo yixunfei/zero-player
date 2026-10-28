@@ -1,4 +1,5 @@
 import 'live_channel.dart';
+import 'channel_identity.dart';
 
 int? cctvNumber(String name) => int.tryParse(
   RegExp(
@@ -41,7 +42,12 @@ int compareChannels(LiveChannel a, LiveChannel b) {
 }
 
 bool matchesChannel(LiveChannel c, String group, String query) {
-  if (!c.name.toLowerCase().contains(query.trim().toLowerCase())) return false;
+  if (!channelMatchesQuery(c.name, query) &&
+      !c.entries.any((entry) => channelMatchesQuery(entry.name, query))) {
+    return false;
+  }
+  if (group == '已移除') return c.health.removed;
+  if (c.health.removed) return false;
   if (group == '已停用') return !c.health.enabled;
   if (!c.health.enabled) return false;
   return group == '全部' ||

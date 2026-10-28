@@ -65,6 +65,8 @@ final class PlaybackController extends ChangeNotifier {
   Future<void> _queue = Future.value();
   bool _switching = false;
   bool _closed = false;
+  Future<void>? _closing;
+  final _shutdown = Completer<void>();
   bool _advancing = false;
   int _generation = 0;
   Duration? _resume;
@@ -78,6 +80,7 @@ final class PlaybackController extends ChangeNotifier {
   Timer? _recoveryTimer;
   int _recoveryAttempts = 0;
   bool _recoveryCancelled = false;
+  bool _userPaused = false;
   bool workSkipEnabled = true;
   String get seriesKey => '${request!.item.sourceId}|${request!.item.id}';
   bool get recovering => _recoveryTimer?.isActive ?? false;
@@ -117,26 +120,32 @@ final class PlaybackController extends ChangeNotifier {
   bool get isLive => request?.live ?? false;
 
   Future<void> open(PlaybackRequest next, {bool automatic = false}) {
+    if (_closed) return Future.value();
     _recoveryTimer?.cancel();
     if (!automatic) {
       _recoveryAttempts = 0;
       _recoveryCancelled = false;
+      _userPaused = false;
     }
     final generation = ++_generation;
     _queue = _queue.catchError((Object _) {}).then((_) async {
       if (_closed || generation != _generation) return;
-      await _open(next, generation);
+      await Future.any([_open(next, generation), _shutdown.future]);
     });
     return _queue;
   }
 
   Future<void> _open(PlaybackRequest next, int generation) async {
     await save();
+    if (_closed || generation != _generation) return;
     _switching = true;
     error = null;
     notifyListeners();
     try {
+      await services.pauseRadioForVideo();
+      if (_closed || generation != _generation) return;
       await engine.stop();
+      if (_closed || generation != _generation) return;
       _gateway?.close();
       if (request?.offline != next.offline) request?.offline?.close();
       request = next;
@@ -151,7 +160,9 @@ final class PlaybackController extends ChangeNotifier {
       marks = next.live || next.offline != null
           ? []
           : await services.skips.list(workKey);
+      if (_closed || generation != _generation) return;
       workSkipEnabled = await services.skips.workEnabled(seriesKey);
+      if (_closed || generation != _generation) return;
       final uri = next.offline?.uri ?? await _onlineUri(next);
       if (generation != _generation || _closed) return;
       await engine.open(uri);
@@ -176,6 +187,7 @@ final class PlaybackController extends ChangeNotifier {
       throw const FormatException('此地址需要网页解析，不支持直接播放');
     }
     final source = await services.sources.find(next.item.sourceId);
+    if (_closed) throw StateError('Playback is closed');
     if (source != null && (!source.enabled || source.suppressed)) {
       throw const FormatException('此源已屏蔽，请选择其他来源');
     }
@@ -183,7 +195,13 @@ final class PlaybackController extends ChangeNotifier {
         next.headersByUri[media.uri] ??
         (next.headers.isNotEmpty
             ? next.headers
-            : source?.headers ?? <String, String>{});
+            : source == null
+            ? <String, String>{}
+            : HeaderPolicy.scopedHeaders(
+                source.endpoint,
+                media.uri,
+                source.headers,
+              ));
     if (media.requiresResolution) {
       if (source == null) throw const FormatException('解析来源已移除');
       final resolved = await createVodProvider(
@@ -193,6 +211,7 @@ final class PlaybackController extends ChangeNotifier {
       media = Episode(media.label, resolved.uri);
       headers = resolved.headers;
     }
+    if (_closed) throw StateError('Playback is closed');
     resolvedMedia = ResolvedMedia(media.uri, headers: headers);
     final policy = HeaderPolicy({media.uri: headers});
     var hls = media.uri.path.toLowerCase().endsWith('.m3u8');
@@ -210,6 +229,7 @@ final class PlaybackController extends ChangeNotifier {
               .trimLeft()
               .startsWith('#EXTM3U');
     }
+    if (_closed) throw StateError('Playback is closed');
     _gateway = services.gateway.createSession(policy)
       ..selectedQuality = next.quality
       ..filterAds = services.settings.value.adFilter && !next.live
@@ -266,20 +286,22 @@ final class PlaybackController extends ChangeNotifier {
     }
   }
 
-  Future<void> seek(Duration position) => engine.seek(
-    timeline.toProcessed(
-      Duration(
-        milliseconds: position.inMilliseconds.clamp(
-          0,
-          originalDuration.inMilliseconds,
-        ),
-      ),
-    ),
-  );
+  Future<void> seek(Duration position) {
+    final target = position < Duration.zero
+        ? Duration.zero
+        : originalDuration > Duration.zero && position > originalDuration
+        ? originalDuration
+        : position;
+    return engine.seek(timeline.toProcessed(target));
+  }
+
   Future<void> toggle() async {
-    cancelRecovery();
+    _recoveryTimer?.cancel();
+    _userPaused = state.playing;
+    if (notice?.startsWith('正在尝试恢复') ?? false) notice = null;
     await engine.playOrPause();
     await save();
+    if (!_userPaused && error != null) _scheduleRecovery();
   }
 
   Future<void> save() async {
@@ -296,21 +318,31 @@ final class PlaybackController extends ChangeNotifier {
       );
     } catch (_) {
       notice = '进度保存失败，请检查可用空间';
+      if (!_closed) notifyListeners();
     }
   }
 
-  Future<void> select(int lineIndex, int episodeIndex, {Duration? position}) =>
-      open(
-        PlaybackRequest(
-          request!.item,
-          line: lineIndex,
-          episode: episodeIndex,
-          position: position ?? Duration.zero,
-          live: isLive,
-          headers: request!.headers,
-          headersByUri: request!.headersByUri,
-        ),
-      );
+  Future<void> select(int lineIndex, int episodeIndex, {Duration? position}) {
+    final current = request!;
+    if (current.offline != null &&
+        (lineIndex != current.line || episodeIndex != current.episode)) {
+      return Future.error(const FormatException('请从下载页选择其他离线剧集'));
+    }
+    return open(
+      PlaybackRequest(
+        request!.item,
+        line: lineIndex,
+        episode: episodeIndex,
+        position: position ?? Duration.zero,
+        live: isLive,
+        headers: request!.headers,
+        headersByUri: request!.headersByUri,
+        offline: current.offline,
+        quality: current.quality,
+      ),
+    );
+  }
+
   Future<void> nextEpisode() async {
     if (isLive && request!.item.lines.length > 1) {
       await select((request!.line + 1) % request!.item.lines.length, 0);
@@ -361,20 +393,26 @@ final class PlaybackController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> close() async {
-    cancelRecovery();
-    await endSpeed();
-    await save();
+  Future<void> close() => _closing ??= _close();
+
+  Future<void> _close() async {
     _closed = true;
     _generation++;
+    _shutdown.complete();
+    cancelRecovery();
+    _previousRate = null;
     _saveTimer.cancel();
+    await save();
     await _states.cancel();
     await _errors.cancel();
     await _queue;
-    await engine.dispose();
     _gateway?.close();
     request?.offline?.close();
-    dispose();
+    try {
+      await engine.dispose();
+    } finally {
+      dispose();
+    }
   }
 
   void cancelRecovery() {
@@ -386,6 +424,7 @@ final class PlaybackController extends ChangeNotifier {
   void _scheduleRecovery() {
     if (_closed ||
         _recoveryCancelled ||
+        _userPaused ||
         _recoveryAttempts >= 2 ||
         request == null ||
         request!.offline != null ||
@@ -401,6 +440,12 @@ final class PlaybackController extends ChangeNotifier {
     );
   }
 
+  bool _recoveryIsCurrent(int generation) =>
+      !_closed &&
+      generation == _generation &&
+      !_recoveryCancelled &&
+      !_userPaused;
+
   Future<void> _recover(int generation) async {
     final current = request!;
     final saved = originalPosition;
@@ -409,7 +454,7 @@ final class PlaybackController extends ChangeNotifier {
     try {
       if (isLive) {
         final alternate = (current.episode + 1) % line.episodes.length;
-        if (_closed || generation != _generation || _recoveryCancelled) return;
+        if (!_recoveryIsCurrent(generation)) return;
         await open(
           PlaybackRequest(
             current.item,
@@ -418,6 +463,7 @@ final class PlaybackController extends ChangeNotifier {
             live: true,
             headers: current.headers,
             headersByUri: current.headersByUri,
+            quality: current.quality,
           ),
           automatic: true,
         );
@@ -432,7 +478,7 @@ final class PlaybackController extends ChangeNotifier {
           current.item.sourceId,
           current.item.id,
         );
-        if (_closed || generation != _generation || _recoveryCancelled) return;
+        if (!_recoveryIsCurrent(generation)) return;
         var lineIndex = updated.lines.indexWhere((l) => l.name == previousLine);
         if (_recoveryAttempts == 2 && updated.lines.length > 1) {
           lineIndex = (lineIndex + 1) % updated.lines.length;
@@ -443,13 +489,16 @@ final class PlaybackController extends ChangeNotifier {
           updated.lines[lineIndex].episodes,
         );
         if (matches.length != 1) throw StateError('剧集无法唯一匹配');
-        if (_closed || generation != _generation || _recoveryCancelled) return;
+        if (!_recoveryIsCurrent(generation)) return;
         await open(
           PlaybackRequest(
             updated,
             line: lineIndex,
             episode: matches.single,
             position: saved,
+            headers: current.headers,
+            headersByUri: current.headersByUri,
+            quality: current.quality,
           ),
           automatic: true,
         );

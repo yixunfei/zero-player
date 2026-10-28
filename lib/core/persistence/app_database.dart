@@ -10,45 +10,56 @@ import 'schema.dart';
 final class AppDatabase extends GeneratedDatabase {
   AppDatabase(File file) : super(NativeDatabase.createInBackground(file));
   AppDatabase.memory() : super(NativeDatabase.memory());
-  final _changes = StreamController<void>.broadcast();
-  Stream<void> get changes => _changes.stream;
+  final _changes = StreamController<Set<String>?>.broadcast();
+  bool _closed = false;
+  Future<void>? _closing;
+  Stream<void> get changes => _changes.stream.map((_) {});
+  Stream<void> changesFor(Set<String> tables) => _changes.stream
+      .where((changed) => changed == null || changed.any(tables.contains))
+      .map((_) {});
   @override
   int get schemaVersion => 2;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (_) async {
+    onCreate: (_) => transaction(() async {
       for (final sql in schemaStatements) {
         await customStatement(sql);
       }
-    },
-    onUpgrade: (_, from, to) async {
+    }),
+    onUpgrade: (_, from, to) => transaction(() async {
       // Preserve the user's current sources, history and offline tasks.
-      if (from == 1) {
+      if (from == 1 && to == 2) {
         await customStatement(
-          'CREATE TABLE app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+          'CREATE TABLE IF NOT EXISTS app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
         );
-        await customStatement('ALTER TABLE sources ADD COLUMN site_title TEXT');
-        await customStatement('ALTER TABLE sources ADD COLUMN homepage TEXT');
-        await customStatement(
-          'ALTER TABLE source_health ADD COLUMN latency_ms INTEGER',
-        );
-        await customStatement(
-          'ALTER TABLE downloads ADD COLUMN work_json TEXT',
-        );
+        await _addColumn('sources', 'site_title', 'TEXT');
+        await _addColumn('sources', 'homepage', 'TEXT');
+        await _addColumn('source_health', 'latency_ms', 'INTEGER');
+        await _addColumn('downloads', 'work_json', 'TEXT');
+      } else {
+        throw StateError('Unsupported database migration: $from -> $to');
       }
-    },
+    }),
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement('PRAGMA busy_timeout = 5000');
     },
   );
 
+  Future<void> _addColumn(String table, String name, String type) async {
+    final columns = await rows('PRAGMA table_info($table)');
+    if (!columns.any((column) => column['name'] == name)) {
+      await customStatement('ALTER TABLE $table ADD COLUMN $name $type');
+    }
+  }
+
   Future<List<Map<String, Object?>>> rows(
     String sql, [
     List<Object?> args = const [],
   ]) async {
+    _checkOpen();
     final result = await customSelect(
       sql,
       variables: args.map(_variable).toList(),
@@ -66,22 +77,37 @@ final class AppDatabase extends GeneratedDatabase {
   };
 
   Future<void> write(String sql, [List<Object?> args = const []]) async {
+    _checkOpen();
     await customStatement(sql, args);
-    changed();
+    final match = RegExp(
+      r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+([a-z_][a-z_0-9]*)',
+      caseSensitive: false,
+    ).firstMatch(sql);
+    changed(tables: match == null ? null : {match[1]!.toLowerCase()});
   }
 
-  void changed() {
-    if (!_changes.isClosed) _changes.add(null);
+  void changed({Set<String>? tables}) {
+    if (!_changes.isClosed) {
+      _changes.add(tables == null ? null : Set.unmodifiable(tables));
+    }
   }
 
-  Future<T> atomic<T>(Future<T> Function() work) async {
+  Future<T> atomic<T>(Future<T> Function() work, {Set<String>? tables}) async {
+    _checkOpen();
     final result = await transaction(work);
-    changed();
+    changed(tables: tables);
     return result;
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() => _closing ??= _close();
+
+  void _checkOpen() {
+    if (_closed) throw StateError('Database is closed');
+  }
+
+  Future<void> _close() async {
+    _closed = true;
     await _changes.close();
     await super.close();
   }

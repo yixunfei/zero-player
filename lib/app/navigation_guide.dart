@@ -43,7 +43,7 @@ final class _NavigationGuideState extends State<_NavigationGuide> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: false,
+    canPop: !_saving,
     child: AlertDialog(
       icon: Icon(Icons.menu_open, color: Theme.of(context).colorScheme.primary),
       title: const Text('从这里开始探索'),
@@ -79,6 +79,10 @@ final class _NavigationGuideState extends State<_NavigationGuide> {
         ),
       ),
       actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('稍后再说'),
+        ),
         FilledButton(
           autofocus: true,
           onPressed: _saving ? null : _confirm,

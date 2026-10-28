@@ -14,17 +14,18 @@ final class ApplicationFullscreen extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => CallbackShortcuts(
-    bindings: {
-      const SingleActivator(LogicalKeyboardKey.f11): () =>
-          perform(context, platform.toggleAppFullscreen),
-      const SingleActivator(LogicalKeyboardKey.escape): () {
-        if (platform.appFullscreen.value) {
-          perform(context, () => platform.setAppFullscreen(false));
-        }
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: platform.appFullscreen,
+    builder: (context, _) => CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.f11): () =>
+            perform(context, platform.toggleAppFullscreen),
+        if (platform.appFullscreen.value)
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              perform(context, () => platform.setAppFullscreen(false)),
       },
-    },
-    child: Focus(autofocus: true, child: child),
+      child: Focus(autofocus: true, child: child),
+    ),
   );
 }
 

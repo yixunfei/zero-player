@@ -18,82 +18,88 @@ import '../test_support/http_test_server.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  testWidgets('radio navigation, search, native playback and leave cleanup', (
-    tester,
-  ) async {
-    final root = await Directory.systemTemp.createTemp(
-      'zero-radio-integration-',
-    );
-    final services = AppServices.scoped(root, AppDatabase.memory());
-    final fixture = await HttpTestServer.start((request) async {
-      const configuredProject = String.fromEnvironment('PROJECT_ROOT');
-      final project = configuredProject.isEmpty
-          ? Directory.current.path
-          : configuredProject;
-      await serveLocalFile(
-        request,
-        File('$project/test_support/generated/radio.wav'),
-        contentType: 'audio/wav',
+  testWidgets(
+    'radio navigation, search, native playback and background controls',
+    (tester) async {
+      final root = await Directory.systemTemp.createTemp(
+        'zero-radio-integration-',
       );
-    });
-    await services.settings.load();
-    await services.settings.update({
-      'navigationGuideSeen': true,
-      'startFullscreen': false,
-      'recommendation': 'off',
-      'backgroundProbe': false,
-    });
-    await services.platform.initialize();
-    await services.store.initialize();
-    await services.gateway.start();
-    await services.db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
-      'radio_snapshot:$builtinRadioUrl',
-      jsonEncode({
-        'text': '#EXTM3U\n#EXTINF:-1 group-title="测试",测试广播\nradio.wav\n',
-        'base': fixture.baseUri.toString(),
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      }),
-    ]);
-    addTearDown(() async {
-      await fixture.close();
-      await services.close();
-      await root.delete(recursive: true);
-    });
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [servicesProvider.overrideWithValue(services)],
-        child: const ProductApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final router = GoRouter.of(tester.element(find.byType(AppShell)));
-    router.go('/radio');
-    await tester.pumpAndSettle();
-    expect(find.text('在线广播 · 实验阶段'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '不存在');
-    await tester.pumpAndSettle();
-    expect(find.text('没有匹配的电台'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '测试');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('测试广播'));
-    final controller = tester
-        .widget<RadioPlayerControls>(find.byType(RadioPlayerControls))
-        .controller;
-    for (var i = 0; i < 60 && !controller.playing; i++) {
-      await tester.pump(const Duration(milliseconds: 200));
-    }
-    expect(controller.playing, isTrue);
-    expect(controller.error, isNull);
-    await tester.tap(find.byTooltip('暂停广播'));
-    for (var i = 0; i < 20 && controller.playing; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    expect(controller.playing, isFalse);
-    router.go('/');
-    await tester.pumpAndSettle();
-    expect(controller.active, isFalse);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-  });
+      final services = AppServices.scoped(root, AppDatabase.memory());
+      final fixture = await HttpTestServer.start((request) async {
+        const configuredProject = String.fromEnvironment('PROJECT_ROOT');
+        final project = configuredProject.isEmpty
+            ? Directory.current.path
+            : configuredProject;
+        await serveLocalFile(
+          request,
+          File('$project/test_support/generated/radio.wav'),
+          contentType: 'audio/wav',
+        );
+      });
+      await services.settings.load();
+      await services.settings.update({
+        'navigationGuideSeen': true,
+        'startFullscreen': false,
+        'recommendation': 'off',
+        'backgroundProbe': false,
+      });
+      await services.platform.initialize();
+      await services.store.initialize();
+      await services.gateway.start();
+      await services.db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+        'radio_snapshot:$builtinRadioUrl',
+        jsonEncode({
+          'text': '#EXTM3U\n#EXTINF:-1 group-title="测试",测试广播\nradio.wav\n',
+          'base': fixture.baseUri.toString(),
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        }),
+      ]);
+      addTearDown(() async {
+        await fixture.close();
+        await services.close();
+        await root.delete(recursive: true);
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [servicesProvider.overrideWithValue(services)],
+          child: const ProductApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(tester.element(find.byType(AppShell)));
+      router.go('/radio');
+      await tester.pumpAndSettle();
+      expect(find.text('在线广播 · 实验阶段'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '不存在');
+      await tester.pumpAndSettle();
+      expect(find.text('没有匹配的电台'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '测试');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('测试广播'));
+      final controller = tester
+          .widget<RadioPlayerControls>(find.byType(RadioPlayerControls))
+          .controller;
+      for (var i = 0; i < 60 && !controller.playing; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(controller.playing, isTrue);
+      expect(controller.error, isNull);
+      await tester.tap(find.byTooltip('暂停广播'));
+      for (var i = 0; i < 20 && controller.playing; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(controller.playing, isFalse);
+      await controller.toggle();
+      router.go('/');
+      await tester.pumpAndSettle();
+      expect(controller.active, isTrue);
+      expect(controller.playing, isTrue);
+      await tester.tap(find.byTooltip('停止广播'));
+      await tester.pumpAndSettle();
+      expect(controller.active, isFalse);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

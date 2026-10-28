@@ -36,10 +36,12 @@ final class MediaHttpClient {
     Uri uri, {
     required HeaderPolicy policy,
     String? range,
+    String? ifRange,
     CancellationToken? cancellation,
     RequestPriority priority = RequestPriority.playback,
     void Function(bool active)? onActivity,
   }) async {
+    final initialOrigin = HeaderPolicy.origin(uri);
     for (var redirects = 0; redirects <= 5; redirects++) {
       cancellation?.check();
       if (!{'http', 'https'}.contains(uri.scheme) || uri.userInfo.isNotEmpty) {
@@ -63,6 +65,9 @@ final class MediaHttpClient {
         request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
         policy.forUri(uri).forEach(request.headers.set);
         if (range != null) request.headers.set(HttpHeaders.rangeHeader, range);
+        if (ifRange != null && HeaderPolicy.origin(uri) == initialOrigin) {
+          request.headers.set(HttpHeaders.ifRangeHeader, ifRange);
+        }
         remove = cancellation?.listen(
           () => request!.abort(const RequestCancelled()),
         );

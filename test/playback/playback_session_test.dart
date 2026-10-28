@@ -5,6 +5,7 @@ import 'package:zero_player/core/persistence/app_database.dart';
 import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/playback/domain/player_engine.dart';
+import 'package:zero_player/media/gateway/offline_server.dart';
 import '../../test_support/fake_player_engine.dart';
 
 late AppServices services;
@@ -30,6 +31,7 @@ void main() {
     await services.close();
     await root.delete(recursive: true);
   });
+  _regressionTests();
   test(
     'resume, pause persistence, and long press cancellation restore prior rate',
     () async {
@@ -116,4 +118,54 @@ Future<void> _initializeFixture() async {
   await services.gateway.start();
   engine = FakePlayerEngine();
   player = PlaybackController(services, engine);
+}
+
+void _regressionTests() {
+  test('pause then resume does not disable later network recovery', () async {
+    await player.open(PlaybackRequest(item));
+    await Future<void>.delayed(Duration.zero);
+    await player.toggle();
+    await Future<void>.delayed(Duration.zero);
+    await player.toggle();
+    await Future<void>.delayed(Duration.zero);
+    engine.failures.add('network');
+    await Future<void>.delayed(Duration.zero);
+    expect(player.recovering, isTrue);
+  });
+
+  test('offline retry retains its session and selected quality', () async {
+    var closed = 0;
+    final session = OfflineSession(
+      Uri.parse('http://127.0.0.1/offline.mp4'),
+      () => closed++,
+    );
+    final quality = Uri.parse('https://example.org/high.m3u8');
+    await player.open(
+      PlaybackRequest(item, offline: session, quality: quality),
+    );
+    await player.retry();
+    expect(player.request!.offline, same(session));
+    expect(player.request!.quality, quality);
+    expect(closed, 0);
+    await expectLater(player.select(0, 1), throwsFormatException);
+    expect(player.request!.episode, 0);
+  });
+
+  test('seek is not reset to zero while duration is unknown', () async {
+    await player.open(PlaybackRequest(item));
+    engine.emit(const PlaybackSnapshot());
+    await Future<void>.delayed(Duration.zero);
+    await player.seek(const Duration(seconds: 12));
+    expect(engine.seeks.last, const Duration(seconds: 12));
+  });
+
+  test('a failed progress save notifies immediately', () async {
+    await player.open(PlaybackRequest(item));
+    await services.db.customStatement('DROP TABLE watch_history');
+    var notifications = 0;
+    player.addListener(() => notifications++);
+    await player.save();
+    expect(player.notice, contains('进度保存失败'));
+    expect(notifications, greaterThan(0));
+  });
 }

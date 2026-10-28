@@ -4,11 +4,19 @@ import '../../../core/network/document_client.dart';
 import '../../../core/persistence/app_database.dart';
 import '../domain/source_catalog.dart';
 import '../domain/video_source.dart';
+import 'source_identity_store.dart';
 
 final class SourceRepository {
   const SourceRepository(this.db);
   final AppDatabase db;
-  Stream<void> get changes => db.changes;
+  static const tables = {
+    'sources',
+    'source_overrides',
+    'source_health',
+    'source_memberships',
+    'subscriptions',
+  };
+  Stream<void> get changes => db.changesFor(tables);
   static const _select = '''SELECT s.*, COALESCE(o.name,s.name) AS display_name,
     o.enabled,o.suppressed,h.failures,h.last_error,h.retry_after,h.api_ok,h.latency_ms,h.checked_at FROM sources s
     JOIN source_overrides o ON s.id=o.source_id LEFT JOIN source_health h ON s.id=h.source_id''';
@@ -41,8 +49,8 @@ final class SourceRepository {
     if (!{'cms', 'kanju', 'macCmsHtml'}.contains(kind)) {
       throw const FormatException('不支持的来源类型');
     }
-    final id = stableId('$kind|$endpoint');
-    await db.atomic(() async {
+    return db.atomic(() async {
+      final id = await SourceIdentityStore(db).resolve(kind, endpoint);
       await db.customStatement(
         '''INSERT INTO sources(id,name,endpoint,kind,headers,manual,classification)
         VALUES(?,?,?,?,?,1,?) ON CONFLICT(id) DO UPDATE SET
@@ -62,8 +70,8 @@ final class SourceRepository {
         enabled=excluded.enabled,suppressed=0''',
         [id, name.trim(), enabled ? 1 : 0],
       );
-    });
-    return id;
+      return id;
+    }, tables: tables);
   }
 
   Future<void> setEnabled(String id, bool enabled) => db.atomic(() async {
@@ -76,7 +84,7 @@ final class SourceRepository {
         id,
       ]);
     }
-  });
+  }, tables: tables);
   Future<void> suppress(String id, bool suppressed) => db.write(
     'UPDATE source_overrides SET suppressed=? WHERE source_id=?',
     [suppressed ? 1 : 0, id],
@@ -127,6 +135,12 @@ final class SourceRepository {
               'UPDATE source_overrides SET enabled=? WHERE source_id=?',
               [enabled ? 1 : 0, id],
             );
+            if (enabled) {
+              await db.customStatement(
+                'DELETE FROM source_health WHERE source_id=?',
+                [id],
+              );
+            }
           }
           if (suppressed != null) {
             await db.customStatement(
@@ -135,7 +149,7 @@ final class SourceRepository {
             );
           }
         }
-      });
+      }, tables: tables);
 
   Future<void> metadata(String id, {String? title, Uri? homepage}) => db.write(
     'UPDATE sources SET site_title=COALESCE(?,site_title),homepage=COALESCE(?,homepage) WHERE id=?',
@@ -149,12 +163,14 @@ final class SourceRepository {
     List<SourceCandidate> candidates, {
     bool enableNew = false,
     Map<String, bool> initialEnabled = const {},
+    bool replaceSources = true,
   }) => db.atomic(() async {
     final subscriptionId = stableId(url.toString());
     await db.customStatement(
       '''INSERT INTO subscriptions(id,name,url,last_success,snapshot)
       VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,
-      last_success=excluded.last_success,snapshot=excluded.snapshot,error=NULL,failures=0''',
+      last_success=excluded.last_success,snapshot=excluded.snapshot,error=NULL,
+      paused=CASE WHEN subscriptions.failures>=3 THEN 0 ELSE subscriptions.paused END,failures=0''',
       [
         subscriptionId,
         name,
@@ -163,20 +179,29 @@ final class SourceRepository {
         snapshot,
       ],
     );
-    await db.customStatement(
-      'DELETE FROM source_memberships WHERE subscription_id=?',
-      [subscriptionId],
-    );
-    for (final candidate in candidates) {
-      final id = stableId('${candidate.kind.name}|${candidate.endpoint}');
+    if (replaceSources) {
       await db.customStatement(
-        '''INSERT INTO sources(id,name,endpoint,kind) VALUES(?,?,?,?)
-        ON CONFLICT(id) DO UPDATE SET name=excluded.name''',
+        'DELETE FROM source_memberships WHERE subscription_id=?',
+        [subscriptionId],
+      );
+    }
+    for (final candidate in candidates) {
+      final id = await SourceIdentityStore(
+        db,
+      ).resolve(candidate.kind.name, candidate.endpoint);
+      await db.customStatement(
+        '''INSERT INTO sources(id,name,endpoint,kind,classification) VALUES(?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET name=CASE WHEN sources.manual=1
+        THEN sources.name ELSE excluded.name END,
+        classification=CASE WHEN sources.classification='adult' OR excluded.classification='adult'
+        THEN 'adult' WHEN sources.classification='unknown' THEN excluded.classification
+        ELSE sources.classification END''',
         [
           id,
           candidate.name,
           candidate.endpoint.toString(),
           candidate.kind.name,
+          candidate.classification,
         ],
       );
       await db.customStatement(
@@ -187,22 +212,24 @@ final class SourceRepository {
         ],
       );
       await db.customStatement(
-        'INSERT INTO source_memberships(subscription_id,source_id) VALUES(?,?)',
+        'INSERT OR IGNORE INTO source_memberships(subscription_id,source_id) VALUES(?,?)',
         [subscriptionId, id],
       );
     }
-  });
+  }, tables: tables);
 
   Future<List<Map<String, Object?>>> subscriptions() =>
       db.rows('SELECT * FROM subscriptions ORDER BY name');
   Future<void> removeSubscription(String id) =>
       db.write('DELETE FROM subscriptions WHERE id=?', [id]);
   Future<void> pauseSubscription(String id, bool paused) => db.write(
-    'UPDATE subscriptions SET paused=? WHERE id=?',
+    'UPDATE subscriptions SET paused=?,failures=0 WHERE id=?',
     [paused ? 1 : 0, id],
   );
   Future<void> subscriptionFailure(String id, String message) => db.write(
-    'UPDATE subscriptions SET error=?,failures=failures+1,paused=CASE WHEN failures>=2 THEN 1 ELSE paused END WHERE id=?',
+    '''UPDATE subscriptions SET error=?,
+    failures=CASE WHEN paused=1 AND failures<3 THEN failures ELSE failures+1 END,
+    paused=CASE WHEN failures>=2 THEN 1 ELSE paused END WHERE id=?''',
     [message, id],
   );
 }

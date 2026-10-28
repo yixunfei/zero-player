@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../domain/source_catalog.dart';
+import '../domain/source_identity.dart';
 import 'jsonc_decoder.dart';
 import 'live_catalog_parser.dart';
 
@@ -93,7 +94,12 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
       diagnostics.add(ImportDiagnostic(name, '不是支持的直连接口'));
       return;
     }
-    if (!seen.add(uri.toString())) {
+    final kind = !tvbox && row['kind'] == 'kanju'
+        ? SourceKind.kanju
+        : !tvbox && row['kind'] == 'macCmsHtml'
+        ? SourceKind.macCmsHtml
+        : SourceKind.cms;
+    if (!seen.add(sourceIdentity(kind.name, uri))) {
       diagnostics.add(ImportDiagnostic(name, '重复地址'));
       return;
     }
@@ -101,12 +107,14 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
       SourceCandidate(
         name: name,
         endpoint: uri,
-        kind: !tvbox && row['kind'] == 'kanju'
-            ? SourceKind.kanju
-            : !tvbox && row['kind'] == 'macCmsHtml'
-            ? SourceKind.macCmsHtml
-            : SourceKind.cms,
-        requestedEnabled: row['enabled'] == true,
+        kind: kind,
+        classification:
+            row['group'] == '18禁' || row['classification'] == 'adult'
+            ? 'adult'
+            : row['group'] == '影视' || row['classification'] == 'general'
+            ? 'general'
+            : 'unknown',
+        requestedEnabled: row['enabled'] == true || row['isActive'] == true,
       ),
     );
   }

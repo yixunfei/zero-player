@@ -4,9 +4,11 @@ import '../../../core/text/display_text.dart';
 import '../../../core/network/request_scheduler.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../../core/network/header_policy.dart';
 import '../../sources/domain/video_source.dart';
 import '../domain/catalog_item.dart';
 import '../domain/vod_provider.dart';
+import 'cms_document_parser.dart';
 
 final class CmsProvider implements VodProvider {
   const CmsProvider(
@@ -43,7 +45,14 @@ final class CmsProvider implements VodProvider {
     if (!episode.directlyPlayable) {
       throw const RemoteFailure(FailureKind.unsupported, '此 CMS 线路需要外部解析');
     }
-    return ResolvedMedia(episode.uri, headers: source.headers);
+    return ResolvedMedia(
+      episode.uri,
+      headers: HeaderPolicy.scopedHeaders(
+        source.endpoint,
+        episode.uri,
+        source.headers,
+      ),
+    );
   }
 
   Future<Map> _request(Map<String, String> query) async {
@@ -60,9 +69,8 @@ final class CmsProvider implements VodProvider {
     );
     try {
       final json = doc.bytes.length > 65536
-          ? await compute(decodeCatalogJson, doc.text)
-          : doc.json;
-      if (json is! Map || json['list'] is! List) throw const FormatException();
+          ? await compute(decodeCmsDocument, doc.text)
+          : decodeCmsDocument(doc.text);
       return json;
     } on FormatException {
       throw const RemoteFailure(FailureKind.invalid, '接口没有返回有效的影片列表');

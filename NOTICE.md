@@ -35,9 +35,13 @@ Xiaolai Regular v3.126 by LXGW, derived from SetoFont. Bundled under SIL Open Fo
 
 Bundled variable fonts from google/fonts (ofl/notosanssc and ofl/notoserifsc). SIL OFL 1.1; copyright and full notices in assets/fonts/NotoSans-OFL.txt and assets/fonts/NotoSerif-OFL.txt.
 
-## Radio catalog
+## MaccmsResources catalogs
 
-popocoding/awesome-m3u provides the runtime-fetched radio/cn.m3u catalog: https://github.com/popocoding/awesome-m3u . No audio content is bundled. Catalog inclusion is not a certification of station availability or redistribution rights. Radio is explicitly experimental.
+assets/catalogs/maccms/Site.json and R18.json are snapshots from ZhaoYunxiong/MaccmsResources, commit e8ba0081d0ef7b4c6cc0c9c2a0de83226f0eb6db, fetched 2026-10-28. Copyright (c) 2022 ZYX, MIT; full notice in assets/catalogs/maccms/LICENSE. Upstream availability labels are not local probe results. Both categories retain their classification; new adult entries are disabled by default.
+
+## Radio catalog source
+
+popocoding/awesome-m3u provides radio/cn.m3u: https://github.com/popocoding/awesome-m3u . A successfully fetched and parsed catalog snapshot is bundled in assets/catalogs/radio/cn.snapshot.json, with its source and timestamp. Copyright (c) 2026 popocoding, MIT; full license in assets/catalogs/radio/LICENSE. tool/sync_radio_snapshot.dart refreshes this snapshot only after successful validation. No audio content is bundled. Catalog inclusion is not a certification of station availability or media rights. Radio is explicitly experimental.
 
 ## Branding
 

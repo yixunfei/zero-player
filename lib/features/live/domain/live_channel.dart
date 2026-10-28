@@ -15,6 +15,7 @@ final class LiveChannel {
     this.health = const LiveHealth(),
     this.listName = '',
     this.watchedAt,
+    this.members = const [],
   });
   final String id;
   final String listId;
@@ -29,6 +30,30 @@ final class LiveChannel {
   final LiveHealth health;
   final String listName;
   final DateTime? watchedAt;
+  final List<LiveChannel> members;
+  List<LiveChannel> get entries => members.isEmpty ? [this] : members;
+  List<String> get preferenceIds => entries.map((c) => c.id).toList();
+
+  Map<String, String> headersFor(Uri uri) =>
+      entries.where((c) => c.urls.contains(uri)).firstOrNull?.headers ??
+      headers;
+
+  LiveChannel withFavorite(bool value) => LiveChannel(
+    id: id,
+    listId: listId,
+    name: name,
+    urls: urls,
+    group: group,
+    logo: logo,
+    tvgId: tvgId,
+    headers: headers,
+    favorite: value,
+    recent: recent,
+    health: health,
+    listName: listName,
+    watchedAt: watchedAt,
+    members: members,
+  );
 
   /// A successful probe only reorders this channel's own alternatives.
   List<Uri> get playbackUrls {

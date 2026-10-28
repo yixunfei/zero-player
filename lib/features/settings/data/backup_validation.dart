@@ -1,10 +1,14 @@
 import 'dart:convert';
-import '../../../app/app_fonts.dart';
+import '../domain/settings_validation.dart';
+import '../../radio/data/radio_backup_validation.dart';
 
 /// Validate payload semantics before the database transaction begins. A valid
 /// SQL string alone must not turn malformed JSON into a persistent startup fault.
 void validateBackupRecord(String table, Map row) {
   if (table == 'app_meta') {
+    if (validateRadioMetadata(row['key'] as String, row['value'] as String)) {
+      return;
+    }
     if ((row['key'] as String).startsWith('live_list_enabled:')) {
       if (!{'true', 'false'}.contains(row['value'])) {
         throw const FormatException('直播订阅启停字段无效');
@@ -68,7 +72,7 @@ void validateBackupRecord(String table, Map row) {
     }
   }
   if (table == 'settings') {
-    _setting(row['key'] as String, jsonDecode(row['value'] as String));
+    validateSetting(row['key'] as String, jsonDecode(row['value'] as String));
   }
   if (table == 'skip_marks' &&
       (row['end_ms'] as int) > (row['duration_ms'] as int)) {
@@ -81,6 +85,7 @@ void _liveState(Object? value) {
       value.keys.any(
         (key) => !{
           'enabled',
+          'removed',
           'availability',
           'checkedAt',
           'latencyMs',
@@ -90,6 +95,7 @@ void _liveState(Object? value) {
         }.contains(key),
       ) ||
       (value.containsKey('enabled') && value['enabled'] is! bool) ||
+      (value.containsKey('removed') && value['removed'] is! bool) ||
       (value.containsKey('availability') &&
           !{
             'unknown',
@@ -119,65 +125,5 @@ void _url(Object? value) {
       uri.host.isEmpty ||
       uri.userInfo.isNotEmpty) {
     throw const FormatException('备份含无效的 HTTP(S) 地址');
-  }
-}
-
-void _setting(String key, Object? value) {
-  final choices = <String, Set<String>>{
-    'font': appFontLabels.keys.toSet(),
-    'theme': {'cinema', 'dark', 'light', 'system'},
-    'mode': {'auto', 'television'},
-    'recommendation': {'douban', 'bangumi', 'hot', 'off'},
-    'homeLayout': {'single', 'aggregate'},
-  };
-  if (choices.containsKey(key)) {
-    if (!choices[key]!.contains(value)) throw const FormatException('设置选项无效');
-  } else if (key == 'manualLoadCount') {
-    if (value is! int || value < 12 || value > 240) {
-      throw const FormatException('加载数量无效');
-    }
-  } else if (key == 'homeChannel') {
-    if (value is! String || value.length > 128) {
-      throw const FormatException('默认频道无效');
-    }
-  } else if ({
-    'searchConcurrency',
-    'probeConcurrency',
-    'downloadConcurrency',
-  }.contains(key)) {
-    final max = key == 'searchConcurrency'
-        ? 16
-        : key == 'probeConcurrency'
-        ? 6
-        : 4;
-    if (value is! int || value < 1 || value > max) {
-      throw const FormatException('并发设置无效');
-    }
-  } else if (key == 'prefetchSegments') {
-    if (value is! int || value < 0 || value > 10) {
-      throw const FormatException('预取设置无效');
-    }
-  } else if ({'cacheMiB', 'episodeCacheMiB', 'downloadMiB'}.contains(key)) {
-    if (value is! int || value < 64 || value > 1048576) {
-      throw const FormatException('容量设置无效');
-    }
-  } else if ({
-    'backgroundProbe',
-    'startFullscreen',
-    'navigationGuideSeen',
-    'autoDownloadFallback',
-    'multiSourceDownload',
-    'gestures',
-    'autoplay',
-    'cache',
-    'skip',
-    'adFilter',
-    'filterAdult',
-    'allowMetered',
-    'cacheWhilePaused',
-  }.contains(key)) {
-    if (value is! bool) throw const FormatException('开关设置无效');
-  } else {
-    throw const FormatException('未知设置字段');
   }
 }

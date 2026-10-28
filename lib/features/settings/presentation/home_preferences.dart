@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
@@ -12,7 +13,41 @@ final class HomePreferences extends StatefulWidget {
 }
 
 final class _HomePreferencesState extends State<HomePreferences> {
-  late final Future<List<VideoSource>> _sources = widget.services.sources.all();
+  late Future<List<VideoSource>> _sources;
+  StreamSubscription<void>? _changes;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+  }
+
+  void _listen() {
+    _sources = widget.services.sources.all();
+    _changes = widget.services.sources.changes.listen((_) {
+      if (mounted) {
+        setState(() {
+          _sources = widget.services.sources.all();
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(HomePreferences oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.services != widget.services) {
+      unawaited(_changes?.cancel());
+      _listen();
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_changes?.cancel());
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<List<VideoSource>>(
     future: _sources,

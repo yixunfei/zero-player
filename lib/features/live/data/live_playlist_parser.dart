@@ -1,6 +1,7 @@
 import '../../sources/domain/video_source.dart';
 import '../domain/live_channel.dart';
 import 'm3u_parser.dart';
+import 'channel_urls.dart';
 
 List<LiveChannel> parseLivePlaylist(String input, Uri base, String listId) {
   final text = input.replaceFirst(String.fromCharCode(0xfeff), '').trim();
@@ -21,7 +22,10 @@ List<LiveChannel> parseLivePlaylist(String input, Uri base, String listId) {
       continue;
     }
     final urls = <Uri>[];
-    for (final entry in address.split('#')) {
+    // A separator introduces another absolute URL; other hashes are fragments.
+    for (final entry in address.split(
+      RegExp(r'#(?=\s*https?://)', caseSensitive: false),
+    )) {
       final uri = Uri.tryParse(entry.trim());
       if (uri != null &&
           {'http', 'https'}.contains(uri.scheme) &&
@@ -37,7 +41,7 @@ List<LiveChannel> parseLivePlaylist(String input, Uri base, String listId) {
       listId: listId,
       name: name,
       group: group,
-      urls: {...?channels[id]?.urls, ...urls}.take(100).toList(),
+      urls: appendChannelUrls(channels[id]?.urls ?? const [], urls),
     );
     if (channels.length > 10000) throw const FormatException('频道数量超过 10000');
   }

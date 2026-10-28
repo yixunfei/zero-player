@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../../../core/network/cancellation_token.dart';
-import '../../../app/widgets.dart';
+import '../../../app/probe_cleanup_actions.dart';
 import '../domain/live_health.dart';
 
 import '../domain/live_channel.dart';
@@ -25,6 +25,11 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
   bool running = true;
   final unavailable = <String>{};
   final names = <String, String>{};
+  late final channels = {
+    for (final group in widget.channels)
+      for (final entry in group.entries)
+        if (entry.urls.isNotEmpty) entry.id: entry,
+  }.values.toList();
   @override
   void initState() {
     super.initState();
@@ -34,9 +39,9 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
   Future<void> _run() async {
     var index = 0;
     Future<void> worker() async {
-      while (index < widget.channels.length && !cancellation.isCancelled) {
-        final channel = widget.channels[index++];
-        names[channel.id] = channel.name;
+      while (index < channels.length && !cancellation.isCancelled) {
+        final channel = channels[index++];
+        names[channel.id] = '${channel.name} · ${channel.listName}';
         if (mounted) setState(() => statuses[channel.id] = '检测中');
         try {
           final result = await widget.services.liveProbe.check(
@@ -48,7 +53,7 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
           }
           statuses[channel.id] = result.label;
         } catch (_) {
-          if (!cancellation.isCancelled) statuses[channel.id] = '检测未完成';
+          statuses[channel.id] = cancellation.isCancelled ? '已取消' : '检测未完成';
         }
         if (mounted) setState(() {});
       }
@@ -73,6 +78,9 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
       child: ListView(
         children: [
           if (running) const LinearProgressIndicator(),
+          Text(
+            '已开始 ${statuses.length}/${channels.length} 个频道来源 · 明确无效 ${unavailable.length}',
+          ),
           const Text(
             '并发 2；每频道最多尝试 3 条线路，每路 256 KiB / 20 秒网络时间。只要一条响应即通过；超时及未测完为未确定。',
           ),
@@ -86,28 +94,21 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
     ),
     actions: [
       if (!running && unavailable.isNotEmpty)
-        TextButton(
-          onPressed: () => perform(context, () async {
-            if (!await confirm(
-              context,
-              '停用检测不可用频道',
-              '将停用 ${unavailable.length} 个明确不可用频道，收藏保留，可在已停用分组恢复。',
-            )) {
-              return;
-            }
-            await widget.services.liveHealth.setEnabled(unavailable, false);
-            if (mounted) {
-              setState(() => unavailable.clear());
-            }
-          }),
-          child: const Text('停用不可用频道'),
+        ProbeCleanupActions(
+          ids: unavailable,
+          noun: '频道来源',
+          onDisable: (ids) => widget.services.liveHealth.setEnabled(ids, false),
+          onRemove: (ids) => widget.services.liveHealth.setRemoved(ids, true),
         ),
       TextButton(
         onPressed: () {
-          cancellation.cancel();
-          Navigator.pop(context);
+          if (running) {
+            cancellation.cancel();
+          } else {
+            Navigator.pop(context);
+          }
         },
-        child: const Text('停止 / 关闭'),
+        child: Text(running ? '停止检测' : '关闭'),
       ),
     ],
   );

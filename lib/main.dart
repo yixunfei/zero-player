@@ -3,9 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'app/app_services.dart';
-import 'app/product_app.dart';
+import 'app/application_bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,29 +20,5 @@ Future<void> main() async {
       ], await rootBundle.loadString('assets/fonts/$font-OFL.txt'));
     }
   });
-  try {
-    final services = await AppServices.create();
-    runApp(
-      ProviderScope(
-        overrides: [servicesProvider.overrideWithValue(services)],
-        child: const ProductApp(),
-      ),
-    );
-  } catch (_) {
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('无法初始化本地数据，请检查可用空间后重试'),
-                FilledButton(onPressed: main, child: const Text('重试')),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  runApp(const ApplicationBootstrap());
 }

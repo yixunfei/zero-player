@@ -16,17 +16,45 @@ final class WebsiteTransport {
   final CancellationToken? cancellation;
   final RequestPriority priority;
   final void Function(bool)? onActivity;
-  Uri url(String path) => source.endpoint.resolve(path);
+  Uri url(String path, {Map<String, String> query = const {}}) {
+    final endpoint = source.endpoint;
+    final directory = endpoint.path.endsWith('/')
+        ? endpoint.path
+        : '${endpoint.path}/';
+    final resolved = endpoint
+        .replace(path: directory)
+        .resolve(path.startsWith('/') ? path.substring(1) : path);
+    requireSameOrigin(resolved);
+    final parameters = {
+      ...endpoint.queryParameters,
+      ...resolved.queryParameters,
+      ...query,
+    };
+    return parameters.isEmpty
+        ? resolved
+        : resolved.replace(queryParameters: parameters);
+  }
 
-  Future<Document> get(Uri uri, {Map<String, String> headers = const {}}) =>
-      network.get(
-        uri,
-        headers: {...source.headers, ...headers},
-        cancellation: cancellation,
-        priority: priority,
-        onActivity: onActivity,
-        maxBytes: 4 * 1024 * 1024,
-      );
+  Uri authenticatedUri(Uri uri) {
+    requireSameOrigin(uri);
+    final defaults = source.endpoint.queryParametersAll;
+    if (defaults.keys.every(uri.queryParametersAll.containsKey)) return uri;
+    return uri.replace(
+      queryParameters: {...defaults, ...uri.queryParametersAll},
+    );
+  }
+
+  Future<Document> get(Uri uri, {Map<String, String> headers = const {}}) {
+    requireSameOrigin(uri);
+    return network.get(
+      authenticatedUri(uri),
+      headers: {...source.headers, ...headers},
+      cancellation: cancellation,
+      priority: priority,
+      onActivity: onActivity,
+      maxBytes: 4 * 1024 * 1024,
+    );
+  }
 
   void requireSameOrigin(Uri uri) {
     if (uri.origin != source.endpoint.origin || uri.userInfo.isNotEmpty) {

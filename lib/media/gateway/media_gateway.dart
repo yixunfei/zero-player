@@ -28,7 +28,8 @@ final class GatewaySession {
   List<HlsQuality> qualities = [];
   bool filterAds = false;
   bool cacheEnabled = true;
-  bool _hasMaster = false;
+  bool _canFilterAds = true;
+  final _variables = <Uri, Map<String, String>>{};
   MediaTimeline timeline = const MediaTimeline([]);
   late final prefetch = SegmentPrefetcher(
     SegmentFetcher(_gateway.store, _gateway._client),
@@ -69,20 +70,35 @@ final class GatewaySession {
 /// query parameter and the socket is bound exclusively to IPv4 loopback.
 final class MediaGateway {
   MediaGateway(this.store, {MediaHttpClient? client})
-    : _client = client ?? MediaHttpClient();
+    : _client = client ?? MediaHttpClient(),
+      _ownsClient = client == null;
   final SegmentStore store;
   final MediaHttpClient _client;
+  final bool _ownsClient;
   final _sessions = <String, GatewaySession>{};
   final _transfers = CancellationToken();
   HttpServer? _server;
+  Future<void>? _starting;
+  Future<void>? _closing;
+  bool _closed = false;
   int requests = 0;
   int failures = 0;
   Uri get baseUri => Uri.parse('http://127.0.0.1:${_server!.port}/');
 
-  Future<void> start() async {
-    if (_server != null) return;
-    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    _server!.listen((request) => unawaited(_handle(request)));
+  Future<void> start() {
+    if (_closed) return Future.error(StateError('Gateway is closed'));
+    if (_server != null) return Future.value();
+    return _starting ??= _start().whenComplete(() => _starting = null);
+  }
+
+  Future<void> _start() async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    if (_closed) {
+      await server.close(force: true);
+      return;
+    }
+    _server = server;
+    server.listen((request) => unawaited(_handle(request)));
   }
 
   GatewaySession createSession(HeaderPolicy policy) {
@@ -125,7 +141,7 @@ final class MediaGateway {
       if (session._playlists.contains(uri)) {
         await _manifest(request, session, uri);
       } else if (!session.cacheEnabled ||
-          !session.prefetch.hasRoom ||
+          !(await session.prefetch.prepare()) ||
           session._streaming.contains(uri) ||
           uri.path.toLowerCase().endsWith('.flv')) {
         await _passthrough(request, session, uri, range);
@@ -184,21 +200,28 @@ final class MediaGateway {
       range: range,
       cancellation: session.cancellation,
     );
-    request.response.statusCode = payload.response.statusCode;
-    for (final name in [
-      HttpHeaders.contentTypeHeader,
-      HttpHeaders.contentRangeHeader,
-      HttpHeaders.acceptRangesHeader,
-    ]) {
-      final value = payload.response.headers.value(name);
-      if (value != null) request.response.headers.set(name, value);
+    final body = StreamIterator(payload.body);
+    Stream<List<int>> chunks() async* {
+      while (await body.moveNext()) {
+        yield body.current;
+      }
     }
-    request.response.contentLength = payload.response.contentLength;
-    if (request.method == 'HEAD') {
-      // Cancelling this stream releases the upstream subscription immediately.
-      await payload.body.take(0).drain<void>();
-    } else {
-      await request.response.addStream(payload.body);
+
+    try {
+      request.response.statusCode = payload.response.statusCode;
+      for (final name in [
+        HttpHeaders.contentTypeHeader,
+        HttpHeaders.contentRangeHeader,
+        HttpHeaders.acceptRangesHeader,
+      ]) {
+        final value = payload.response.headers.value(name);
+        if (value != null) request.response.headers.set(name, value);
+      }
+      request.response.contentLength = payload.response.contentLength;
+      if (request.method != 'HEAD') await request.response.addStream(chunks());
+    } finally {
+      // Covers failures before addStream subscribes as well as client disconnects.
+      await body.cancel();
     }
   }
 
@@ -223,18 +246,33 @@ final class MediaGateway {
       }
       bytes.addAll(chunk);
     }
-    var manifest = HlsManifest.parse(utf8.decode(bytes), payload.uri);
+    var manifest = HlsManifest.parse(
+      utf8.decode(bytes),
+      payload.uri,
+      variables: session._variables[uri] ?? const {},
+    );
     if (manifest.isMaster) {
-      session._hasMaster = true;
       session.qualities = hlsQualities(manifest);
       manifest = selectHlsQuality(manifest, session.selectedQuality);
+      // A single muxed rendition has one timeline. Cutting only the video of
+      // an external-audio master, or unmatched adaptive renditions, desyncs it.
+      session._canFilterAds =
+          manifest.playlistUris.length == 1 &&
+          !manifest.lines.any(
+            (line) =>
+                line.startsWith('#EXT-X-MEDIA:') &&
+                RegExp(r'[:,]\s*URI=').hasMatch(line),
+          );
     }
-    if (session.filterAds && !session._hasMaster) {
+    if (session.filterAds && !manifest.isMaster && session._canFilterAds) {
       final filtered = filterDeclaredAds(manifest);
       manifest = filtered.manifest;
       session.timeline = filtered.timeline;
     }
     final playlists = manifest.playlistUris;
+    for (final child in playlists) {
+      session._variables[child] = manifest.variables;
+    }
     session.prefetch.setManifest(manifest);
     final output = utf8.encode(
       manifest.rewrite(
@@ -288,12 +326,16 @@ final class MediaGateway {
     );
   }
 
-  Future<void> close() async {
+  Future<void> close() => _closing ??= _close();
+
+  Future<void> _close() async {
+    _closed = true;
     _transfers.cancel();
     for (final session in _sessions.values.toList()) {
       session.close();
     }
-    _client.close();
+    if (_ownsClient) _client.close();
+    await _starting;
     await _server?.close(force: true);
     _server = null;
   }

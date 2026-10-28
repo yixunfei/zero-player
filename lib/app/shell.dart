@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'app_services.dart';
 import 'application_fullscreen.dart';
 import 'navigation_guide.dart';
+import '../features/radio/presentation/radio_mini_player.dart';
 
 const _destinations = [
   ('/', '发现', Icons.explore_outlined),
@@ -119,6 +120,8 @@ final class _AppShellState extends State<AppShell> {
                       ),
                     ),
                     _pageBody(wide),
+                    if (widget.location != '/radio')
+                      RadioMiniPlayer(controller: widget.services.radioPlayer),
                   ],
                 ),
               ),

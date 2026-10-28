@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../data/catalog_parser.dart';
@@ -12,52 +13,103 @@ final class CatalogPreview {
   final SourceCatalog catalog;
 }
 
+final class PartialCatalogImportException extends FormatException {
+  const PartialCatalogImportException(super.message);
+}
+
 final class SubscriptionService {
-  const SubscriptionService(this.network, this.repository);
+  SubscriptionService(this.network, this.repository);
   final DocumentClient network;
   final SourceRepository repository;
   static const parser = JsonSourceCatalogParser();
+  final _cancellation = CancellationToken();
+  final _pending = <Future<void>>{};
 
-  Future<CatalogPreview> preview(
-    Uri url, {
-    CancellationToken? cancellation,
-  }) async {
-    final document = await network.get(url, cancellation: cancellation);
-    return CatalogPreview(
-      url,
-      document.text,
-      parser.parse(document.text, document.uri),
-    );
-  }
+  Future<CatalogPreview> preview(Uri url, {CancellationToken? cancellation}) =>
+      _track(() async {
+        final token = CancellationToken();
+        final stopLifetime = _cancellation.listen(token.cancel);
+        final stopCaller = cancellation?.listen(token.cancel);
+        try {
+          final document = await network.get(url, cancellation: token);
+          token.check();
+          return CatalogPreview(
+            url,
+            document.text,
+            parser.parse(document.text, document.uri),
+          );
+        } finally {
+          stopLifetime();
+          stopCaller?.call();
+        }
+      });
 
   Future<void> import(
     CatalogPreview preview,
     String name, {
     bool enableNew = false,
-  }) async {
+  }) => _track(() async {
+    if (preview.catalog.sources.isEmpty && preview.catalog.lives.isEmpty) {
+      throw const FormatException('目录没有可导入内容，已保留上次成功内容');
+    }
     await repository.applySubscription(
       preview.url,
       name,
       preview.text,
       preview.catalog.sources,
       enableNew: enableNew,
+      replaceSources: preview.catalog.sources.isNotEmpty,
     );
+    await _importLives(preview.catalog.lives);
+  });
+
+  Future<void> importLocal(CatalogPreview preview, {bool enableNew = false}) =>
+      _track(() async {
+        final urls = [
+          ...preview.catalog.sources.map((entry) => entry.endpoint),
+          ...preview.catalog.lives.map((entry) => entry.url),
+          ...preview.catalog.lives.map((entry) => entry.epg).whereType<Uri>(),
+        ];
+        if (urls.any((uri) => uri.host == 'local-import.invalid')) {
+          throw const FormatException('文件导入需要完整的 HTTP(S) 接口和直播地址');
+        }
+        await repository.db.atomic(() async {
+          for (final source in preview.catalog.sources) {
+            _cancellation.check();
+            await repository.saveManual(
+              source.name,
+              source.endpoint,
+              enabled: enableNew,
+              kind: source.kind.name,
+              classification: source.classification,
+            );
+          }
+        }, tables: SourceRepository.tables);
+        await _importLives(preview.catalog.lives);
+      });
+
+  Future<void> _importLives(List<LiveCatalogEntry> entries) async {
     final live = LiveRepository(repository.db, network);
     final failures = <String>[];
-    for (final entry in preview.catalog.lives) {
+    for (final entry in entries) {
+      _cancellation.check();
       try {
         await live.import(
           entry.name,
           entry.url,
           epg: entry.epg,
           headers: entry.headers,
+          cancellation: _cancellation,
         );
       } catch (_) {
+        _cancellation.check();
         failures.add(entry.name);
       }
     }
     if (failures.isNotEmpty) {
-      throw FormatException('点播配置及成功的直播列表已保存；直播导入失败：${failures.join('、')}');
+      throw PartialCatalogImportException(
+        '已保存点播配置和成功的直播列表，失败的直播列表保留旧内容：${failures.join('、')}',
+      );
     }
   }
 
@@ -65,11 +117,12 @@ final class SubscriptionService {
     List<CatalogReference> selected, {
     CancellationToken? cancellation,
     void Function(Uri, Object)? onFailure,
-  }) async {
+  }) => _track(() async {
     final result = <CatalogPreview>[];
     final visited = <Uri>{};
     var totalBytes = 0;
     Future<void> walk(Uri uri, int depth) async {
+      _cancellation.check();
       cancellation?.check();
       if (visited.contains(uri)) return;
       if (depth > 3 || visited.length >= 50) {
@@ -108,26 +161,37 @@ final class SubscriptionService {
       }
     }
     return result;
-  }
+  });
 
-  Future<void> refresh(Map<String, Object?> subscription) async {
+  Future<void> refresh(Map<String, Object?> subscription) => _track(() async {
     try {
       final item = await preview(Uri.parse(subscription['url'] as String));
-      if (item.catalog.references.isNotEmpty && item.catalog.sources.isEmpty) {
+      if (item.catalog.references.isNotEmpty &&
+          item.catalog.sources.isEmpty &&
+          item.catalog.lives.isEmpty) {
         throw const FormatException('此入口包含子仓，请重新预览并选择子仓');
       }
       await import(item, subscription['name'] as String);
+    } on PartialCatalogImportException catch (error) {
+      _cancellation.check();
+      await repository.subscriptionFailure(
+        subscription['id'] as String,
+        error.message,
+      );
+      rethrow;
     } catch (_) {
+      _cancellation.check();
       await repository.subscriptionFailure(
         subscription['id'] as String,
         '刷新失败，已保留上次成功内容',
       );
       rethrow;
     }
-  }
+  });
 
-  Future<void> refreshDue() async {
+  Future<void> refreshDue() => _track(() async {
     for (final row in await repository.subscriptions()) {
+      if (_cancellation.isCancelled) return;
       if (row['paused'] == 1) continue;
       final last = row['last_success'] as int? ?? 0;
       final due =
@@ -137,9 +201,26 @@ final class SubscriptionService {
         try {
           await refresh(row);
         } catch (_) {
-          /* Snapshot retained. */
+          // The stored message distinguishes partial updates from full failure.
         }
       }
     }
+  });
+
+  Future<T> _track<T>(Future<T> Function() operation) async {
+    _cancellation.check();
+    final done = Completer<void>();
+    _pending.add(done.future);
+    try {
+      return await operation();
+    } finally {
+      done.complete();
+      _pending.remove(done.future);
+    }
+  }
+
+  Future<void> close() async {
+    _cancellation.cancel();
+    await Future.wait(_pending.toList());
   }
 }

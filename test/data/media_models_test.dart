@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/live/data/m3u_parser.dart';
 import 'package:zero_player/features/live/data/epg_parser.dart';
+import 'package:zero_player/features/live/domain/channel_merge.dart';
 import 'package:zero_player/media/hls/hls_manifest.dart';
 import 'package:zero_player/media/hls/ad_filter.dart';
 
@@ -25,10 +26,22 @@ void main() {
       Uri.parse('https://example.org/list.m3u'),
       'list',
     );
-    expect(channels.single.urls, [
-      Uri.parse('https://example.org/first.m3u8'),
-      Uri.parse('https://example.org/second.m3u8'),
-    ]);
+    expect(channels, hasLength(2));
+    final programme = mergeChannelAliases(channels).single;
+    expect(
+      programme.urls,
+      unorderedEquals([
+        Uri.parse('https://example.org/first.m3u8'),
+        Uri.parse('https://example.org/second.m3u8'),
+      ]),
+    );
+    expect(programme.headersFor(Uri.parse('https://example.org/first.m3u8')), {
+      'User-Agent': 'Fixture',
+    });
+    expect(
+      programme.headersFor(Uri.parse('https://example.org/second.m3u8')),
+      isEmpty,
+    );
     expect(
       () => parseM3u('#EXTM3U\n#EXT-X-TARGETDURATION:5\n', Uri(), 'a'),
       throwsFormatException,

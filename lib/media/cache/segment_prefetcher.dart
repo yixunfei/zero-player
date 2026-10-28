@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../core/network/header_policy.dart';
 import '../hls/hls_manifest.dart';
 import 'segment_fetcher.dart';
+import 'resource_identity.dart';
 
 /// A small forward window. Shared fetches have their own lifetime; stopping
 /// prefetch prevents new work without cancelling another playback/download lease.
@@ -17,10 +18,31 @@ final class SegmentPrefetcher {
   bool _closed = false;
   bool _running = false;
   int _index = 0;
-  int _bytes = 0;
-  final _seen = <String>{};
+  final _seen = <String, int>{};
   List<Uri> _segments = [];
-  bool get hasRoom => _bytes < maxBytes;
+  int get _residentBytes {
+    _seen.removeWhere((key, _) => fetcher.store.find(key) == null);
+    return _seen.values.fold(0, (sum, bytes) => sum + bytes);
+  }
+
+  bool get hasRoom => _residentBytes < maxBytes;
+
+  Future<bool> prepare() async {
+    if (_closed || maxBytes <= 0) return false;
+    final bytes = _residentBytes;
+    if (bytes >= maxBytes) {
+      try {
+        await fetcher.store.evictUnused(
+          _seen.keys.toList(),
+          bytes - maxBytes + 1,
+        );
+      } catch (_) {
+        return false;
+      }
+    }
+    return hasRoom;
+  }
+
   void setManifest(HlsManifest manifest) {
     if (!manifest.isComplete ||
         manifest.segments.any((s) => s.byteRange != null)) {
@@ -30,7 +52,9 @@ final class SegmentPrefetcher {
   }
 
   void observe(Uri uri, int bytes, {String? range}) {
-    if (_seen.add('$uri|${range ?? ''}')) _bytes += bytes;
+    final key = resourceIdentity(uri, policy.identityHeaders, range);
+    _seen.remove(key);
+    _seen[key] = bytes;
     final index = _segments.indexOf(uri);
     if (index >= 0) {
       _index = index + 1;
@@ -43,7 +67,7 @@ final class SegmentPrefetcher {
         _closed ||
         !enabled ||
         (!playing && !whilePaused) ||
-        !hasRoom) {
+        maxBytes <= 0) {
       return;
     }
     unawaited(_drain());
@@ -54,12 +78,13 @@ final class SegmentPrefetcher {
     final start = _index;
     try {
       for (var i = start; i < start + window && i < _segments.length; i++) {
-        if (_closed || !hasRoom || (!playing && !whilePaused)) break;
+        if (_closed || (!playing && !whilePaused) || !await prepare()) break;
         final uri = _segments[i];
-        if (_seen.contains('$uri|')) continue;
+        final key = resourceIdentity(uri, policy.identityHeaders, null);
+        if (fetcher.store.find(key) != null) continue;
         final lease = await fetcher.fetch(uri, policy);
         try {
-          if (_seen.add('$uri|')) _bytes += lease.resource.length;
+          _seen[key] = lease.resource.length;
         } finally {
           lease.release();
         }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../../core/network/cancellation_token.dart';
 import '../../core/network/header_policy.dart';
 import '../../core/network/media_http_client.dart';
 import '../../core/network/request_scheduler.dart';
@@ -14,15 +15,25 @@ final class SegmentFetcher {
     Uri uri,
     HeaderPolicy policy, {
     String? range,
+    bool verify = false,
+    String? cachePartition,
+    CancellationToken? cancellation,
     RequestPriority priority = RequestPriority.background,
   }) {
-    final key = resourceIdentity(uri, policy.identityHeaders, range);
+    if (cancellation != null && cachePartition == null) {
+      throw ArgumentError('Cancellation requires a task-owned cache partition');
+    }
+    final key = resourceIdentity(uri, {
+      ...policy.identityHeaders,
+      'zero-player-cache-partition': ?cachePartition,
+    }, range);
     return store.acquire(key, () async {
       final payload = await http.open(
         uri,
         policy: policy,
         range: range,
         priority: priority,
+        cancellation: cancellation,
       );
       final response = payload.response;
       if (response.statusCode != 200 && response.statusCode != 206) {
@@ -47,6 +58,6 @@ final class SegmentFetcher {
             ? null
             : response.contentLength,
       );
-    });
+    }, verify: verify);
   }
 }

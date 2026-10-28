@@ -36,6 +36,7 @@ final class DownloadScheduler {
   final SettingsController settings;
   final _tokens = <String, CancellationToken>{};
   final _jobs = <String, Future<void>>{};
+  final _controls = <String, Future<void>>{};
   final _activeSources = <String, String>{};
   final _quota = DownloadQuota();
   Future<void>? _draining;
@@ -43,16 +44,43 @@ final class DownloadScheduler {
   bool _pendingKick = false;
   bool foreground = true;
 
-  Future<void> initialize() => repository.recover();
-  Future<void> resume(String id) async {
-    if (_tokens.containsKey(id)) throw StateError('任务正在停止，请稍后继续');
-    await repository.status(id, DownloadStatus.queued);
-    kick();
+  Future<void> initialize() async {
+    await repository.recover();
+    await repository.cleanupPending();
   }
 
-  Future<void> pause(String id) async {
+  Future<void> resume(String id) => _control(id, () async {
+    if (_closed) return;
+    final token = _tokens[id];
+    if (token != null && !token.isCancelled) return;
+    await _jobs[id];
+    if (_closed) return;
+    await repository.status(id, DownloadStatus.queued);
+    kick();
+  });
+
+  Future<void> pause(String id) => _control(id, () => _pause(id));
+
+  Future<void> _pause(String id) async {
     _tokens[id]?.cancel();
     await repository.status(id, DownloadStatus.paused);
+    await _jobs[id];
+  }
+
+  Future<void> _control(String id, Future<void> Function() action) {
+    final previous = _controls[id] ?? Future<void>.value();
+    final result = previous.then((_) => action());
+    final settled = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _controls[id] = settled;
+    unawaited(
+      settled.then((_) {
+        if (identical(_controls[id], settled)) _controls.remove(id);
+      }),
+    );
+    return result;
   }
 
   void kick() {
@@ -84,7 +112,13 @@ final class DownloadScheduler {
 
   Future<void> _drain() async {
     final initial = await repository.all();
-    _quota.initialize({for (final task in initial) task.id: task.bytes});
+    final usage = <String, int>{};
+    for (final task in initial) {
+      final pinned = await fetcher.store.pinnedResources(task.id);
+      final bytes = pinned.values.fold(0, (sum, value) => sum + value);
+      usage[task.id] = bytes > task.bytes ? bytes : task.bytes;
+    }
+    _quota.initialize(usage);
     while (!_closed && (foreground || !Platform.isAndroid)) {
       final all = await repository.all();
       final limit = settings.value.multiSourceDownload
@@ -165,6 +199,7 @@ final class DownloadScheduler {
       try {
         if (attempt == 0 && resolve != null) task = await resolve!(task, token);
         token.check();
+        await repository.status(task.id, DownloadStatus.running);
         final limit = settings.value.downloadMiB * 1024 * 1024;
         await transferDownload(
           task: task,
@@ -180,6 +215,8 @@ final class DownloadScheduler {
           ),
           validate: validateMp4,
         );
+        final completed = await repository.find(task.id);
+        if (completed != null) _quota.settle(task.id, completed.bytes);
         return;
       } catch (error) {
         token.check();
@@ -216,33 +253,47 @@ final class DownloadScheduler {
         '${task.id}-${DateTime.now().microsecondsSinceEpoch}',
       ),
     );
-    await next.create(recursive: true);
-    token.check();
-    await repository.switchLocation(task.id, location, next.path);
-    // Each source owns an independent attempt directory; no cross-source append.
-    await fetcher.store.unpin(task.id);
-    final old = Directory(task.directory);
-    if (await old.exists()) await old.delete(recursive: true);
+    try {
+      await next.create(recursive: true);
+      token.check();
+      await repository.switchLocation(task.id, location, next.path);
+    } catch (_) {
+      await _cleanupDirectory(next);
+      rethrow;
+    }
+    // The persisted location is now authoritative, including after a crash.
     _quota.release(task.id);
     _activeSources[task.id] = location.item.sourceId;
+    // Each source owns an independent attempt directory; no cross-source append.
+    await fetcher.store.unpin(task.id);
+    await _cleanupDirectory(Directory(task.directory));
     return (await repository.find(task.id))!;
   }
 
-  Future<void> remove(String id) async {
+  Future<void> _cleanupDirectory(Directory directory) async {
+    if (!repository.ownsPath(directory.path)) throw StateError('任务路径不属于下载目录');
+    try {
+      if (await directory.exists()) await directory.delete(recursive: true);
+    } on FileSystemException {
+      await repository.deferCleanup(directory.path);
+    }
+  }
+
+  Future<void> remove(String id) => _control(id, () async {
     if (offline.isPlaying(id)) throw StateError('请先停止此任务的离线播放或导出');
     if (_tokens.containsKey(id)) {
-      await pause(id);
-      throw StateError('正在停止任务，请稍后再次删除');
+      await _pause(id);
     }
+    if (offline.isPlaying(id)) throw StateError('请先停止此任务的离线播放或导出');
     final task = await repository.find(id);
     if (task == null) return;
     if (!repository.ownsPath(task.directory)) throw StateError('任务路径不属于下载目录');
-    await fetcher.store.unpin(id);
     final directory = Directory(task.directory);
     if (await directory.exists()) await directory.delete(recursive: true);
+    await fetcher.store.unpin(id);
     await repository.remove(id);
     _quota.release(id);
-  }
+  });
 
   Future<void> close() async {
     _closed = true;
@@ -250,5 +301,6 @@ final class DownloadScheduler {
       token.cancel();
     }
     await _draining;
+    await Future.wait(_controls.values.toList());
   }
 }

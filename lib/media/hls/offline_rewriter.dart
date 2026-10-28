@@ -19,7 +19,8 @@ Future<String> rewriteOffline(
       range = line.substring(17);
       continue;
     }
-    if (line.startsWith('#EXT-X-KEY:') &&
+    if ((line.startsWith('#EXT-X-KEY:') ||
+            line.startsWith('#EXT-X-SESSION-KEY:')) &&
         !line.contains('METHOD=NONE') &&
         !line.contains('METHOD=AES-128')) {
       throw const FormatException('此加密方式暂不支持离线下载');
@@ -35,13 +36,23 @@ Future<String> rewriteOffline(
       range = null;
       continue;
     }
-    final uriMatch = RegExp(r'([:,])URI="([^"]+)"').firstMatch(line);
+    final uriMatch = RegExp(r'([:,]\s*)URI="([^"]+)"').firstMatch(line);
     if (uriMatch == null) {
       output.add(raw);
       continue;
     }
-    final uri = manifest.baseUri.resolve(uriMatch[2]!);
-    final rangeMatch = RegExp(r',BYTERANGE="([^"]+)"').firstMatch(line);
+    final key =
+        line.startsWith('#EXT-X-KEY:') ||
+        line.startsWith('#EXT-X-SESSION-KEY:');
+    final uri = manifest.resolveResource(uriMatch[2]!, key: key);
+    if (key && uri.scheme == 'data') {
+      output.add(raw);
+      continue;
+    }
+    if (key && uri.scheme == 'skd') {
+      throw const FormatException('DRM 密钥不支持离线下载');
+    }
+    final rangeMatch = RegExp(r',\s*BYTERANGE="([^"]+)"').firstMatch(line);
     final target = await resolve(
       uri,
       range: _byteRange(rangeMatch?[1], uri, ends),
@@ -52,7 +63,7 @@ Future<String> rewriteOffline(
       uriMatch.end,
       '${uriMatch[1]}URI="$target"',
     );
-    rewritten = rewritten.replaceAll(RegExp(r',BYTERANGE="[^"]+"'), '');
+    rewritten = rewritten.replaceAll(RegExp(r',\s*BYTERANGE="[^"]+"'), '');
     output.add(rewritten);
   }
   return output.join('\n');
@@ -106,5 +117,9 @@ HlsManifest selectOfflineVariant(HlsManifest manifest) {
   output
     ..add(variant)
     ..add(address);
-  return HlsManifest.parse(output.join('\n'), manifest.baseUri);
+  return HlsManifest.parse(
+    output.join('\n'),
+    manifest.baseUri,
+    variables: manifest.variables,
+  );
 }

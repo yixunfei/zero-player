@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -133,11 +134,21 @@ final class _ProductAppState extends ConsumerState<ProductApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      unawaited(services.closeSafely());
+      return;
+    }
     unawaited(
       services.downloadScheduler.setForeground(
         state == AppLifecycleState.resumed,
       ),
     );
+  }
+
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    await services.closeSafely();
+    return AppExitResponse.exit;
   }
 
   @override

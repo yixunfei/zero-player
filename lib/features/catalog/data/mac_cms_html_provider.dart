@@ -11,9 +11,10 @@ final class MacCmsHtmlProvider implements VodProvider {
 
   @override
   Future<CatalogPage> search(String query, {int page = 1}) async {
-    final uri = transport
-        .url('/vodsearch/-------------.html')
-        .replace(queryParameters: {'wd': query, 'page': '$page'});
+    final uri = transport.url(
+      'vodsearch/-------------.html',
+      query: {'wd': query, 'page': '$page'},
+    );
     return parser.listing((await transport.get(uri)).text, page: page);
   }
 
@@ -55,7 +56,7 @@ final class MacCmsHtmlProvider implements VodProvider {
   Future<ResolvedMedia> resolve(Episode episode) async {
     transport.requireSameOrigin(episode.uri);
     if (!RegExp(
-      r'^/vodplay/[0-9]+-[0-9]+-[0-9]+[.]html$',
+      r'/vodplay/[0-9]+-[0-9]+-[0-9]+[.]html$',
     ).hasMatch(episode.uri.path)) {
       throw const FormatException('不是支持的播放页');
     }

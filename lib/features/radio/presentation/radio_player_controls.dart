@@ -80,7 +80,10 @@ final class RadioPlayerControls extends StatelessWidget {
                   const Icon(Icons.volume_up, size: 20),
                 ],
               ),
-              const Text('实验阶段 · 离开广播页面后停止播放。', style: TextStyle(fontSize: 12)),
+              const Text(
+                '切换页面可继续收听；Windows 播放时关闭窗口驻留托盘，右键托盘可退出。播放视频时暂停广播。',
+                style: TextStyle(fontSize: 12),
+              ),
             ],
           ),
         ),

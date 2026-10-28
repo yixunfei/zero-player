@@ -7,6 +7,8 @@ import '../data/source_share_service.dart';
 import '../application/subscription_service.dart';
 import '../data/catalog_parser.dart';
 import 'catalog_import.dart';
+import '../application/source_probe.dart';
+import 'source_probe_dialog.dart';
 
 Future<void> importDefaultCatalog(BuildContext context, AppServices services) =>
     perform(context, () async {
@@ -24,55 +26,32 @@ Future<void> importDefaultCatalog(BuildContext context, AppServices services) =>
       );
     });
 
-Future<void> batchProbeSources(
-  BuildContext context,
-  AppServices services,
-) => perform(context, () async {
-  final sources = await services.sources.all();
-  if (!context.mounted) return;
-  final probe = services.sourceProbe;
-  final work = probe.run(
-    sources,
-    concurrency: services.settings.value.probeConcurrency,
-  );
-  try {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('批量探测接口'),
-        content: SizedBox(
-          width: 600,
-          height: 400,
-          child: ListenableBuilder(
-            listenable: probe,
-            builder: (context, _) => ListView(
-              children: [
-                if (probe.running) const LinearProgressIndicator(),
-                Text(
-                  '并发上限 ${services.settings.value.probeConcurrency}。API 可用不代表媒体可播放。',
-                ),
-                for (final entry in probe.statuses.entries)
-                  ListTile(title: Text(entry.value)),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              probe.cancel();
-              Navigator.pop(context);
-            },
-            child: const Text('停止 / 关闭'),
-          ),
-        ],
-      ),
-    );
-  } finally {
-    probe.cancel();
-    await work;
-  }
-});
+Future<void> batchProbeSources(BuildContext context, AppServices services) =>
+    perform(context, () async {
+      final sources = await services.sources.all();
+      if (!context.mounted) return;
+      final probe = SourceProbe(services.sources, services.network);
+      final work = probe.run(
+        sources,
+        concurrency: services.settings.value.probeConcurrency,
+      );
+      final removeCloseHook = services.addCloseHook(() async {
+        probe.cancel();
+        await work;
+      });
+      try {
+        await showDialog<void>(
+          context: context,
+          builder: (context) =>
+              SourceProbeDialog(services: services, probe: probe),
+        );
+      } finally {
+        removeCloseHook();
+        probe.cancel();
+        await work;
+        probe.dispose();
+      }
+    });
 
 Future<void> publishSources(
   BuildContext context,

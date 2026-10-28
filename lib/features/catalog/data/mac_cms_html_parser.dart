@@ -67,7 +67,7 @@ final class MacCmsHtmlParser {
         r'/vodplay/([0-9]+)-([0-9]+)-([0-9]+)[.]html',
       ).firstMatch(a.attributes['href'] ?? '');
       if (match == null || match[1] != id) continue;
-      final uri = base.resolve(match[0]!);
+      final uri = base.resolve(a.attributes['href']!);
       if (!seen.add(uri)) continue;
       final label = a.querySelector('span')?.text.trim() ?? a.text.trim();
       groups
@@ -82,22 +82,10 @@ final class MacCmsHtmlParser {
             ),
           );
     }
-    final names = doc
-        .querySelectorAll('.module-tab-item')
-        .map((e) => e.nodes.whereType<Text>().map((n) => n.text).join().trim())
-        .toList();
+    final names = _lineNames(doc, groups.keys.toSet());
     final lines = <PlayLine>[];
-    var index = 0;
     for (final entry in groups.entries) {
-      lines.add(
-        PlayLine(
-          index < names.length && names[index].isNotEmpty
-              ? displayText(names[index])
-              : '线路 ${entry.key}',
-          entry.value,
-        ),
-      );
-      index++;
+      lines.add(PlayLine(names[entry.key] ?? '线路 ${entry.key}', entry.value));
     }
     return CatalogItem(
       sourceId: sourceId,
@@ -115,6 +103,30 @@ final class MacCmsHtmlParser {
       ),
       lines: lines,
     );
+  }
+
+  Map<String, String> _lineNames(Document doc, Set<String> groups) {
+    final names = <String, String>{};
+    final tabs = doc.querySelectorAll('.module-tab-item');
+    for (final tab in tabs) {
+      final name = displayText(
+        tab.nodes.whereType<Text>().map((n) => n.text).join(),
+      );
+      if (name.isEmpty) continue;
+      final key = ['data-sid', 'data-source', 'data-dropdown-value']
+          .map((attribute) => tab.attributes[attribute])
+          .whereType<String>()
+          .where(groups.contains)
+          .firstOrNull;
+      if (key != null) names[key] = name;
+    }
+    if (groups.length == 1 && tabs.length == 1 && names.isEmpty) {
+      final name = displayText(
+        tabs.single.nodes.whereType<Text>().map((n) => n.text).join(),
+      );
+      if (name.isNotEmpty) names[groups.single] = name;
+    }
+    return names;
   }
 
   String _poster(Element? image) {
@@ -155,7 +167,8 @@ Uri parseMacCmsPlayer(String text, Uri page) {
     }
   }
   if (end < 0) throw const FormatException('播放配置不完整');
-  final data = jsonDecode(input.substring(0, end)) as Map;
+  final data = jsonDecode(input.substring(0, end));
+  if (data is! Map) throw const FormatException('播放配置必须是对象');
   var value = '${data['url'] ?? ''}';
   final encryption = '${data['encrypt'] ?? 0}';
   if (encryption == '2') value = utf8.decode(base64.decode(value));

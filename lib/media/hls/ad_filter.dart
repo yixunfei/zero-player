@@ -59,7 +59,11 @@ FilteredManifest filterDeclaredAds(HlsManifest input) {
     return FilteredManifest(input, unchanged);
   }
   return FilteredManifest(
-    HlsManifest.parse(output.join('\n'), input.baseUri),
+    HlsManifest.parse(
+      output.join('\n'),
+      input.baseUri,
+      variables: input.variables,
+    ),
     MediaTimeline(removed),
   );
 }

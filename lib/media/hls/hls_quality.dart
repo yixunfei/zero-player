@@ -66,5 +66,9 @@ HlsManifest selectHlsQuality(HlsManifest manifest, Uri? selected) {
       output.add(raw);
     }
   }
-  return HlsManifest.parse(output.join('\n'), manifest.baseUri);
+  return HlsManifest.parse(
+    output.join('\n'),
+    manifest.baseUri,
+    variables: manifest.variables,
+  );
 }

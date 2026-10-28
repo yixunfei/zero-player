@@ -1,0 +1,10 @@
+{
+  "fetchedAt": "2026-10-28",
+  "files": [
+    "Site.json",
+    "R18.json"
+  ],
+  "commit": "e8ba0081d0ef7b4c6cc0c9c2a0de83226f0eb6db",
+  "note": "Upstream availability labels are unverified; use local probes.",
+  "repository": "https://github.com/ZhaoYunxiong/MaccmsResources"
+}

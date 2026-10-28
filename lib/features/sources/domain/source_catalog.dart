@@ -6,10 +6,12 @@ final class SourceCandidate {
     required this.endpoint,
     required this.kind,
     required this.requestedEnabled,
+    this.classification = 'unknown',
   });
   final String name;
   final Uri endpoint;
   final SourceKind kind;
+  final String classification;
 
   /// Imported preference only. Parsing never proves API/media availability.
   final bool requestedEnabled;

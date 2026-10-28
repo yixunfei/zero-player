@@ -1,6 +1,8 @@
 import '../../sources/domain/video_source.dart';
 import '../../../core/text/display_text.dart';
 import '../domain/live_channel.dart';
+import 'channel_urls.dart';
+import 'playlist_channels.dart';
 
 List<LiveChannel> parseM3u(String input, Uri base, String listId) {
   if (!input.trimLeft().startsWith('#EXTM3U') ||
@@ -58,7 +60,8 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
         continue;
       }
       final id = stableId(
-        '$listId|${tvgId.isNotEmpty ? tvgId : '$group|$name'}',
+        '$listId|${tvgId.isNotEmpty ? tvgId : '$group|$name'}'
+        '${headers.isEmpty ? '' : '|${channelHeaderKey(headers)}'}',
       );
       final old = channels[id];
       channels[id] = LiveChannel(
@@ -68,7 +71,7 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
         group: group,
         logo: _logoUrl(logo, base),
         tvgId: tvgId,
-        urls: {...?old?.urls, uri}.take(100).toList(),
+        urls: appendChannelUrls(old?.urls ?? const [], [uri]),
         headers: Map.unmodifiable({...?old?.headers, ...headers}),
       );
       if (channels.length > 10000) throw const FormatException('频道数量超过 10000');
@@ -98,7 +101,7 @@ String exportM3u(List<LiveChannel> channels) {
         '#EXTINF:-1 tvg-id="${clean(channel.tvgId)}" '
         'tvg-logo="${clean(channel.logo)}" group-title="${clean(channel.group)}",${clean(channel.name)}',
       );
-      for (final header in channel.headers.entries) {
+      for (final header in channel.headersFor(uri).entries) {
         final option = switch (header.key.toLowerCase()) {
           'user-agent' => 'http-user-agent',
           'referer' => 'http-referrer',

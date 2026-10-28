@@ -88,6 +88,7 @@ final class _LivePageState extends State<LivePage> {
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'add', child: Text('添加 M3U / TXT')),
                 PopupMenuItem(value: 'lists', child: Text('管理订阅 / EPG')),
+                PopupMenuItem(value: 'probeAll', child: Text('检测所有频道')),
                 PopupMenuItem(value: 'restore', child: Text('恢复 / 刷新内置直播')),
                 PopupMenuItem(value: 'search', child: Text('在线电视 IPTV 搜索')),
                 PopupMenuItem(value: 'export', child: Text('导出频道')),
@@ -143,6 +144,8 @@ final class _LivePageState extends State<LivePage> {
         _add();
       case 'lists':
         _lists();
+      case 'probeAll':
+        _probe(all: true);
       case 'search':
         showTonkiang(context, widget.services);
       case 'restore':
@@ -155,7 +158,11 @@ final class _LivePageState extends State<LivePage> {
           final channels = await widget.services.live.channels();
           await FileTransfer.saveText(
             'zero-player-live.m3u',
-            exportM3u(channels.where((c) => c.health.enabled).toList()),
+            exportM3u(
+              channels
+                  .where((c) => c.health.enabled && !c.health.removed)
+                  .toList(),
+            ),
           );
         });
     }
@@ -166,16 +173,23 @@ final class _LivePageState extends State<LivePage> {
         !await confirm(context, '停用频道', '停用后从正常浏览和换台列表隐藏，收藏保留；可在已停用分组恢复。')) {
       return;
     }
-    await widget.services.liveHealth.setEnabled([
-      channel.id,
-    ], !channel.health.enabled);
+    await widget.services.liveHealth.setEnabled(
+      channel.preferenceIds,
+      !channel.health.enabled || channel.health.removed,
+    );
   });
 
   Future<void> _play(LiveChannel channel) => perform(context, () async {
-    if (!channel.health.enabled || channel.urls.isEmpty) return;
+    if (!channel.health.enabled ||
+        channel.health.removed ||
+        channel.urls.isEmpty) {
+      return;
+    }
     await widget.services.live.watched(channel);
     final channels = (await widget.services.live.channels())
-        .where((c) => c.urls.isNotEmpty && c.health.enabled)
+        .where(
+          (c) => c.urls.isNotEmpty && c.health.enabled && !c.health.removed,
+        )
         .toList();
     if (!mounted) return;
     final item = CatalogItem(
@@ -198,15 +212,20 @@ final class _LivePageState extends State<LivePage> {
         line: channels.indexWhere((c) => c.id == channel.id),
         headersByUri: {
           for (final c in channels)
-            for (final uri in c.urls) uri: c.headers,
+            for (final uri in c.urls) uri: c.headersFor(uri),
         },
       ),
     );
   });
-  Future<void> _probe() => perform(context, () async {
+  Future<void> _probe({bool all = false}) => perform(context, () async {
     final channels = (await widget.services.live.channels())
-        .where((c) => c.urls.isNotEmpty && matchesChannel(c, group, query))
-        .take(100)
+        .where(
+          (c) =>
+              c.urls.isNotEmpty &&
+              matchesChannel(c, all ? '全部' : group, all ? '' : query),
+        )
+        .expand((c) => c.entries)
+        .where((c) => c.urls.isNotEmpty)
         .toList();
     if (!mounted) return;
     if (channels.isEmpty) {
@@ -216,7 +235,7 @@ final class _LivePageState extends State<LivePage> {
     if (!await confirm(
       context,
       '探测当前分组',
-      '将探测 ${channels.length} 个频道（最多 100 个），每频道最多检查 3 条线路，上限约 ${(channels.length * .75).ceil()} MiB，可随时停止。',
+      '将探测 ${channels.length} 个频道来源，每来源最多检查 3 条线路，上限约 ${(channels.length * .75).ceil()} MiB，可随时停止；未测完的备用线路不会判为无效。',
     )) {
       return;
     }

@@ -18,6 +18,9 @@ final class OfflineServer {
   OfflineServer(this.store);
   final SegmentStore store;
   HttpServer? _server;
+  Future<void>? _starting;
+  Future<void>? _closing;
+  int _generation = 0;
   final _sessions = <String, Map<String, File>>{};
   final _tasks = <String, String>{};
   bool isPlaying(String id) => _tasks.containsValue(id);
@@ -28,7 +31,9 @@ final class OfflineServer {
     String entry,
   ) async {
     if (p.basename(entry) != entry) throw const FormatException('无效的离线入口');
-    _server ??= await _start();
+    await _closing;
+    final generation = _generation;
+    await _ensureStarted();
     final files = <String, File>{};
     final descriptor = File(p.join(directory.path, 'resources.json'));
     if (entry.endsWith('.mp4')) {
@@ -69,6 +74,9 @@ final class OfflineServer {
       }
     }
     if (!files.containsKey(entry)) throw const FormatException('离线入口不存在');
+    if (generation != _generation || _server == null) {
+      throw StateError('离线服务器已关闭，请重新打开');
+    }
     final random = Random.secure();
     final token = base64Url.encode(
       List.generate(24, (_) => random.nextInt(256)),
@@ -84,10 +92,21 @@ final class OfflineServer {
     );
   }
 
-  Future<HttpServer> _start() async {
+  Future<void> _ensureStarted() {
+    if (_server != null) return Future.value();
+    return _starting ??= _start(
+      _generation,
+    ).whenComplete(() => _starting = null);
+  }
+
+  Future<void> _start(int generation) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    if (generation != _generation) {
+      await server.close(force: true);
+      return;
+    }
+    _server = server;
     server.listen((request) => unawaited(_serve(request)));
-    return server;
   }
 
   Future<void> _serve(HttpRequest request) async {
@@ -121,9 +140,16 @@ final class OfflineServer {
     }
   }
 
-  Future<void> close() async {
+  Future<void> close() =>
+      _closing ??= _close().whenComplete(() => _closing = null);
+
+  Future<void> _close() async {
+    _generation++;
     _sessions.clear();
     _tasks.clear();
-    await _server?.close(force: true);
+    final server = _server;
+    _server = null;
+    await _starting;
+    await server?.close(force: true);
   }
 }

@@ -13,6 +13,13 @@ final class HeaderPolicy {
 
   Map<String, String> forUri(Uri uri) => _origins[origin(uri)] ?? const {};
 
+  /// An endpoint's credentials never authorize an arbitrary resolved media host.
+  static Map<String, String> scopedHeaders(
+    Uri endpoint,
+    Uri target,
+    Map<String, String> headers,
+  ) => origin(endpoint) == origin(target) ? headers : const {};
+
   Map<String, String> get identityHeaders => {
     for (final origin in _origins.entries)
       for (final header in origin.value.entries)

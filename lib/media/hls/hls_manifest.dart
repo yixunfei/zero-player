@@ -1,12 +1,21 @@
+import 'hls_variables.dart';
+
 /// A lossless line model: unknown tags and discontinuities survive rewriting.
 /// URI attributes are handled separately from full-line playlist references.
 final class HlsManifest {
-  HlsManifest._(this.baseUri, this.lines, this.segments, this.isMaster);
+  HlsManifest._(
+    this.baseUri,
+    this.lines,
+    this.segments,
+    this.isMaster,
+    this.variables,
+  );
 
   final Uri baseUri;
   final List<String> lines;
   final List<HlsSegment> segments;
   final bool isMaster;
+  final Map<String, String> variables;
   bool get isComplete => lines.contains('#EXT-X-ENDLIST');
   Duration get duration =>
       segments.fold(Duration.zero, (sum, s) => sum + s.duration);
@@ -43,15 +52,21 @@ final class HlsManifest {
     '#EXT-X-PRELOAD-HINT',
     '#EXT-X-RENDITION-REPORT',
   };
-  static final _uriAttribute = RegExp(r'([:,])URI="([^"]*)"');
+  static final _uriAttribute = RegExp(r'([:,]\s*)URI="([^"]*)"');
 
-  factory HlsManifest.parse(String text, Uri baseUri) {
-    final lines = text.replaceFirst('\uFEFF', '').split(RegExp(r'\r?\n'));
+  factory HlsManifest.parse(
+    String text,
+    Uri baseUri, {
+    Map<String, String> variables = const {},
+  }) {
+    final original = text.replaceFirst('\uFEFF', '').split(RegExp(r'\r?\n'));
+    final expanded = expandHlsVariables(original, baseUri, variables);
+    final lines = expanded.lines;
     if (lines.isEmpty || lines.first.trim() != '#EXTM3U') {
       throw const FormatException('Not an HLS manifest');
     }
     final segments = <HlsSegment>[];
-    var duration = Duration.zero;
+    Duration? duration;
     var position = Duration.zero;
     var sequence = 0;
     String? range;
@@ -70,21 +85,21 @@ final class HlsManifest {
         range = line.substring(17);
       } else if (line == '#EXT-X-DISCONTINUITY') {
         discontinuity = true;
-      } else if (line.isNotEmpty &&
-          !line.startsWith('#') &&
-          duration > Duration.zero) {
-        segments.add(
-          HlsSegment(
-            uri: _resolve(baseUri, line),
-            sequence: sequence++,
-            start: position,
-            duration: duration,
-            byteRange: range,
-            discontinuity: discontinuity,
-          ),
-        );
-        position += duration;
-        duration = Duration.zero;
+      } else if (line.isNotEmpty && !line.startsWith('#')) {
+        if (duration != null) {
+          segments.add(
+            HlsSegment(
+              uri: _resolve(baseUri, line),
+              sequence: sequence++,
+              start: position,
+              duration: duration,
+              byteRange: range,
+              discontinuity: discontinuity,
+            ),
+          );
+          position += duration;
+        }
+        duration = null;
         range = null;
         discontinuity = false;
       }
@@ -94,6 +109,9 @@ final class HlsManifest {
       List.unmodifiable(lines),
       List.unmodifiable(segments),
       lines.any((line) => line.startsWith('#EXT-X-STREAM-INF:')),
+      expanded.variables.isEmpty
+          ? Map.unmodifiable(variables)
+          : expanded.variables,
     );
   }
 
@@ -107,11 +125,19 @@ final class HlsManifest {
         final tag = line.split(':').first;
         if (!_uriTags.contains(tag)) return raw;
         return raw.replaceAllMapped(_uriAttribute, (match) {
-          final uri = _resolve(baseUri, match.group(2)!);
+          final key = tag == '#EXT-X-KEY' || tag == '#EXT-X-SESSION-KEY';
+          final uri = resolveResource(match.group(2)!, key: key);
+          if (key && !{'http', 'https'}.contains(uri.scheme)) return match[0]!;
           return '${match.group(1)}URI="${map(uri)}"';
         });
       })
       .join('\n');
+
+  Uri resolveResource(String reference, {bool key = false}) {
+    final uri = baseUri.resolve(reference);
+    if (key && {'data', 'skd'}.contains(uri.scheme)) return uri;
+    return _resolve(baseUri, reference);
+  }
 
   static Uri _resolve(Uri base, String reference) {
     final uri = base.resolve(reference);

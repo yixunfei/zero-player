@@ -19,4 +19,12 @@ final class DownloadQuota {
   }
 
   void release(String id) => _usage.remove(id);
+
+  /// Only call after completion has atomically released obsolete media pins.
+  void settle(String id, int bytes) {
+    if (bytes < 0 || bytes > (_usage[id] ?? 0)) {
+      throw StateError('Completed usage exceeds its reservation');
+    }
+    _usage[id] = bytes;
+  }
 }

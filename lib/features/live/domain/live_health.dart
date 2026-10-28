@@ -5,6 +5,7 @@ enum LiveAvailability { unknown, responding, unavailable, inconclusive }
 final class LiveHealth {
   const LiveHealth({
     this.enabled = true,
+    this.removed = false,
     this.availability = LiveAvailability.unknown,
     this.checkedAt,
     this.latencyMs,
@@ -12,12 +13,15 @@ final class LiveHealth {
     this.preferredUrl,
   });
   final bool enabled;
+  final bool removed;
   final LiveAvailability availability;
   final DateTime? checkedAt;
   final int? latencyMs;
   final String message;
   final String? preferredUrl;
-  String get label => !enabled
+  String get label => removed
+      ? '已移除'
+      : !enabled
       ? '已停用'
       : switch (availability) {
           LiveAvailability.unknown => '未检测',
@@ -31,6 +35,7 @@ final class LiveHealth {
       final valid = data['signature'] == urls.join('|');
       return LiveHealth(
         enabled: data['enabled'] != false,
+        removed: data['removed'] == true,
         availability: valid
             ? LiveAvailability.values.firstWhere(
                 (v) => v.name == data['availability'],

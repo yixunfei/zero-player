@@ -12,6 +12,8 @@ final class BackupPreview {
 final class BackupService {
   const BackupService(this.db);
   final AppDatabase db;
+  static const maxBytes = 20 * 1024 * 1024;
+  static const maxRowsPerTable = 20000;
   static const tables = [
     'settings',
     'sources',
@@ -28,26 +30,34 @@ final class BackupService {
     'app_meta',
   ];
   static const _liveMetadata =
-      " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*'";
+      " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*'"
+      " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'";
 
   Future<String> export() async => db.transaction(() async {
     final data = <String, Object>{};
     for (final name in tables) {
       data[name] = await db.rows(
-        'SELECT * FROM $name${name == 'app_meta' ? _liveMetadata : ''}',
+        'SELECT * FROM $name${name == 'app_meta' ? _liveMetadata : ''} '
+        'LIMIT ${maxRowsPerTable + 1}',
       );
+      if ((data[name] as List).length > maxRowsPerTable) {
+        throw FormatException('$name 超过备份上限 $maxRowsPerTable 行，未生成备份');
+      }
     }
-    return const JsonEncoder.withIndent('  ').convert({
+    final text = jsonEncode({
       'format': 'ZeroPlayer-Backup',
       'version': 2,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
       'mediaIncluded': false,
       'tables': data,
     });
+    // Never offer a successfully exported file that our importer rejects.
+    await preview(text);
+    return text;
   });
 
   Future<BackupPreview> preview(String text) async {
-    if (utf8.encode(text).length > 20 * 1024 * 1024) {
+    if (utf8.encode(text).length > maxBytes) {
       throw const FormatException('备份超过 20 MiB');
     }
     final raw = jsonDecode(text);
@@ -60,7 +70,7 @@ final class BackupService {
     final result = <String, List<Map<String, Object?>>>{};
     for (final table in tables) {
       final rows = raw['tables'][table];
-      if (rows is! List || rows.length > 20000) {
+      if (rows is! List || rows.length > maxRowsPerTable) {
         throw FormatException('$table 数据不完整或数量超限');
       }
       final schema = await db.rows('PRAGMA table_info($table)');

@@ -6,6 +6,7 @@ import '../../../core/network/request_scheduler.dart';
 import '../../catalog/data/provider_factory.dart';
 import '../data/source_repository.dart';
 import '../domain/video_source.dart';
+import '../domain/source_probe_result.dart';
 import 'source_metadata.dart';
 
 final class SourceProbe extends ChangeNotifier {
@@ -14,6 +15,12 @@ final class SourceProbe extends ChangeNotifier {
   final DocumentClient network;
   CancellationToken? _token;
   final statuses = <String, String>{};
+  final results = <String, SourceProbeState>{};
+  int total = 0;
+  Set<String> get unavailable => {
+    for (final entry in results.entries)
+      if (entry.value == SourceProbeState.unavailable) entry.key,
+  };
   bool running = false;
   bool _disposed = false;
 
@@ -26,6 +33,8 @@ final class SourceProbe extends ChangeNotifier {
     final token = CancellationToken();
     _token = token;
     running = true;
+    total = sources.length;
+    results.clear();
     if (!preserveStatuses) statuses.clear();
     notifyListeners();
     var index = 0;
@@ -71,6 +80,7 @@ final class SourceProbe extends ChangeNotifier {
         null,
         latencyMs: clock.elapsedMilliseconds,
       );
+      results[source.id] = SourceProbeState.available;
       statuses[source.id] =
           '${source.displayName} · ${clock.elapsedMilliseconds} ms · API 可用';
       await updateSourceMetadata(
@@ -89,17 +99,22 @@ final class SourceProbe extends ChangeNotifier {
             : const RemoteFailure(FailureKind.invalid, '接口格式无效');
         // Optional site metadata failure must not invalidate a successful API check.
         if (!apiSucceeded) {
-          if (failure.kind != FailureKind.timeout) {
+          final state = classifyProbeFailure(failure);
+          results[source.id] = state;
+          if (state == SourceProbeState.unavailable) {
             await repository.health(
               source.id,
               failure,
               latencyMs: clock.elapsedMilliseconds,
             );
           }
-          statuses[source.id] = failure.kind == FailureKind.timeout
-              ? '${source.displayName} · 检测超时，仍可尝试使用'
+          statuses[source.id] = state == SourceProbeState.inconclusive
+              ? '${source.displayName} · ${failure.message}，未确定，仍可尝试使用'
               : '${source.displayName} · ${failure.message}';
         }
+      } else if (!apiSucceeded) {
+        results[source.id] = SourceProbeState.cancelled;
+        statuses[source.id] = '${source.displayName} · 已取消';
       }
     } finally {
       remove();

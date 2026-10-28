@@ -28,13 +28,17 @@ final class FileTransfer {
 
   static Future<void> saveFile(File file, String name, String mime) async {
     if (Platform.isAndroid) {
-      await const MethodChannel('zero_player/platform').invokeMethod<bool>(
-        'saveFile',
-        {'path': file.path, 'name': name, 'mime': mime},
-      );
+      final saved = await const MethodChannel('zero_player/platform')
+          .invokeMethod<bool>('saveFile', {
+            'path': file.path,
+            'name': name,
+            'mime': mime,
+          });
+      if (saved != true) throw StateError('已取消保存');
     } else {
       final destination = await getSaveLocation(suggestedName: name);
-      if (destination != null) await file.copy(destination.path);
+      if (destination == null) throw StateError('已取消保存');
+      await file.copy(destination.path);
     }
   }
 }

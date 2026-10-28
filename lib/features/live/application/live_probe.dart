@@ -63,7 +63,7 @@ final class LiveProbe {
         final result = await probeMedia(
           http,
           uri,
-          HeaderPolicy({uri: channel.headers}),
+          HeaderPolicy({uri: channel.headersFor(uri)}),
           token,
           availabilityOnly: true,
           maxBytes: 256 * 1024,

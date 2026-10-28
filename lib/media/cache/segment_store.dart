@@ -46,8 +46,10 @@ final class SegmentStore {
   final int maxResourceBytes;
   final SegmentMetadata? metadata;
   final _protected = <String>{};
+  final _localPins = <String, Set<String>>{};
   final _entries = <String, StoredResource>{};
-  final _pending = <String, Future<StoredResource>>{};
+  final _pending = <String, ({Future<StoredResource> future, bool verifies})>{};
+  final _invalid = <String>{};
   final _references = <String, int>{};
   Future<void> _commits = Future.value();
   int hits = 0;
@@ -57,6 +59,16 @@ final class SegmentStore {
       .where((e) => !_protected.contains(e.key))
       .fold(0, (sum, e) => sum + e.value.length);
   StoredResource? find(String key) => _entries[key];
+
+  Future<Map<String, int>> pinnedResources(String owner) => _serialize(
+    () async {
+      final keys = await metadata?.ownedKeys(owner) ?? _localPins[owner] ?? {};
+      return {
+        for (final key in keys)
+          if (_entries.containsKey(key)) key: _entries[key]!.length,
+      };
+    },
+  );
 
   Future<void> initialize() async {
     await directory.create(recursive: true);
@@ -79,79 +91,151 @@ final class SegmentStore {
     }
   }
 
-  Future<void> pin(String owner, String key) async {
+  Future<void> pin(String owner, String key) => _serialize(() async {
     if (!_entries.containsKey(key)) throw StateError('Segment not committed');
     await metadata?.pin(owner, key);
+    if (metadata == null) _localPins.putIfAbsent(owner, () => {}).add(key);
     _protected.add(key);
-  }
+  });
 
-  Future<void> unpin(String owner) async {
+  Future<void> unpin(String owner) => _serialize(() async {
     await metadata?.unpin(owner);
+    _localPins.remove(owner);
+    await _refreshProtected();
+  });
+
+  Future<void> _refreshProtected() async {
+    final keys =
+        await metadata?.protectedKeys() ??
+        _localPins.values.expand((keys) => keys).toSet();
     _protected
       ..clear()
-      ..addAll(await metadata?.protectedKeys() ?? {});
+      ..addAll(keys);
   }
 
   Future<void> verify(String key) async {
     final resource = _entries[key];
-    if (resource == null ||
-        !await resource.file.exists() ||
-        '${await sha256.bind(resource.file.openRead()).first}' !=
-            resource.digest) {
+    if (resource == null || !await _valid(resource, digest: true)) {
+      if (resource != null) await _discard(key, resource);
       throw const FileSystemException('离线分片缺失或损坏，请重新下载');
     }
   }
 
-  Future<void> retainPins(String owner, Set<String> keys) async {
-    await metadata?.retainPins(owner, keys);
-    if (metadata != null) {
-      final protected = await metadata!.protectedKeys();
-      _protected
-        ..clear()
-        ..addAll(protected);
+  Future<bool> _valid(StoredResource resource, {bool digest = false}) async {
+    try {
+      if (await resource.file.length() != resource.length) return false;
+      return !digest ||
+          '${await sha256.bind(resource.file.openRead()).first}' ==
+              resource.digest;
+    } on FileSystemException {
+      return false;
     }
   }
 
-  Future<void> clearUnused() async {
+  Future<void> _discard(String key, StoredResource expected) =>
+      _serialize(() async {
+        if (identical(_entries[key], expected)) await _removeEntry(key);
+      });
+
+  Future<void> retainPins(String owner, Set<String> keys) =>
+      _serialize(() async {
+        await metadata?.retainPins(owner, keys);
+        _localPins[owner]?.retainAll(keys);
+        await _refreshProtected();
+      });
+
+  Future<void> clearUnused() => _serialize(() async {
     for (final key in _entries.keys.toList()) {
       if (_protected.contains(key) || _references.containsKey(key)) continue;
-      final entry = _entries.remove(key)!;
-      if (await entry.file.exists()) await entry.file.delete();
-      await metadata?.remove(key);
+      await _removeEntry(key);
+    }
+  });
+
+  Future<int> evictUnused(Iterable<String> keys, int bytesToFree) => _serialize(
+    () async {
+      var freed = 0;
+      for (final key in keys) {
+        if (freed >= bytesToFree) break;
+        if (_protected.contains(key) || _references.containsKey(key)) continue;
+        final entry = _entries[key];
+        if (entry == null) continue;
+        await _removeEntry(key);
+        freed += entry.length;
+      }
+      return freed;
+    },
+  );
+
+  Future<void> _removeEntry(String key) async {
+    final entry = _entries[key];
+    if (entry == null) return;
+    // A failed filesystem delete remains accounted for and recoverable. New
+    // readers must retry deletion instead of acquiring an invalid resource.
+    _invalid.add(key);
+    if (await entry.file.exists()) await entry.file.delete();
+    await metadata?.remove(key);
+    _entries.remove(key);
+    _invalid.remove(key);
+    _protected.remove(key);
+    for (final pins in _localPins.values) {
+      pins.remove(key);
     }
   }
 
   Future<ResourceLease> acquire(
     String key,
-    Future<StoredResource> Function() load,
-  ) async {
+    Future<StoredResource> Function() load, {
+    bool verify = false,
+  }) async {
     _references.update(key, (value) => value + 1, ifAbsent: () => 1);
     try {
-      var entry = _entries[key];
-      if (entry != null && await entry.file.exists()) {
-        hits++;
-        _entries.remove(key);
-        _entries[key] = entry;
-      } else {
-        final pending = _pending[key];
-        if (pending != null) {
-          hits++;
-          entry = await pending;
-        } else {
-          final work = _load(key, load);
-          _pending[key] = work;
-          try {
-            entry = await work;
-          } finally {
-            _pending.remove(key);
-          }
-        }
-      }
+      final entry = await _acquireEntry(key, load, verify);
       return ResourceLease(entry, () => _release(key));
     } catch (_) {
       _release(key);
       rethrow;
     }
+  }
+
+  Future<StoredResource> _acquireEntry(
+    String key,
+    Future<StoredResource> Function() load,
+    bool verify,
+  ) async {
+    final pending = _pending[key];
+    if (pending != null) {
+      hits++;
+      final entry = await pending.future;
+      if (!verify || pending.verifies) return entry;
+      if (_pending[key] == pending) _pending.remove(key);
+      return _acquireEntry(key, load, true);
+    }
+    final work = _resolveEntry(key, load, verify);
+    final operation = (future: work, verifies: verify);
+    _pending[key] = operation;
+    try {
+      return await work;
+    } finally {
+      if (_pending[key] == operation) _pending.remove(key);
+    }
+  }
+
+  Future<StoredResource> _resolveEntry(
+    String key,
+    Future<StoredResource> Function() load,
+    bool verify,
+  ) async {
+    var entry = _entries[key];
+    if (entry != null &&
+        (_invalid.contains(key) || !await _valid(entry, digest: verify))) {
+      await _discard(key, entry);
+      entry = null;
+    }
+    if (entry == null) return _load(key, load);
+    hits++;
+    _entries.remove(key);
+    _entries[key] = entry;
+    return entry;
   }
 
   Future<StoredResource> _load(
@@ -195,7 +279,7 @@ final class SegmentStore {
           throw const FileSystemException('Resource exceeds cache budget');
         }
         sink.add(chunk);
-        await sink.flush();
+        if (bytes % (1024 * 1024) < chunk.length) await sink.flush();
       }
       await sink.close();
       if (expectedLength != null && bytes != expectedLength) {
@@ -226,24 +310,28 @@ final class SegmentStore {
     String digest,
     int statusCode,
     Map<String, String> headers,
-  ) async {
+  ) => _serialize(() async {
+    await _makeRoom(bytes);
+    await temporary.rename(target.path);
+    final result = StoredResource(
+      file: target,
+      length: bytes,
+      digest: digest,
+      statusCode: statusCode,
+      headers: Map.unmodifiable(headers),
+    );
+    await metadata?.put(key, result);
+    _entries[key] = result;
+    return result;
+  });
+
+  Future<T> _serialize<T>(Future<T> Function() action) async {
     final previous = _commits;
     final done = Completer<void>();
     _commits = done.future;
     await previous;
     try {
-      await _makeRoom(bytes);
-      await temporary.rename(target.path);
-      final result = StoredResource(
-        file: target,
-        length: bytes,
-        digest: digest,
-        statusCode: statusCode,
-        headers: Map.unmodifiable(headers),
-      );
-      await metadata?.put(key, result);
-      _entries[key] = result;
-      return result;
+      return await action();
     } finally {
       done.complete();
     }
@@ -252,14 +340,14 @@ final class SegmentStore {
   Future<void> _makeRoom(int bytes) async {
     // No awaits between reservation check and reference check; entries in use
     // are never removed. Serial gateway downloads are not assumed.
+    var current = cacheBytes;
     for (final key in _entries.keys.toList()) {
-      if (cacheBytes + bytes <= maxBytes) return;
+      if (current + bytes <= maxBytes) return;
       if (_references.containsKey(key) || _protected.contains(key)) continue;
-      final entry = _entries.remove(key)!;
-      if (await entry.file.exists()) await entry.file.delete();
-      await metadata?.remove(key);
+      current -= _entries[key]!.length;
+      await _removeEntry(key);
     }
-    if (cacheBytes + bytes > maxBytes) {
+    if (current + bytes > maxBytes) {
       throw const FileSystemException('Cache is full with active resources');
     }
   }

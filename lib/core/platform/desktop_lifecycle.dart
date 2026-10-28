@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
@@ -8,11 +9,16 @@ final class DesktopLifecycle with WindowListener {
   DesktopLifecycle(this.file);
   final File file;
   Future<void> Function()? beforeClose;
+  Future<void> Function()? shutdown;
+  bool Function()? keepInTray;
+  Future<void> Function()? hideToTray;
   bool _closing = false;
+  bool _listening = false;
 
   Future<void> initialize() async {
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
+    _listening = true;
     try {
       if (await file.exists()) {
         final state = jsonDecode(await file.readAsString()) as Map;
@@ -41,16 +47,49 @@ final class DesktopLifecycle with WindowListener {
   }
 
   @override
-  void onWindowClose() async {
+  void onWindowClose() => unawaited(closeWindow().catchError(_report));
+
+  Future<void> closeWindow({bool force = false}) async {
     if (_closing) return;
     _closing = true;
+    if (!force && keepInTray?.call() == true && hideToTray != null) {
+      try {
+        await saveWindow();
+        await hideToTray!();
+      } finally {
+        _closing = false;
+      }
+      return;
+    }
+    for (final step in [beforeClose, saveWindow, shutdown]) {
+      try {
+        await step?.call();
+      } catch (error, stack) {
+        _report(error, stack);
+      }
+    }
     try {
-      await beforeClose?.call();
-      await saveWindow();
-    } finally {
       await windowManager.destroy();
+    } catch (_) {
+      _closing = false;
+      if (!_listening) {
+        windowManager.addListener(this);
+        _listening = true;
+      }
+      rethrow;
     }
   }
 
-  void dispose() => windowManager.removeListener(this);
+  void _report(Object error, StackTrace stack) => FlutterError.reportError(
+    FlutterErrorDetails(
+      exception: error,
+      stack: stack,
+      library: 'desktop shutdown',
+    ),
+  );
+
+  void dispose() {
+    windowManager.removeListener(this);
+    _listening = false;
+  }
 }

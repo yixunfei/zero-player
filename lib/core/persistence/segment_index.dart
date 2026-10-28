@@ -45,6 +45,11 @@ final class SegmentIndex implements SegmentMetadata {
     'SELECT DISTINCT cache_key FROM segment_references',
   )).map((r) => r['cache_key'] as String).toSet();
   @override
+  Future<Set<String>> ownedKeys(String owner) async => (await db.rows(
+    'SELECT cache_key FROM segment_references WHERE owner=?',
+    [owner],
+  )).map((row) => row['cache_key'] as String).toSet();
+  @override
   Future<void> pin(String owner, String key) => db.customStatement(
     'INSERT OR IGNORE INTO segment_references VALUES(?,?)',
     [owner, key],
@@ -69,5 +74,5 @@ final class SegmentIndex implements SegmentMetadata {
             );
           }
         }
-      });
+      }, tables: const {'segment_references'});
 }

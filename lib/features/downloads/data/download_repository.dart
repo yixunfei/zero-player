@@ -13,6 +13,7 @@ final class DownloadRepository {
   const DownloadRepository(this.db, this.root);
   final AppDatabase db;
   final Directory root;
+  Stream<void> get changes => db.changesFor(const {'downloads'});
   Future<List<DownloadTask>> all() async => (await db.rows(
     'SELECT * FROM downloads ORDER BY created_at DESC',
   )).map(DownloadTask.new).toList();
@@ -63,7 +64,7 @@ final class DownloadRepository {
     DownloadLocation location,
     String directory,
   ) => db.write(
-    'UPDATE downloads SET source_id=?,remote_id=?,line_name=?,url=?,headers=?,directory=?,completed=0,total=0,bytes=0,local_path=NULL,error=? WHERE id=?',
+    "UPDATE downloads SET source_id=?,remote_id=?,line_name=?,url=?,headers=?,directory=?,completed=0,total=0,bytes=0,local_path=NULL,status='queued',error=? WHERE id=?",
     [
       location.item.sourceId,
       location.item.id,
@@ -106,4 +107,35 @@ final class DownloadRepository {
       ]);
   bool ownsPath(String path) =>
       p.isWithin(root.absolute.path, Directory(path).absolute.path);
+
+  Future<void> deferCleanup(String directory) {
+    if (!ownsPath(directory)) throw StateError('清理路径不属于下载目录');
+    return db.write('INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)', [
+      'download_cleanup:${stableId(directory)}',
+      directory,
+    ]);
+  }
+
+  Future<void> cleanupPending() async {
+    final pending = await db.rows(
+      "SELECT key,value FROM app_meta WHERE key GLOB 'download_cleanup:*'",
+    );
+    for (final row in pending) {
+      final path = row['value'] as String;
+      if (!ownsPath(path)) continue;
+      // Never delete a location that a current task still owns.
+      if ((await db.rows('SELECT id FROM downloads WHERE directory=?', [
+        path,
+      ])).isNotEmpty) {
+        continue;
+      }
+      try {
+        final directory = Directory(path);
+        if (await directory.exists()) await directory.delete(recursive: true);
+        await db.write('DELETE FROM app_meta WHERE key=?', [row['key']]);
+      } on FileSystemException {
+        // Keep the journal entry for a later startup (for example a locked file).
+      }
+    }
+  }
 }

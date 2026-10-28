@@ -8,6 +8,7 @@ import 'header_policy.dart';
 import 'media_http_client.dart';
 import 'request_scheduler.dart';
 import 'network_budget.dart';
+import 'document_encoding.dart';
 
 enum FailureKind {
   cancelled,
@@ -30,10 +31,11 @@ final class RemoteFailure implements Exception {
 }
 
 final class Document {
-  const Document(this.uri, this.bytes);
+  const Document(this.uri, this.bytes, {this.contentType});
   final Uri uri;
   final List<int> bytes;
-  String get text => utf8.decode(bytes).replaceFirst('\uFEFF', '');
+  final String? contentType;
+  String get text => decodeDocumentText(bytes, contentType: contentType);
   Object? get json => jsonDecode(text);
 }
 
@@ -151,19 +153,7 @@ final class DocumentClient {
           ),
         );
       }
-      final compressed =
-          response.response.headers.value('content-encoding') == 'gzip' || gzip;
-      final body = compressed
-          ? GZipCodec().decoder.bind(response.body)
-          : response.body;
-      final bytes = BytesBuilder(copy: false);
-      await for (final chunk in body) {
-        if (bytes.length + chunk.length > maxBytes) {
-          throw const RemoteFailure(FailureKind.invalid, '文件超过大小限制');
-        }
-        bytes.add(chunk);
-      }
-      return Document(response.uri, bytes.takeBytes());
+      return await _readDocument(response, maxBytes, gzip);
     } on RequestCancelled {
       throw const RemoteFailure(FailureKind.cancelled, '操作已取消');
     } on TimeoutException {
@@ -177,6 +167,45 @@ final class DocumentClient {
     } on FormatException {
       throw const RemoteFailure(FailureKind.invalid, '来源数据格式不正确');
     }
+  }
+
+  Future<Document> _readDocument(
+    HttpPayload response,
+    int maxBytes,
+    bool gzipFile,
+  ) async {
+    final encodings =
+        (response.response.headers.value('content-encoding') ?? '')
+            .toLowerCase()
+            .split(',')
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty && value != 'identity')
+            .toList();
+    if (encodings.any(
+      (value) => !{'gzip', 'x-gzip', 'deflate'}.contains(value),
+    )) {
+      await response.body.take(0).drain<void>();
+      throw const RemoteFailure(FailureKind.unsupported, '来源使用未支持的压缩编码');
+    }
+    if (encodings.isEmpty && gzipFile) encodings.add('gzip');
+    var body = response.body;
+    for (final encoding in encodings.reversed) {
+      body = encoding == 'deflate'
+          ? ZLibCodec().decoder.bind(body)
+          : GZipCodec().decoder.bind(body);
+    }
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in body) {
+      if (bytes.length + chunk.length > maxBytes) {
+        throw const RemoteFailure(FailureKind.invalid, '文件超过大小限制');
+      }
+      bytes.add(chunk);
+    }
+    return Document(
+      response.uri,
+      bytes.takeBytes(),
+      contentType: response.response.headers.value('content-type'),
+    );
   }
 }
 

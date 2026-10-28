@@ -78,14 +78,12 @@ void main() {
       }
     },
   );
-  test('changed manifests reject unsafe resume', () async {
-    await job().run(upstream.baseUri.resolve('index.m3u8'));
-    changed = true;
-    await expectLater(
-      job().run(upstream.baseUri.resolve('index.m3u8')),
-      throwsFormatException,
-    );
-  });
+  _recoveryTests(job);
+  _quotaTests();
+  test(
+    'failed multi-rendition restart preserves every old local manifest',
+    _nestedRevisionTest,
+  );
   test('cyclic master references cannot become completed tasks', () async {
     cyclic = true;
     await expectLater(
@@ -93,6 +91,141 @@ void main() {
       throwsFormatException,
     );
   });
+}
+
+Future<void> _nestedRevisionTest() async {
+  var revision = 0;
+  final server = await HttpTestServer.start((request) {
+    if (request.uri.path == '/master.m3u8') {
+      request.response.write(
+        '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="main",DEFAULT=YES,URI="audio.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=100,AUDIO="audio"\nvideo.m3u8\n#revision=$revision\n',
+      );
+    } else if (request.uri.path.endsWith('.m3u8')) {
+      final track = request.uri.path;
+      request.response.write(
+        '#EXTM3U\n#EXTINF:2,\npart.ts?track=$track&part=1\n#EXTINF:2,\npart.ts?track=$track&part=2\n#EXT-X-ENDLIST\n#revision=$revision\n',
+      );
+    } else {
+      request.response.add([1, 2]);
+    }
+  });
+  addTearDown(server.close);
+  HlsDownload job() => HlsDownload(
+    id: 'task',
+    directory: directory,
+    fetcher: SegmentFetcher(store, http),
+    http: http,
+    policy: HeaderPolicy({}),
+    cancellation: CancellationToken(),
+    maxBytes: 12,
+    onProgress: (_, _, _) async {},
+  );
+  final uri = server.baseUri.resolve('master.m3u8');
+  final entry = await job().run(uri);
+  revision++;
+  await expectLater(job().run(uri), throwsA(isA<FileSystemException>()));
+  final offline = OfflineServer(store);
+  addTearDown(offline.close);
+  final session = await offline.open('task', directory, entry);
+  expect(offline.isPlaying('task'), isTrue);
+  session.close();
+}
+
+void _quotaTests() {
+  HlsDownload limited(int limit, List<int> usage, List<int> reservations) =>
+      HlsDownload(
+        id: 'task',
+        directory: directory,
+        fetcher: SegmentFetcher(store, http),
+        http: http,
+        policy: HeaderPolicy({}),
+        cancellation: CancellationToken(),
+        maxBytes: limit,
+        reserveBytes: reservations.add,
+        onProgress: (_, _, bytes) async {
+          usage.add(bytes);
+        },
+      );
+  test('same-revision resume counts each existing pin once', () async {
+    final uri = upstream.baseUri.resolve('index.m3u8');
+    await limited(4, [], []).run(uri);
+    final usage = <int>[];
+    final reservations = <int>[];
+    final resumed = limited(4, usage, reservations);
+    await resumed.run(uri);
+    expect(usage, everyElement(4));
+    expect(reservations, everyElement(4));
+    expect(resumed.bytes, 4);
+    expect(upstream.calls['/all.ts'], 2);
+  });
+
+  test(
+    'retained revisions count toward the hard cap even across repeated failures',
+    () async {
+      final uri = upstream.baseUri.resolve('index.m3u8');
+      final entry = await limited(6, [], []).run(uri);
+      final original = await File(
+        p.join(directory.path, 'resources.json'),
+      ).readAsString();
+      changed = true;
+      final usage = <int>[];
+      final reservations = <int>[];
+      final restarted = limited(6, usage, reservations);
+      await expectLater(
+        restarted.run(uri),
+        throwsA(
+          isA<FileSystemException>().having(
+            (error) => error.message,
+            'message',
+            contains('安全重下需额外空间'),
+          ),
+        ),
+      );
+      expect(restarted.bytes, 6);
+      expect(usage.last, 6);
+      expect(reservations, everyElement(lessThanOrEqualTo(6)));
+      expect(
+        (await store.pinnedResources(
+          'task',
+        )).values.fold(0, (sum, bytes) => sum + bytes),
+        6,
+      );
+      expect(
+        await File(p.join(directory.path, 'resources.json')).readAsString(),
+        original,
+      );
+      expect(await File(p.join(directory.path, entry)).exists(), isTrue);
+      final retry = limited(6, [], []);
+      await expectLater(retry.run(uri), throwsA(isA<FileSystemException>()));
+      expect(retry.bytes, 6);
+      expect(
+        (await store.pinnedResources(
+          'task',
+        )).values.fold(0, (sum, bytes) => sum + bytes),
+        6,
+      );
+    },
+  );
+
+  test(
+    'successful safe restart reports old plus new usage until retention completes',
+    () async {
+      final uri = upstream.baseUri.resolve('index.m3u8');
+      await limited(8, [], []).run(uri);
+      changed = true;
+      final usage = <int>[];
+      final restarted = limited(8, usage, []);
+      await restarted.run(uri);
+      expect(usage, containsAllInOrder([4, 6, 8, 4]));
+      expect(restarted.bytes, 4);
+      expect(
+        (await store.pinnedResources(
+          'task',
+        )).values.fold(0, (sum, bytes) => sum + bytes),
+        4,
+      );
+    },
+  );
 }
 
 Future<void> _initializeFixture() async {
@@ -124,5 +257,59 @@ Future<void> _initializeFixture() async {
       );
       request.response.add(range == 'bytes=0-1' ? [1, 2] : [3, 4]);
     }
+  });
+}
+
+void _recoveryTests(HlsDownload Function() job) {
+  test(
+    'changed manifests restart in an isolated revision without mixing bytes',
+    () async {
+      await job().run(upstream.baseUri.resolve('index.m3u8'));
+      final before =
+          jsonDecode(
+                await File(
+                  p.join(directory.path, 'checkpoints.json'),
+                ).readAsString(),
+              )
+              as Map;
+      changed = true;
+      await job().run(upstream.baseUri.resolve('index.m3u8'));
+      final after =
+          jsonDecode(
+                await File(
+                  p.join(directory.path, 'checkpoints.json'),
+                ).readAsString(),
+              )
+              as Map;
+      expect(after['revision'], isNot(before['revision']));
+      expect(upstream.calls['/all.ts'], 4);
+      final stableRevision = after['revision'];
+      await job().run(upstream.baseUri.resolve('index.m3u8'));
+      expect(upstream.calls['/all.ts'], 4);
+      expect(
+        (jsonDecode(
+              await File(
+                p.join(directory.path, 'checkpoints.json'),
+              ).readAsString(),
+            )
+            as Map)['revision'],
+        stableRevision,
+      );
+    },
+  );
+  test('offline server can close and reopen the same task', () async {
+    final entry = await job().run(upstream.baseUri.resolve('index.m3u8'));
+    final server = OfflineServer(store);
+    final client = HttpClient();
+    addTearDown(() async {
+      client.close(force: true);
+      await server.close();
+    });
+    await server.open('task', directory, entry);
+    await server.close();
+    final reopened = await server.open('task', directory, entry);
+    final response = await (await client.getUrl(reopened.uri)).close();
+    expect(response.statusCode, 200);
+    await response.drain<void>();
   });
 }

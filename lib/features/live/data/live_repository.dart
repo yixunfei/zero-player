@@ -7,8 +7,9 @@ import '../../sources/domain/video_source.dart';
 import '../domain/live_channel.dart';
 import 'epg_parser.dart';
 import 'live_playlist_parser.dart';
+import 'playlist_channels.dart';
 import '../domain/live_health.dart';
-import '../domain/channel_order.dart';
+import '../domain/channel_merge.dart';
 
 final class LiveRepository {
   const LiveRepository(this.db, this.network);
@@ -74,8 +75,9 @@ final class LiveRepository {
     }
     if (epg != null) {
       try {
-        await refreshEpg(epg);
+        await refreshEpg(epg, cancellation: cancellation);
       } catch (_) {
+        cancellation?.check();
         await db.write('UPDATE live_lists SET error=? WHERE id=?', [
           '频道已更新，EPG 更新失败',
           id,
@@ -112,7 +114,7 @@ final class LiveRepository {
       await db.customStatement(
         '''INSERT INTO live_lists(id,name,url,epg_url,snapshot,updated_at)
           VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,
-          epg_url=excluded.epg_url,snapshot=excluded.snapshot,updated_at=excluded.updated_at,error=NULL''',
+          epg_url=COALESCE(excluded.epg_url,live_lists.epg_url),snapshot=excluded.snapshot,updated_at=excluded.updated_at,error=NULL''',
         [
           id,
           name,
@@ -122,10 +124,15 @@ final class LiveRepository {
           DateTime.now().millisecondsSinceEpoch,
         ],
       );
+      final previous = await db.rows(
+        'SELECT * FROM live_channels WHERE list_id=?',
+        [id],
+      );
+      final prepared = preparePlaylistChannels(channels, previous, headers);
       await db.customStatement('DELETE FROM live_channels WHERE list_id=?', [
         id,
       ]);
-      for (final c in channels) {
+      for (final c in prepared) {
         await db.customStatement(
           '''INSERT INTO live_channels(id,list_id,name,group_name,logo,tvg_id,urls,headers)
             VALUES(?,?,?,?,?,?,?,?)''',
@@ -202,54 +209,74 @@ final class LiveRepository {
           health: LiveHealth.decode(row['health'], const []),
         ),
     ];
-    result.sort(compareChannels);
-    return result;
+    return mergeChannelAliases(result);
   }
 
-  Future<void> favorite(LiveChannel channel, bool value) => db.write(
-    '''INSERT INTO channel_preferences(channel_id,name,favorite)
-    VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET favorite=excluded.favorite,name=excluded.name''',
-    [channel.id, channel.name, value ? 1 : 0],
-  );
-  Future<void> watched(LiveChannel channel) => db.write(
-    '''INSERT INTO channel_preferences(channel_id,name,watched_at)
-    VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET watched_at=excluded.watched_at,name=excluded.name''',
-    [channel.id, channel.name, DateTime.now().millisecondsSinceEpoch],
-  );
+  Future<void> favorite(LiveChannel channel, bool value) => db.atomic(() async {
+    for (final entry in channel.entries) {
+      await db.customStatement(
+        '''INSERT INTO channel_preferences(channel_id,name,favorite)
+        VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET favorite=excluded.favorite,name=excluded.name''',
+        [entry.id, entry.name, value ? 1 : 0],
+      );
+    }
+  });
+  Future<void> watched(LiveChannel channel) => db.atomic(() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final entry in channel.entries) {
+      await db.customStatement(
+        '''INSERT INTO channel_preferences(channel_id,name,watched_at)
+        VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET watched_at=excluded.watched_at,name=excluded.name''',
+        [entry.id, entry.name, now],
+      );
+    }
+  });
 
-  Future<void> refreshEpg(Uri url) async {
+  Future<void> refreshEpg(Uri url, {CancellationToken? cancellation}) async {
     final doc = await network.get(
       url,
       maxBytes: 20 * 1024 * 1024,
       gzip: url.path.endsWith('.gz'),
+      cancellation: cancellation,
     );
-    final programs = parseEpg(doc.text);
-    final now = DateTime.now().toUtc();
-    final relevant = programs.where(
-      (p) =>
-          p.end.isAfter(now.subtract(const Duration(days: 1))) &&
-          p.start.isBefore(now.add(const Duration(days: 7))),
+    final programs = await parseEpgInBackground(
+      doc.text,
+      DateTime.now().toUtc(),
     );
     await db.atomic(() async {
+      cancellation?.check();
       await db.customStatement('DELETE FROM epg_programs WHERE source=?', [
         url.toString(),
       ]);
-      for (final p in relevant) {
-        await db.customStatement(
-          'INSERT OR REPLACE INTO epg_programs VALUES(?,?,?,?,?)',
-          [
-            url.toString(),
-            p.channelId,
-            p.start.millisecondsSinceEpoch,
-            p.end.millisecondsSinceEpoch,
-            p.title,
-          ],
-        );
+      for (var offset = 0; offset < programs.length; offset += 500) {
+        cancellation?.check();
+        await db.batch((batch) {
+          for (final program in programs.skip(offset).take(500)) {
+            batch.customStatement(
+              'INSERT OR REPLACE INTO epg_programs VALUES(?,?,?,?,?)',
+              [
+                url.toString(),
+                program.channelId,
+                program.start.millisecondsSinceEpoch,
+                program.end.millisecondsSinceEpoch,
+                program.title,
+              ],
+            );
+          }
+        });
       }
-    });
+    }, tables: const {'epg_programs'});
   }
 
   Future<List<EpgProgram>> schedule(LiveChannel channel) async {
+    for (final entry in channel.entries) {
+      final programs = await _scheduleEntry(entry);
+      if (programs.isNotEmpty) return programs;
+    }
+    return [];
+  }
+
+  Future<List<EpgProgram>> _scheduleEntry(LiveChannel channel) async {
     final list = await db.rows('SELECT epg_url FROM live_lists WHERE id=?', [
       channel.listId,
     ]);

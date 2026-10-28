@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 import 'desktop_lifecycle.dart';
 import 'fullscreen_controller.dart';
+import 'background_audio_session.dart';
+import 'desktop_radio_tray.dart';
 
 final class PlatformServices {
   PlatformServices({Future<void> Function(bool, bool)? applyFullscreen}) {
@@ -21,6 +24,13 @@ final class PlatformServices {
   Future<void> toggleAppFullscreen() => _fullscreen.toggleApplication();
 
   DesktopLifecycle? desktop;
+  DesktopRadioTray? radioTray;
+
+  Future<void> enableRadioTray(BackgroundAudioSession session) async {
+    if (!Platform.isWindows || desktop == null || radioTray != null) return;
+    radioTray = DesktopRadioTray(session, desktop!);
+    await radioTray!.initialize();
+  }
 
   Future<void> initialize({File? windowState}) async {
     if (Platform.isWindows) {
@@ -36,9 +46,26 @@ final class PlatformServices {
     }
   }
 
-  Future<bool> isMetered() async => Platform.isAndroid
-      ? await _channel.invokeMethod<bool>('isMetered') ?? true
-      : false;
+  Future<bool> isMetered() async {
+    if (!Platform.isAndroid) return false;
+    return queryMeteredConnection();
+  }
+
+  @visibleForTesting
+  static Future<bool> queryMeteredConnection({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    try {
+      return await _channel.invokeMethod<bool>('isMetered').timeout(timeout) ??
+          true;
+    } on PlatformException {
+      return true;
+    } on MissingPluginException {
+      return true;
+    } on TimeoutException {
+      return true;
+    }
+  }
 
   Future<void> fullscreen(bool enabled) => _fullscreen.setPlayer(enabled);
 
@@ -69,6 +96,7 @@ final class PlatformServices {
   }
 
   Future<void> dispose() async {
+    await radioTray?.dispose();
     desktop?.dispose();
     await _fullscreen.dispose();
   }

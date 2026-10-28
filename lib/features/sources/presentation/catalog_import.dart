@@ -57,19 +57,11 @@ Future<void> importCatalog(
     ),
   );
   if (file) {
-    for (final source in selected.sources) {
-      if (source.endpoint.host == 'local-import.invalid') {
-        throw const FormatException('文件导入需要完整的 HTTP(S) 接口地址');
-      }
-      await services.sources.saveManual(
-        source.name,
-        source.endpoint,
-        enabled: selected.enabled,
-        kind: source.kind.name,
-      );
-    }
-  }
-  if (!file || selected.lives.isNotEmpty) {
+    await services.subscriptions.importLocal(
+      chosen,
+      enableNew: selected.enabled,
+    );
+  } else if (selected.sources.isNotEmpty || selected.lives.isNotEmpty) {
     await services.subscriptions.import(
       chosen,
       preview.url.host,

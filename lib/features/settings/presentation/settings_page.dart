@@ -175,6 +175,13 @@ final class SettingsPage extends StatelessWidget {
   List<Widget> _performanceOptions(BuildContext context) {
     final s = services.settings.value;
     return [
+      const ListTile(
+        leading: Icon(Icons.info_outline),
+        title: Text('网络传输安全'),
+        subtitle: Text(
+          '当前允许 HTTP 来源及 HTTPS 降级为 HTTP 的跳转。观看内容、搜索词和为同源配置的凭据可能明文传输；请优先选择可信的 HTTPS 来源。跨源跳转不会转发源站凭据。',
+        ),
+      ),
       _choice(context, '搜索并发数', 'searchConcurrency', '${s.searchConcurrency}', {
         for (var i = 1; i <= 16; i++) '$i': '$i 路',
       }, numeric: true),
@@ -271,12 +278,12 @@ final class SettingsPage extends StatelessWidget {
       onTap: () => _restore(context),
     ),
     ListTile(
-        title: const Text('Zero Player 0.0.1'),
+      title: const Text('Zero Player 0.0.1'),
       subtitle: const Text('AGPL-3.0-or-later · 本地数据 · 无需独立后端'),
       onTap: () => showLicensePage(
         context: context,
         applicationName: 'Zero Player',
-          applicationVersion: '0.0.1',
+        applicationVersion: '0.0.1',
         applicationLegalese: 'AGPL-3.0-or-later\n媒体依赖许可见源码 NOTICE.md',
       ),
     ),

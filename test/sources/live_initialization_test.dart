@@ -70,6 +70,7 @@ void main() {
         final live = LiveRepository(db, DocumentClient(http));
         final uri = Uri.parse('https://tv.test/list');
         await live.importText('TV', uri, 'CCTV1,https://media.test/live.m3u8');
+        final saved = (await live.channels()).single;
         await expectLater(
           live.importText('TV', uri, '#EXTM3U'),
           throwsFormatException,
@@ -78,7 +79,10 @@ void main() {
           live.importText('TV', uri, '<html>challenge</html>'),
           throwsFormatException,
         );
-        expect((await live.channels()).single.name, 'CCTV1');
+        final retained = (await live.channels()).single;
+        expect(retained.id, saved.id);
+        expect(retained.name, 'CCTV-1 综合');
+        expect(retained.urls, saved.urls);
       } finally {
         http.close();
         await db.close();

@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import '../data/source_repository.dart';
+import '../data/source_identity_store.dart';
 import '../domain/source_catalog.dart';
 import '../domain/video_source.dart';
+import 'maccms_sources.dart';
 
 final class BuiltinSources {
   const BuiltinSources(this.repository);
@@ -12,6 +14,11 @@ final class BuiltinSources {
   );
 
   Future<void> initialize({bool restore = false}) async {
+    await _initializeOriginal(restore: restore);
+    await MaccmsSources(repository).initialize(restore: restore);
+  }
+
+  Future<void> _initializeOriginal({bool restore = false}) async {
     final done = await repository.db.rows(
       "SELECT value FROM app_meta WHERE key='builtin_sources'",
     );
@@ -57,12 +64,17 @@ final class BuiltinSources {
     );
     await repository.pauseSubscription(stableId(origin.toString()), true);
     if (restore) {
+      final identities = SourceIdentityStore(repository.db);
+      final ids = {
+        for (final item in candidates)
+          item: await identities.resolve(item.kind.name, item.endpoint),
+      };
       for (final enabled in [true, false]) {
         await repository.batch(
           [
             for (final item in candidates)
               if ((defaults[item.endpoint.toString()] ?? true) == enabled)
-                stableId('${item.kind.name}|${item.endpoint}'),
+                ids[item]!,
           ],
           enabled: enabled,
           suppressed: false,

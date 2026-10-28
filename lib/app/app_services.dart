@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../core/platform/close_resources.dart';
 import '../features/discovery/data/synopsis_repository.dart';
 import '../features/sources/application/builtin_sources.dart';
 import '../features/sources/application/background_source_monitor.dart';
@@ -23,6 +25,9 @@ import '../features/downloads/data/download_repository.dart';
 import '../features/library/data/history_repository.dart';
 import '../features/live/data/live_repository.dart';
 import '../features/radio/data/radio_repository.dart';
+import '../features/radio/application/radio_controller.dart';
+import '../features/playback/domain/player_engine.dart';
+import '../media/engine/media_kit_engine.dart';
 import '../features/live/data/live_health_repository.dart';
 import '../features/live/application/live_probe.dart';
 import '../features/live/application/builtin_live_sources.dart';
@@ -42,7 +47,13 @@ final servicesProvider = Provider<AppServices>(
 );
 
 final class AppServices {
-  AppServices.scoped(this.root, this.db);
+  AppServices.scoped(this.root, this.db, {PlayerEngine Function()? radioEngine})
+    : _radioEngine = radioEngine ?? _createRadioEngine;
+  final PlayerEngine Function() _radioEngine;
+  RadioController? _radioPlayer;
+  RadioController get radioPlayer =>
+      _radioPlayer ??= RadioController(_radioEngine);
+  Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
   final Directory root;
   final AppDatabase db;
   final platform = PlatformServices();
@@ -58,7 +69,11 @@ final class AppServices {
   late final history = HistoryRepository(db);
   late final skips = SkipRepository(db);
   late final live = LiveRepository(db, network);
-  late final radio = RadioRepository(db, network);
+  late final radio = RadioRepository(
+    db,
+    network,
+    snapshotDirectory: Directory(p.join(root.path, 'radio_snapshots')),
+  );
   late final liveHealth = LiveHealthRepository(db);
   late final liveProbe = LiveProbe(http, liveHealth);
   late final builtinLive = BuiltinLiveSources(live);
@@ -89,6 +104,14 @@ final class AppServices {
     failover: DownloadFailover(sources, network, settings),
   );
   final exporter = FfmpegExporter();
+  Future<void>? _closing;
+  final _closeHooks = <Future<void> Function()>{};
+
+  void Function() addCloseHook(Future<void> Function() hook) {
+    if (_closing != null) throw StateError('Application services are closing');
+    _closeHooks.add(hook);
+    return () => _closeHooks.remove(hook);
+  }
 
   static Future<AppServices> create() async {
     final directory = await getApplicationSupportDirectory();
@@ -97,18 +120,40 @@ final class AppServices {
       directory,
       AppDatabase(File(p.join(directory.path, 'zero-player.sqlite'))),
     );
+    try {
+      await services._initialize();
+      return services;
+    } catch (_) {
+      try {
+        await services.close();
+      } catch (error, stack) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'startup cleanup',
+          ),
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _initialize() async {
+    final services = this;
     await services.settings.load();
     await services.builtins.initialize();
     await services.builtinLive.initialize();
     await services.store.initialize();
     await services.platform.initialize(
-      windowState: File(p.join(directory.path, 'window.json')),
+      windowState: File(p.join(root.path, 'window.json')),
     );
+    services.platform.desktop?.shutdown = services.close;
+    await services.platform.enableRadioTray(services.radioPlayer);
     await services.gateway.start();
     await services.downloadScheduler.initialize();
     services.settings.addListener(services._applySettings);
     services._applySettings();
-    return services;
   }
 
   void _applySettings() =>
@@ -132,19 +177,47 @@ final class AppServices {
     }
   }
 
-  Future<void> close() async {
-    await builtinLive.close();
-    await liveProbe.close();
-    await downloadScheduler.close();
-    await sourceMonitor.close();
-    settings.removeListener(_applySettings);
-    await offline.close();
-    await gateway.close();
-    posters.close();
-    await synopses.close();
-    http.close();
-    await platform.dispose();
-    settings.dispose();
-    await db.close();
+  Future<void> close() => _closing ??= _close();
+
+  Future<void> closeSafely() async {
+    try {
+      await close();
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'application shutdown',
+        ),
+      );
+    }
   }
+
+  Future<void> _close() => closeResources([
+    () async {
+      await platform.radioTray?.dispose();
+    },
+    () async {
+      await _radioPlayer?.close();
+    },
+    () => radio.close(),
+    ..._closeHooks,
+    () => _closeHooks.clear(),
+    () => subscriptions.close(),
+    () => builtinLive.close(),
+    () => liveProbe.close(),
+    () => downloadScheduler.close(),
+    () => sourceMonitor.close(),
+    () => settings.removeListener(_applySettings),
+    () => offline.close(),
+    () => gateway.close(),
+    () => posters.close(),
+    () => synopses.close(),
+    () => http.close(),
+    () => platform.dispose(),
+    () => settings.close(),
+    () => db.close(),
+  ]);
 }
+
+PlayerEngine _createRadioEngine() => MediaKitEngine(videoOutput: false);

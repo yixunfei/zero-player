@@ -10,7 +10,13 @@ final class LiveHealthRepository {
   Future<void> setEnabled(Iterable<String> ids, bool enabled) =>
       db.atomic(() async {
         for (final id in ids.toSet()) {
-          await _patch(id, {'enabled': enabled});
+          await _patch(id, {'enabled': enabled, if (enabled) 'removed': false});
+        }
+      });
+  Future<void> setRemoved(Iterable<String> ids, bool removed) =>
+      db.atomic(() async {
+        for (final id in ids.toSet()) {
+          await _patch(id, {'removed': removed, if (removed) 'enabled': false});
         }
       });
   Future<void> record(LiveChannel channel, LiveHealth result) => db.atomic(

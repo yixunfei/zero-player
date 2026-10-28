@@ -106,13 +106,20 @@ final class _SourcesPageState extends State<SourcesPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   _batchBar(items),
+                  if (items.any((source) => source.endpoint.scheme == 'http'))
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'HTTP 明文来源：搜索词、观看内容及发给同源站点的请求头可能以明文传输。请优先使用可信 HTTPS 来源。',
+                      ),
+                    ),
                   if (items.isEmpty)
                     const EmptyState('添加你的第一个来源', '从候选库选择，或导入普通 CMS 接口'),
                   for (final source in items) _source(source),
                   const Divider(),
                   const ListTile(
                     title: Text('订阅快照'),
-                    subtitle: Text('刷新失败保留旧数据；手动启停不被刷新覆盖'),
+                    subtitle: Text('失败的列表保留旧数据；部分成功会单独提示，手动启停保持不变'),
                   ),
                   FutureBuilder(
                     future: subscriptions,
@@ -157,7 +164,7 @@ final class _SourcesPageState extends State<SourcesPage> {
     child: ListTile(
       title: Text(source.displayName),
       subtitle: Text(
-        '${source.description} · ${source.classification == 'adult'
+        '${source.endpoint.scheme == 'http' ? 'HTTP 明文 · ' : ''}${source.description} · ${source.classification == 'adult'
             ? '成人'
             : source.classification == 'general'
             ? '普通'
@@ -210,7 +217,13 @@ final class _SourcesPageState extends State<SourcesPage> {
 
   Widget _subscription(Map<String, Object?> row) => ListTile(
     title: Text(row['name'] as String),
-    subtitle: Text(row['error'] as String? ?? '已保存成功快照'),
+    subtitle: Text(
+      [
+        row['error'] as String? ?? '已保存成功快照',
+        if (row['paused'] == 1)
+          (row['failures'] as int) >= 3 ? '失败自动暂停，手动刷新成功后恢复' : '手动暂停',
+      ].join(' · '),
+    ),
     leading: Switch(
       value: row['paused'] != 1,
       onChanged: (value) => perform(

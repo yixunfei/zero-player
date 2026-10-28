@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../../../app/list_keyboard_navigation.dart';
 import '../../../core/network/cancellation_token.dart';
-import '../../../media/engine/media_kit_engine.dart';
+import '../../../app/widgets.dart';
 import '../application/radio_controller.dart';
 import '../data/radio_repository.dart';
 import 'radio_player_controls.dart';
+import 'radio_subscriptions_dialog.dart';
+import 'radio_toolbar.dart';
 
 final class RadioPage extends StatefulWidget {
   const RadioPage({super.key, required this.services});
@@ -16,7 +18,7 @@ final class RadioPage extends StatefulWidget {
 }
 
 final class _RadioPageState extends State<RadioPage> {
-  final _controller = RadioController(() => MediaKitEngine(videoOutput: false));
+  late final RadioController _controller = widget.services.radioPlayer;
   final _query = TextEditingController();
   final _scroll = ScrollController();
   CancellationToken? _request;
@@ -24,10 +26,15 @@ final class _RadioPageState extends State<RadioPage> {
   bool _loading = false;
   String? _error;
   String _group = '';
+  bool _favoritesOnly = false;
+  late final void Function() _removeCloseHook;
 
   @override
   void initState() {
     super.initState();
+    _removeCloseHook = widget.services.addCloseHook(() async {
+      _request?.cancel();
+    });
     unawaited(_load());
   }
 
@@ -51,6 +58,9 @@ final class _RadioPageState extends State<RadioPage> {
           _group = '';
         }
       });
+      if (!refresh && result.needsRefresh) {
+        unawaited(_load(refresh: true));
+      }
     } catch (_) {
       if (mounted && !token.isCancelled) {
         setState(() => _error = '广播列表获取失败，请检查网络后刷新重试。');
@@ -62,10 +72,10 @@ final class _RadioPageState extends State<RadioPage> {
 
   @override
   void dispose() {
+    _removeCloseHook();
     _request?.cancel();
     _query.dispose();
     _scroll.dispose();
-    unawaited(_controller.close());
     super.dispose();
   }
 
@@ -84,78 +94,22 @@ final class _RadioPageState extends State<RadioPage> {
     ],
   );
 
-  Widget _toolbar() => Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                '在线广播 · 实验阶段',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            IconButton(
-              tooltip: '广播来源与说明',
-              onPressed: _sourceInfo,
-              icon: const Icon(Icons.info_outline),
-            ),
-            IconButton(
-              tooltip: '刷新广播列表',
-              onPressed: _loading ? null : () => _load(refresh: true),
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _query,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: '搜索电台',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
-                    tooltip: '清空电台搜索',
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _query.clear();
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 110,
-              child: DropdownButtonFormField<String>(
-                key: ValueKey(_group),
-                initialValue: _group,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: '分组'),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('全部')),
-                  for (final group in {
-                    for (final station in _catalog?.stations ?? [])
-                      if (station.group.isNotEmpty) station.group,
-                  })
-                    DropdownMenuItem(
-                      value: group,
-                      child: Text(group, overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                onChanged: (value) => setState(() => _group = value ?? ''),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
+  Widget _toolbar() => RadioToolbar(
+    query: _query,
+    groups: {
+      for (final station in _catalog?.stations ?? [])
+        if (station.group.isNotEmpty) station.group,
+    },
+    group: _group,
+    favoritesOnly: _favoritesOnly,
+    loading: _loading,
+    updatedAt: _catalog?.updatedAt,
+    onGroup: (value) => setState(() => _group = value),
+    onFavorites: (value) => setState(() => _favoritesOnly = value),
+    onSearch: () => setState(() {}),
+    onSubscriptions: _subscriptions,
+    onInfo: _sourceInfo,
+    onRefresh: () => _load(refresh: true),
   );
 
   Widget _stations() {
@@ -163,6 +117,7 @@ final class _RadioPageState extends State<RadioPage> {
     final stations = (_catalog?.stations ?? [])
         .where(
           (station) =>
+              (!_favoritesOnly || station.favorite) &&
               (_group.isEmpty || station.group == _group) &&
               (query.isEmpty || station.name.toLowerCase().contains(query)),
         )
@@ -202,13 +157,46 @@ final class _RadioPageState extends State<RadioPage> {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(station.group.isEmpty ? '网络广播' : station.group),
-              trailing: const Icon(Icons.play_circle_outline),
+              trailing: IconButton(
+                tooltip: station.favorite ? '取消收藏电台' : '收藏电台',
+                icon: Icon(station.favorite ? Icons.star : Icons.star_outline),
+                onPressed: () => perform(context, () async {
+                  await widget.services.radio.favorite(
+                    station,
+                    !station.favorite,
+                  );
+                  final catalog = _catalog;
+                  if (catalog == null) return;
+                  final updated = await widget.services.radio.withFavorites(
+                    catalog.stations,
+                  );
+                  if (mounted) {
+                    setState(
+                      () => _catalog = RadioCatalog(
+                        updated,
+                        catalog.updatedAt,
+                        notice: catalog.notice,
+                        needsRefresh: catalog.needsRefresh,
+                      ),
+                    );
+                  }
+                }),
+              ),
               onTap: () => _controller.select(station),
             );
           },
         ),
       ),
     );
+  }
+
+  Future<void> _subscriptions() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) =>
+          RadioSubscriptionsDialog(repository: widget.services.radio),
+    );
+    if (mounted) await _load();
   }
 
   void _sourceInfo() => showDialog<void>(
@@ -221,7 +209,7 @@ final class _RadioPageState extends State<RadioPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '内置列表由 popocoding/awesome-m3u 提供。首次进入时联网获取，成功列表缓存 24 小时；更新失败保留旧列表。',
+              '内置列表由 popocoding/awesome-m3u 提供。随应用附带成功快照，先显示本地列表；超过 24 小时后台更新，失败继续使用旧列表。支持自定义 M3U / TXT 订阅和收藏。成功更新同时保存到本地数据库和应用数据目录 radio_snapshots。',
             ),
             SizedBox(height: 12),
             SelectableText(builtinRadioUrl),

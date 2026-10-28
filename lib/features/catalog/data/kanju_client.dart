@@ -36,7 +36,7 @@ final class KanjuClient {
   }
 
   Future<Map> get(Uri uri) async {
-    transport.requireSameOrigin(uri);
+    uri = transport.authenticatedUri(uri);
     if (!uri.path.startsWith('/v1/')) throw const FormatException('接口路径无效');
     final random = Random.secure();
     final nonce = List.generate(

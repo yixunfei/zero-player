@@ -3,6 +3,7 @@ import 'package:zero_player/media/hls/hls_manifest.dart';
 
 void main() {
   final base = Uri.parse('https://source.test/path/list.m3u8?token=abc');
+  _regressionTests(base);
   test(
     'preserves durations, discontinuity and relative URI after redirect',
     () {
@@ -63,4 +64,87 @@ variant?id=2
       throwsFormatException,
     );
   });
+}
+
+void _regressionTests(Uri base) {
+  test(
+    'zero duration consumes its range and discontinuity without leaking state',
+    () {
+      final manifest = HlsManifest.parse('''#EXTM3U
+#EXT-X-MEDIA-SEQUENCE:7
+#EXT-X-DISCONTINUITY
+#EXT-X-BYTERANGE:2@0
+#EXTINF:0,
+empty.ts
+#EXTINF:2,
+next.ts
+#EXT-X-ENDLIST
+''', base);
+      expect(manifest.segments, hasLength(2));
+      expect(manifest.segments.first.duration, Duration.zero);
+      expect(manifest.segments.last.sequence, 8);
+      expect(manifest.segments.last.byteRange, isNull);
+      expect(manifest.segments.last.discontinuity, isFalse);
+    },
+  );
+
+  test(
+    'key URI whitespace is preserved and inline or DRM keys are not proxied',
+    () {
+      final manifest = HlsManifest.parse('''#EXTM3U
+#EXT-X-KEY:METHOD=AES-128, URI="data:application/octet-stream;base64,AA=="
+#EXT-X-SESSION-KEY:METHOD=SAMPLE-AES, URI="skd://license"
+#EXT-X-MAP: URI="init.mp4"
+#EXTINF:2,
+a.ts
+#EXT-X-ENDLIST
+''', base);
+      final requested = <Uri>[];
+      final rewritten = manifest.rewrite((uri) {
+        requested.add(uri);
+        return Uri.parse('http://localhost/proxy');
+      });
+      expect(rewritten, contains(', URI="data:'));
+      expect(rewritten, contains(', URI="skd:'));
+      expect(rewritten, contains(': URI="http://localhost/proxy"'));
+      expect(requested.map((uri) => uri.scheme), everyElement('https'));
+      expect(requested, hasLength(2));
+    },
+  );
+
+  test(
+    'variables expand across declared parent imports and reject unknown values',
+    () {
+      final parent = HlsManifest.parse(r'''#EXTM3U
+#EXT-X-DEFINE:NAME="token",VALUE="signed-value"
+#EXT-X-STREAM-INF:BANDWIDTH=100
+child.m3u8?token={$token}
+''', base);
+      expect(
+        parent.playlistUris.single.queryParameters['token'],
+        'signed-value',
+      );
+      final child = HlsManifest.parse(
+        r'''#EXTM3U
+#EXT-X-DEFINE:IMPORT="token"
+#EXTINF:2,
+part.ts?auth={$token}
+#EXT-X-ENDLIST
+''',
+        base,
+        variables: parent.variables,
+      );
+      expect(child.segments.single.uri.queryParameters['auth'], 'signed-value');
+      expect(child.rewrite((uri) => uri), isNot(contains(r'{$token}')));
+      expect(
+        () => HlsManifest.parse(
+          r'#EXTM3U'
+          '\n'
+          r'{$missing}.ts',
+          base,
+        ),
+        throwsFormatException,
+      );
+    },
+  );
 }

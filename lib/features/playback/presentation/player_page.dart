@@ -36,13 +36,14 @@ final class _PlayerPageState extends State<PlayerPage>
   bool locked = false;
   bool leaving = false;
   bool closed = false;
+  late final void Function() _removeCloseHook;
   BoxFit fit = BoxFit.contain;
   @override
   void initState() {
     super.initState();
     engine = MediaKitEngine();
     controller = PlaybackController(widget.services, engine);
-    widget.services.platform.desktop?.beforeClose = controller.save;
+    _removeCloseHook = widget.services.addCloseHook(controller.close);
     WidgetsBinding.instance.addObserver(this);
     unawaited(controller.open(widget.request));
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -61,7 +62,7 @@ final class _PlayerPageState extends State<PlayerPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.services.platform.desktop?.beforeClose = null;
+    _removeCloseHook();
     if (!closed) unawaited(controller.close());
     unawaited(widget.services.platform.fullscreen(false));
     super.dispose();

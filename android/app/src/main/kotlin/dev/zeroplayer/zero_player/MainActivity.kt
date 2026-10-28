@@ -3,6 +3,7 @@ package dev.zeroplayer.zero_player
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodCall
 import android.app.PictureInPictureParams
 import android.app.UiModeManager
 import android.content.Context
@@ -21,20 +22,7 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zero_player/platform")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "saveFile" -> {
-                        if (saveResult != null) {
-                            result.error("busy", "A save dialog is already open", null)
-                        } else {
-                            saveResult = result
-                            savePath = call.argument<String>("path")
-                            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = call.argument<String>("mime") ?: "application/octet-stream"
-                                putExtra(Intent.EXTRA_TITLE, call.argument<String>("name"))
-                            }
-                            startActivityForResult(intent, 7201)
-                        }
-                    }
+                    "saveFile" -> requestSave(call, result)
                     "isTelevision" -> {
                         val mode = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
                         result.success(mode.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
@@ -54,17 +42,59 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    private fun requestSave(call: MethodCall, result: MethodChannel.Result) {
+        if (saveResult != null) {
+            result.error("busy", "A save dialog is already open", null)
+            return
+        }
+        val path = call.argument<String>("path")
+        if (path == null || !File(path).isFile) {
+            result.error("invalid_file", "The export file does not exist", null)
+            return
+        }
+        try {
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = call.argument<String>("mime") ?: "application/octet-stream"
+                putExtra(Intent.EXTRA_TITLE, call.argument<String>("name"))
+            }
+            saveResult = result
+            savePath = path
+            startActivityForResult(intent, 7201)
+        } catch (_: Exception) {
+            if (saveResult === result) {
+                finishSave(result, error = "Unable to open the file picker")
+            } else {
+                result.error("save_failed", "Unable to prepare the file picker", null)
+            }
+        }
+    }
+
+    private fun finishSave(pending: MethodChannel.Result, saved: Boolean = false, error: String? = null) {
+        if (saveResult !== pending) return
+        saveResult = null
+        savePath = null
+        if (error == null) pending.success(saved)
+        else pending.error("save_failed", error, null)
+    }
+
+    override fun onDestroy() {
+        try {
+            saveResult?.let { finishSave(it) }
+        } finally {
+            super.onDestroy()
+        }
+    }
+
     @Deprecated("Uses the activity result bridge for Flutter file export")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != 7201) return
         val pending = saveResult ?: return
         val path = savePath
-        saveResult = null
-        savePath = null
         val uri = data?.data
         if (resultCode != Activity.RESULT_OK || uri == null || path == null) {
-            pending.success(false)
+            finishSave(pending)
             return
         }
         Thread {
@@ -73,9 +103,9 @@ class MainActivity : FlutterActivity() {
                     requireNotNull(output)
                     File(path).inputStream().use { input -> input.copyTo(output) }
                 }
-                runOnUiThread { pending.success(true) }
+                runOnUiThread { finishSave(pending, saved = true) }
             } catch (_: Exception) {
-                runOnUiThread { pending.error("save_failed", "Unable to save file", null) }
+                runOnUiThread { finishSave(pending, error = "Unable to save file") }
             }
         }.start()
     }

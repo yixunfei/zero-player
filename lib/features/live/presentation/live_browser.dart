@@ -43,7 +43,7 @@ final class LiveBrowser extends StatelessWidget {
     final selected =
         shown.where((c) => c.id == selectedId).firstOrNull ?? shown.firstOrNull;
     final extra = channels.map(channelGroup).toSet()
-      ..removeAll({'央视', '卫视', '收藏', '最近', '全部', '待处理', '已停用'});
+      ..removeAll({'央视', '卫视', '收藏', '最近', '全部', '待处理', '已停用', '已移除'});
     final groups = [
       '央视',
       '卫视',
@@ -52,6 +52,7 @@ final class LiveBrowser extends StatelessWidget {
       '全部',
       '待处理',
       '已停用',
+      '已移除',
       ...(extra.toList()..sort()),
     ];
     return LayoutBuilder(

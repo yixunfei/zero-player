@@ -1,33 +1,95 @@
-import 'package:xml/xml.dart';
+import 'dart:isolate';
+import 'package:xml/xml_events.dart';
 import '../domain/live_channel.dart';
 
-List<EpgProgram> parseEpg(String input) {
+Future<List<EpgProgram>> parseEpgInBackground(String input, DateTime now) =>
+    Isolate.run(
+      () => parseEpg(
+        input,
+        from: now.subtract(const Duration(days: 1)),
+        until: now.add(const Duration(days: 7)),
+      ),
+    );
+
+List<EpgProgram> parseEpg(String input, {DateTime? from, DateTime? until}) {
   if (input.contains('<!DOCTYPE') || input.contains('<!ENTITY')) {
     throw const FormatException('EPG 不允许文档类型与外部实体');
   }
-  final xml = XmlDocument.parse(input);
-  final result = <EpgProgram>[];
-  for (final node in xml.findAllElements('programme')) {
-    if (result.length >= 100000) throw const FormatException('EPG 节目数量超过限制');
-    final start = xmltvTime(node.getAttribute('start') ?? '');
-    final end = xmltvTime(node.getAttribute('stop') ?? '');
-    final channel = node.getAttribute('channel');
+  final reader = _EpgReader(from, until);
+  for (final event in parseEvents(
+    input,
+    validateNesting: true,
+    validateDocument: true,
+  )) {
+    reader.add(event);
+  }
+  return reader.programs;
+}
+
+final class _EpgReader {
+  _EpgReader(this.from, this.until);
+  final DateTime? from;
+  final DateTime? until;
+  final programs = <EpgProgram>[];
+  int _depth = 0;
+  int _count = 0;
+  int? _programmeDepth;
+  int? _titleDepth;
+  Map<String, String>? _attributes;
+  StringBuffer? _title;
+
+  void add(XmlEvent event) {
+    if (event is XmlStartElementEvent) {
+      _depth++;
+      if (event.name == 'programme' && _programmeDepth == null) {
+        if (++_count > 100000) throw const FormatException('EPG 节目数量超过限制');
+        _programmeDepth = _depth;
+        _attributes = {
+          for (final attribute in event.attributes)
+            attribute.name: attribute.value,
+        };
+      } else if (event.name == 'title' &&
+          _depth == (_programmeDepth ?? -2) + 1 &&
+          _title == null) {
+        _titleDepth = _depth;
+        _title = StringBuffer();
+      }
+      if (event.isSelfClosing) _end();
+    } else if (event is XmlEndElementEvent) {
+      _end();
+    } else if (_titleDepth != null) {
+      if (event is XmlTextEvent) _title!.write(event.value);
+      if (event is XmlCDATAEvent) _title!.write(event.value);
+    }
+  }
+
+  void _end() {
+    if (_depth == _titleDepth) _titleDepth = null;
+    if (_depth == _programmeDepth) {
+      _complete();
+      _programmeDepth = null;
+      _attributes = null;
+      _title = null;
+    }
+    _depth--;
+  }
+
+  void _complete() {
+    final start = xmltvTime(_attributes!['start'] ?? '');
+    final end = xmltvTime(_attributes!['stop'] ?? '');
+    final channel = _attributes!['channel'];
     if (start == null ||
         end == null ||
         channel == null ||
-        !end.isAfter(start)) {
-      continue;
+        !end.isAfter(start) ||
+        (from != null && !end.isAfter(from!)) ||
+        (until != null && !start.isBefore(until!))) {
+      return;
     }
-    result.add(
-      EpgProgram(
-        channel,
-        node.getElement('title')?.innerText ?? '未命名节目',
-        start,
-        end,
-      ),
+    programs.add(
+      EpgProgram(channel, _title?.toString() ?? '未命名节目', start, end),
     );
   }
-  return result;
 }
 
 DateTime? xmltvTime(String text) {

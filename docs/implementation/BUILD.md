@@ -11,6 +11,7 @@ dart run tool/check_source_size.dart
 flutter test
 pwsh -File tool/generate_fixtures.ps1 -FFmpeg <path-to-ffmpeg.exe>
 flutter test integration_test/radio_flow_test.dart -d windows --no-pub
+flutter test integration_test/radio_tray_test.dart -d windows --no-pub
 flutter test integration_test/app_shell_regression_test.dart -d windows --no-pub
 ~~~
 

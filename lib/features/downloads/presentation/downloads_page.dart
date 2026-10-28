@@ -22,12 +22,16 @@ final class DownloadsPage extends StatefulWidget {
 final class _DownloadsPageState extends State<DownloadsPage> {
   late Future<List<DownloadTask>> future;
   late final StreamSubscription<void> changes;
+  Timer? _reloadTimer;
   @override
   void initState() {
     super.initState();
     _load();
-    changes = widget.services.db.changes.listen((_) {
-      if (mounted) setState(_load);
+    changes = widget.services.downloads.changes.listen((_) {
+      _reloadTimer ??= Timer(const Duration(milliseconds: 250), () {
+        _reloadTimer = null;
+        if (mounted) setState(_load);
+      });
     });
   }
 
@@ -38,6 +42,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
   @override
   void dispose() {
     changes.cancel();
+    _reloadTimer?.cancel();
     super.dispose();
   }
 
@@ -58,6 +63,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
           ),
   );
   Widget _task(DownloadTask task) => Card(
+    key: ValueKey(task.id),
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(

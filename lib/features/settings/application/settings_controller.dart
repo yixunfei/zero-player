@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/persistence/app_database.dart';
 import '../../../app/app_fonts.dart';
+import '../domain/settings_validation.dart';
 
 final class UserSettings {
   const UserSettings({
@@ -159,26 +160,63 @@ final class SettingsController extends ChangeNotifier {
   SettingsController(this.db);
   final AppDatabase db;
   UserSettings value = const UserSettings();
+  Future<void> _pending = Future.value();
+  Future<void>? _closing;
+  bool _disposed = false;
   Future<void> load() async {
+    if (_disposed || _closing != null) throw StateError('Settings are closed');
     final rows = await db.rows('SELECT key,value FROM settings');
-    value = UserSettings.fromMap({
-      for (final row in rows)
-        row['key'] as String: jsonDecode(row['value'] as String),
-    });
-    notifyListeners();
+    final values = <String, Object?>{};
+    for (final row in rows) {
+      final key = row['key'] as String;
+      try {
+        final decoded = jsonDecode(row['value'] as String);
+        validateSetting(key, decoded);
+        values[key] = decoded;
+      } on FormatException {
+        debugPrint('Ignoring invalid setting: $key');
+      }
+    }
+    value = UserSettings.fromMap(values);
+    if (!_disposed) notifyListeners();
   }
 
-  Future<void> update(Map<String, Object> changes) async {
+  Future<void> update(Map<String, Object> changes) {
+    if (_disposed || _closing != null) {
+      return Future.error(StateError('Settings are closed'));
+    }
+    final patch = Map<String, Object>.of(changes);
+    final operation = _pending.then((_) => _update(patch));
+    _pending = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> _update(Map<String, Object> changes) async {
+    for (final entry in changes.entries) {
+      validateSetting(entry.key, entry.value);
+    }
     final next = UserSettings.fromMap({...value.toMap(), ...changes});
     await db.atomic(() async {
-      for (final entry in next.toMap().entries) {
+      for (final entry in changes.entries) {
         await db.customStatement(
           'INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)',
           [entry.key, jsonEncode(entry.value)],
         );
       }
-    });
+    }, tables: const {'settings'});
     value = next;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> close() => _closing ??= _pending.then((_) => dispose());
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
   }
 }
