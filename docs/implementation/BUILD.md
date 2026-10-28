@@ -1,6 +1,6 @@
 # 构建与打包
 
-v0.0.2 本轮只验收 Windows x64。先执行 `flutter build windows --release --no-pub`，再执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。产物在 `artifacts/release/0.0.2/`；该模式不会把旧 Android 构建混入新版本。必须保留便携目录的 DLL、data 和第三方声明。
+v0.0.4 本轮只验收 Windows x64。先执行 `flutter build windows --release --no-pub`，再执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。产物在 `artifacts/release/0.0.4/`；该模式不会把旧 Android 构建混入新版本。必须保留便携目录的 DLL、data 和第三方声明。
 
 渠道核查使用 `flutter test tool/audit_sources.dart`；可用 `--dart-define=SOURCE_DATABASE=<路径>` 纳入本机渠道。对实际用户数据库应用快照前先用 `tool/backup_database.py` 创建一致性备份，再运行 `tool/apply_source_audit.dart`，显式提供 SOURCE_DATABASE 与 SOURCE_BACKUP。测试使用显式 `allowPrivateNetworks: true` 访问合成回环服务，生产入口不开放该权限。
 
@@ -20,6 +20,24 @@ flutter test integration_test/app_shell_regression_test.dart -d windows --no-pub
 ~~~
 
 测试服务与媒体样本均由本地 fixture 提供。公开网络用例默认跳过，须显式选择。测试素材可用 FFmpeg 通过 generate_fixtures.ps1 重新生成，不提交大体积生成文件。Windows 平台测试与构建必须串行执行，测试后完整 release build 会刷新插件注册。
+
+## 干净 Windows 构建与原生测试
+
+清理生成缓存使用 Flutter 标准命令 flutter clean；不会删除 artifacts 中的旧发行包与用户备份。清理后先 flutter pub get，再按需运行预置脚本；Windows SQLite DLL 与 Android 库均按锁定版本摘要校验。
+
+~~~powershell
+pwsh -File tool/prefetch_dependencies.ps1
+pwsh -File tool/prefetch_native.ps1 -Platform windows
+$env:FFMPEGKIT_LOCAL_DIR = (Resolve-Path .tools/ffmpegkit/unpacked).Path
+# 每轮原生回归使用新的临时目录，避免 media_kit 调试引用文件遇到 PID 重用。
+$testTemp = Join-Path ([IO.Path]::GetTempPath()) ('zero-player-native-' + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $testTemp | Out-Null
+$env:TEMP = $testTemp
+$env:TMP = $testTemp
+flutter test integration_test/supervision_flow_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
+~~~
+
+PROJECT_ROOT 应替换为实际仓库路径。监管用例仅写临时数据库，真实用户库不会写入测试密码；恢复码不输出到日志或截图。Release 不使用 media_kit 的调试指针持久化逻辑。
 
 ## Android 签名
 

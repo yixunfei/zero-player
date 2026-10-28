@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import '../../supervision/domain/supervision_rules.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../app/app_services.dart';
@@ -40,19 +41,55 @@ final class PlaybackRequest {
 
 final class PlaybackController extends ChangeNotifier {
   PlaybackController(this.services, this.engine) {
+    services.contentPolicy.addListener(_policyChanged);
     _states = engine.states.listen(_onState);
     _errors = engine.errors.listen((_) {
-      if (!_switching && !_closed) {
+      if (!_switching && !_closed && !blocked) {
         error = '播放中断。可重试、切换线路或重新搜索其他来源';
         _scheduleRecovery();
         notifyListeners();
       }
     });
-    _saveTimer = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => unawaited(save()),
-    );
+    _saveTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      _policyChanged();
+      unawaited(save());
+    });
   }
+  bool blocked = false;
+  bool _allowed(PlaybackRequest next) {
+    if (next.line < 0 || next.line >= next.item.lines.length) return false;
+    return next.live
+        ? services.contentPolicy.liveNameAllowed(
+            next.item.lines[next.line].name,
+          )
+        : services.contentPolicy.itemAllowed(next.item);
+  }
+
+  void _policyChanged() {
+    if (_closed || blocked || request == null || _allowed(request!)) return;
+    blocked = true;
+    _generation++;
+    cancelRecovery();
+    error = '内容已被成人过滤或监管规则屏蔽';
+    _gateway?.close();
+    request?.offline?.close();
+    state = const PlaybackSnapshot();
+    unawaited(engine.stop().catchError((Object _) {}));
+    notifyListeners();
+  }
+
+  Future<void> _validate(PlaybackRequest next) async {
+    if (!next.live) {
+      await services.sources.find(next.item.sourceId);
+    } else if (next.line >= 0 && next.line < next.item.lines.length) {
+      final channel = services.contentPolicy.liveChannel(
+        next.item.lines[next.line].name,
+      );
+      if (channel != null) await services.live.schedule(channel);
+    }
+    if (!_allowed(next)) throw const ContentBlocked();
+  }
+
   final AppServices services;
   final PlayerEngine engine;
   late final StreamSubscription<PlaybackSnapshot> _states;
@@ -149,6 +186,8 @@ final class PlaybackController extends ChangeNotifier {
       _gateway?.close();
       if (request?.offline != next.offline) request?.offline?.close();
       request = next;
+      await _validate(next);
+      blocked = false;
       resolvedMedia = null;
       state = const PlaybackSnapshot();
       markStart = null;
@@ -165,10 +204,22 @@ final class PlaybackController extends ChangeNotifier {
       if (_closed || generation != _generation) return;
       final uri = next.offline?.uri ?? await _onlineUri(next);
       if (generation != _generation || _closed) return;
+      await _validate(next);
+      if (generation != _generation || _closed) return;
       await engine.open(uri);
+      if (generation != _generation || _closed || !_allowed(next)) {
+        await engine.stop();
+        return;
+      }
       _switching = false;
       _onState(engine.snapshot);
     } catch (e) {
+      if (e is ContentBlocked) {
+        blocked = true;
+        cancelRecovery();
+        _gateway?.close();
+        next.offline?.close();
+      }
       error = e is RemoteFailure
           ? e.message
           : e is FormatException
@@ -207,6 +258,7 @@ final class PlaybackController extends ChangeNotifier {
       final resolved = await createVodProvider(
         source,
         services.network,
+        policy: services.contentPolicy,
       ).resolve(media);
       media = Episode(media.label, resolved.uri);
       headers = resolved.headers;
@@ -243,7 +295,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   void _onState(PlaybackSnapshot next) {
-    if (_closed || _switching || request == null) return;
+    if (_closed || blocked || _switching || request == null) return;
     state = next;
     _gateway?.prefetch.playing = next.playing;
     _gateway?.prefetch.kick();
@@ -296,6 +348,10 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    if (request != null && !_allowed(request!)) {
+      _policyChanged();
+      return;
+    }
     _recoveryTimer?.cancel();
     _userPaused = state.playing;
     if (notice?.startsWith('正在尝试恢复') ?? false) notice = null;
@@ -305,7 +361,11 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> save() async {
-    if (request == null || isLive || request!.offline != null || _switching) {
+    if (blocked ||
+        request == null ||
+        isLive ||
+        request!.offline != null ||
+        _switching) {
       return;
     }
     try {
@@ -396,6 +456,7 @@ final class PlaybackController extends ChangeNotifier {
   Future<void> close() => _closing ??= _close();
 
   Future<void> _close() async {
+    services.contentPolicy.removeListener(_policyChanged);
     _closed = true;
     _generation++;
     _shutdown.complete();
@@ -424,6 +485,7 @@ final class PlaybackController extends ChangeNotifier {
   void _scheduleRecovery() {
     if (_closed ||
         _recoveryCancelled ||
+        blocked ||
         _userPaused ||
         _recoveryAttempts >= 2 ||
         request == null ||

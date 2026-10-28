@@ -7,6 +7,8 @@ import 'cms_provider.dart';
 import 'kanju_provider.dart';
 import 'mac_cms_html_provider.dart';
 import 'website_transport.dart';
+import '../../supervision/application/content_policy.dart';
+import '../../supervision/data/filtering_vod_provider.dart';
 
 VodProvider createVodProvider(
   VideoSource source,
@@ -14,6 +16,7 @@ VodProvider createVodProvider(
   CancellationToken? cancellation,
   RequestPriority priority = RequestPriority.interactive,
   void Function(bool)? onActivity,
+  ContentPolicy? policy,
 }) {
   final transport = WebsiteTransport(
     source,
@@ -22,7 +25,7 @@ VodProvider createVodProvider(
     priority: priority,
     onActivity: onActivity,
   );
-  return switch (source.kind) {
+  final provider = switch (source.kind) {
     'kanju' => KanjuProvider(transport),
     'macCmsHtml' => MacCmsHtmlProvider(transport),
     'cms' => CmsProvider(
@@ -34,4 +37,7 @@ VodProvider createVodProvider(
     ),
     _ => throw const RemoteFailure(FailureKind.unsupported, '不支持的点播来源类型'),
   };
+  return policy == null
+      ? provider
+      : FilteringVodProvider(provider, source, policy);
 }

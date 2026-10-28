@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../app/app_services.dart';
@@ -109,11 +110,19 @@ final class _TonkiangDialogState extends State<TonkiangDialog> {
       final existing = (await widget.services.live.channels()).where(
         (c) => c.listId.isNotEmpty && c.listId == _listId(uri),
       );
-      await widget.services.live.importText(
-        'Tonkiang · ${searched.isEmpty ? query.text.trim() : searched}',
-        uri,
-        exportM3u([...existing, ...channels]),
-      );
+      if (!mounted) return;
+      if (!await runSensitive(
+        context,
+        widget.services.supervision,
+        SensitiveOperation.channels,
+        () => widget.services.live.importText(
+          'Tonkiang · ${searched.isEmpty ? query.text.trim() : searched}',
+          uri,
+          exportM3u([...existing, ...channels]),
+        ),
+      )) {
+        return;
+      }
       if (mounted) {
         message(context, '已导入 ${channels.length} 条线路，可在直播页测活');
         Navigator.pop(context);

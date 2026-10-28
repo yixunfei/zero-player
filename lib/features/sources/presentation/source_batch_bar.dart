@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
@@ -88,7 +89,17 @@ final class SourceBatchBar extends StatelessWidget {
         )) {
       return;
     }
-    await services.sources.batch(ids, enabled: enabled, suppressed: suppressed);
+    if (!context.mounted) return;
+    if (!await runSensitive(
+      context,
+      services.supervision,
+      SensitiveOperation.channels,
+      () =>
+          services.sources.batch(ids, enabled: enabled, suppressed: suppressed),
+      needed: enabled == true || suppressed == false,
+    )) {
+      return;
+    }
     onSelection({});
   });
 

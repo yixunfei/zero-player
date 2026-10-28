@@ -55,9 +55,31 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     _feed.addListener(_changed);
     _scroll.addListener(_loadNearEnd);
     widget.services.settings.addListener(_settingsChanged);
+    widget.services.supervision.addListener(_policyChanged);
     _sourceChanges = widget.services.sources.changes.listen(
       (_) => unawaited(_syncSources()),
     );
+    unawaited(_refresh());
+  }
+
+  List<DiscoverySection> get _visibleSections => [
+    for (final section in _feed.sections)
+      if (section.items.any(_recommendationAllowed))
+        DiscoverySection(
+          section.category,
+          section.label,
+          section.page,
+          section.items.where(_recommendationAllowed).toList(),
+        ),
+  ];
+  bool _recommendationAllowed(Recommendation item) =>
+      (_channel.isEmpty ||
+          widget.services.contentPolicy.sourceIdAllowed(_channel)) &&
+      widget.services.contentPolicy.textAllowed(
+        [item.title, item.subtitle, item.description].join(' '),
+      );
+  void _policyChanged() {
+    if (mounted) setState(() {});
     unawaited(_refresh());
   }
 
@@ -87,7 +109,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
                 (s) =>
                     s.enabled &&
                     !s.suppressed &&
-                    (!_filterAdult || s.classification != 'adult'),
+                    widget.services.contentPolicy.sourceAllowed(s),
               )
               .toList()
             ..sort(compareRecommendedSources);
@@ -149,7 +171,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
               (s) =>
                   s.enabled &&
                   !s.suppressed &&
-                  (!_filterAdult || s.classification != 'adult'),
+                  widget.services.contentPolicy.sourceAllowed(s),
             )
             .toList()
           ..sort(compareRecommendedSources);
@@ -183,6 +205,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
         page: page,
         cancellation: cancellation,
         filterAdult: filterAdult,
+        policy: widget.services.contentPolicy,
       );
       cancellation.check();
       await widget.services.sources.health(
@@ -257,6 +280,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   void dispose() {
     unawaited(_sourceChanges?.cancel());
     widget.services.settings.removeListener(_settingsChanged);
+    widget.services.supervision.removeListener(_policyChanged);
     _feed.removeListener(_changed);
     _feed.dispose();
     _scroll.dispose();
@@ -326,14 +350,14 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
           ),
         ),
         SliverToBoxAdapter(child: ContinueWatching(history: _history)),
-        if (_feed.sections.isNotEmpty)
+        if (_visibleSections.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
             sliver: SliverToBoxAdapter(
               child: DiscoveryHero(
-                item: _feed.sections.first.items.first,
-                loadDescription: _synopsis(_feed.sections.first.items.first),
-                onPlay: () => _search(_feed.sections.first.items.first),
+                item: _visibleSections.first.items.first,
+                loadDescription: _synopsis(_visibleSections.first.items.first),
+                onPlay: () => _search(_visibleSections.first.items.first),
               ),
             ),
           ),
@@ -344,7 +368,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
               child: Text(_feed.message!),
             ),
           ),
-        for (final section in _feed.sections) _section(section),
+        for (final section in _visibleSections) _section(section),
         if (_feed.hasFailures && _channel.isNotEmpty)
           SliverToBoxAdapter(
             child: Center(

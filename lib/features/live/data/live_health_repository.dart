@@ -5,16 +5,20 @@ import '../domain/live_health.dart';
 
 /// Personal enable choices and probe results survive playlist refreshes.
 final class LiveHealthRepository {
-  const LiveHealthRepository(this.db);
+  const LiveHealthRepository(this.db, {this.authorize, this.canEnable});
   final AppDatabase db;
+  final void Function()? authorize;
+  final bool Function()? canEnable;
   Future<void> setEnabled(Iterable<String> ids, bool enabled) =>
       db.atomic(() async {
+        if (enabled) authorize?.call();
         for (final id in ids.toSet()) {
           await _patch(id, {'enabled': enabled, if (enabled) 'removed': false});
         }
       }, tables: const {'app_meta'});
   Future<void> setRemoved(Iterable<String> ids, bool removed) =>
       db.atomic(() async {
+        if (!removed) authorize?.call();
         for (final id in ids.toSet()) {
           await _patch(id, {'removed': removed, if (removed) 'enabled': false});
         }
@@ -38,6 +42,7 @@ final class LiveHealthRepository {
           result.availability == LiveAvailability.unavailable)
         'enabled': false,
       if (enableResponding &&
+          (canEnable?.call() ?? true) &&
           result.availability == LiveAvailability.responding)
         'enabled': true,
     }),

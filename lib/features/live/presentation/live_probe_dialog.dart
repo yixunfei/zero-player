@@ -1,4 +1,6 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
+import '../../../app/widgets.dart';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../../../core/network/cancellation_token.dart';
@@ -37,7 +39,23 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
   @override
   void initState() {
     super.initState();
-    unawaited(_run());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        perform(
+          context,
+          () => runSensitive(
+            context,
+            widget.services.supervision,
+            SensitiveOperation.channels,
+            _run,
+            needed: widget.enableResponding,
+          ),
+        ).whenComplete(() {
+          if (mounted) setState(() => running = false);
+        }),
+      );
+    });
   }
 
   Future<void> _run() async {

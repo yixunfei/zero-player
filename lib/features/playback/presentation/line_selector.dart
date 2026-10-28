@@ -64,6 +64,13 @@ final class _LineSelectorState extends State<LineSelector> {
   }
 
   Future<void> _check(int index, Map<String, String> headers) async {
+    final policy = widget.services.contentPolicy;
+    if (widget.item.sourceId == 'live'
+        ? !policy.liveNameAllowed(widget.item.lines[index].name)
+        : !policy.itemAllowed(widget.item)) {
+      if (mounted) setState(() => _status[index] = '已屏蔽');
+      return;
+    }
     final episodes = widget.item.lines[index].episodes;
     if (episodes.isEmpty) {
       if (mounted) setState(() => _status[index] = '无剧集');
@@ -88,6 +95,7 @@ final class _LineSelectorState extends State<LineSelector> {
           source,
           widget.services.network,
           cancellation: token,
+          policy: widget.services.contentPolicy,
         ).resolve(episode);
         uri = media.uri;
         effectiveHeaders = media.headers;

@@ -65,6 +65,7 @@ void main() {
       await _menuAndDisclaimer(tester);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
+      await services.supervision.load();
       await services.settings.load();
       expect(services.settings.value.navigationGuideSeen, isTrue);
       await services.settings.update({'startFullscreen': false});
@@ -85,6 +86,7 @@ Future<void> _setUp() async {
     AppDatabase.memory(),
     allowPrivateNetworks: true,
   );
+  await services.supervision.load();
   await services.settings.load();
   await services.settings.update({
     'recommendation': 'off',

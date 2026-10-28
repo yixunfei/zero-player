@@ -12,7 +12,15 @@ import '../../sources/data/source_repository.dart';
 import '../../sources/domain/video_source.dart';
 
 final class SearchController extends ChangeNotifier {
-  SearchController(this.sources, this.network, this.history);
+  SearchController(this.sources, this.network, this.history) {
+    sources.policy?.addListener(_policyChanged);
+  }
+  void _policyChanged() {
+    cancel(notify: false);
+    items.removeWhere((item) => !(sources.policy?.itemAllowed(item) ?? true));
+    notifyListeners();
+  }
+
   final SourceRepository sources;
   final DocumentClient network;
   final HistoryRepository history;
@@ -166,7 +174,8 @@ final class SearchController extends ChangeNotifier {
                   (onlyIds == null || onlyIds.contains(s.id)) &&
                   !excluded.contains(s.id) &&
                   !_blocked.contains(s.id) &&
-                  (!filterAdult || s.classification != 'adult'),
+                  (sources.policy?.sourceAllowed(s) ??
+                      (!filterAdult || s.classification != 'adult')),
             )
             .toList()
           ..sort((a, b) {
@@ -256,7 +265,12 @@ final class SearchController extends ChangeNotifier {
       statuses[source.id] = '正在查询';
       _running.add(source.id);
       notifyListeners();
-      final provider = createVodProvider(source, network, cancellation: token);
+      final provider = createVodProvider(
+        source,
+        network,
+        cancellation: token,
+        policy: sources.policy,
+      );
       var pages = 1;
       for (var page = 1; page <= pages; page++) {
         final result = await provider.search(query, page: page);
@@ -363,6 +377,7 @@ final class SearchController extends ChangeNotifier {
 
   @override
   void dispose() {
+    sources.policy?.removeListener(_policyChanged);
     cancel(notify: false);
     super.dispose();
   }

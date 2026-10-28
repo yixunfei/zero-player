@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import '../../../app/widgets.dart';
 import '../../../core/network/cancellation_token.dart';
@@ -40,21 +41,29 @@ final class _RadioSubscriptionsDialogState
     super.dispose();
   }
 
-  Future<void> _operate(Future<void> Function() action) =>
-      perform(context, () async {
-        if (_busy) return;
-        setState(() => _busy = true);
-        try {
-          await action();
-        } finally {
-          if (mounted) {
-            setState(() {
-              _busy = false;
-              _rows = _load();
-            });
-          }
-        }
-      });
+  Future<void> _operate(
+    Future<void> Function() action, {
+    bool sensitive = false,
+  }) => perform(context, () async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await runSensitive(
+        context,
+        widget.repository.policy?.supervision,
+        SensitiveOperation.channels,
+        action,
+        needed: sensitive,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _rows = _load();
+        });
+      }
+    }
+  });
 
   Future<void> _add() async {
     final input = await inputDialog(context, '添加广播订阅', [
@@ -68,6 +77,7 @@ final class _RadioSubscriptionsDialogState
         Uri.parse(input[1]),
         cancellation: _token,
       ),
+      sensitive: true,
     );
   }
 
@@ -130,6 +140,7 @@ final class _RadioSubscriptionsDialogState
                   Uri.parse(builtinRadioUrl),
                   cancellation: _token,
                 ),
+                sensitive: true,
               ),
         child: const Text('恢复内置订阅'),
       ),
@@ -159,6 +170,7 @@ final class _RadioSubscriptionsDialogState
             ? null
             : (value) => _operate(
                 () => widget.repository.setEnabled(subscription.id, value),
+                sensitive: value,
               ),
       ),
       trailing: Row(

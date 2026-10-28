@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
@@ -56,42 +57,52 @@ Future<void> importCatalog(
       lives: selected.lives,
     ),
   );
-  if (file) {
-    await services.subscriptions.importLocal(
-      chosen,
-      enableNew: selected.enabled,
-    );
-  } else if (selected.sources.isNotEmpty || selected.lives.isNotEmpty) {
-    await services.subscriptions.import(
-      chosen,
-      preview.url.host,
-      enableNew: selected.enabled,
-    );
-  }
-  var failures = 0;
-  final children = await services.subscriptions.selectedChildren(
-    selected.children,
-    onFailure: (_, error) => failures++,
-  );
-  for (final child in children.where(
-    (c) => c.catalog.sources.isNotEmpty || c.catalog.lives.isNotEmpty,
-  )) {
-    try {
-      await services.subscriptions.import(
-        child,
-        child.url.host,
-        enableNew: selected.enabled,
+  if (!context.mounted) return;
+  await runSensitive(
+    context,
+    services.supervision,
+    SensitiveOperation.channels,
+    () async {
+      if (file) {
+        await services.subscriptions.importLocal(
+          chosen,
+          enableNew: selected.enabled,
+        );
+      } else if (selected.sources.isNotEmpty || selected.lives.isNotEmpty) {
+        await services.subscriptions.import(
+          chosen,
+          preview.url.host,
+          enableNew: selected.enabled,
+        );
+      }
+      var failures = 0;
+      final children = await services.subscriptions.selectedChildren(
+        selected.children,
+        onFailure: (_, error) => failures++,
       );
-    } catch (_) {
-      failures++;
-    }
-  }
-  if (context.mounted) {
-    message(
-      context,
-      failures == 0 ? '导入完成。接口和播放可用性需单独检查' : '已保存成功的子仓，$failures 个子仓失败，可重新导入',
-    );
-  }
+      for (final child in children.where(
+        (c) => c.catalog.sources.isNotEmpty || c.catalog.lives.isNotEmpty,
+      )) {
+        try {
+          await services.subscriptions.import(
+            child,
+            child.url.host,
+            enableNew: selected.enabled,
+          );
+        } catch (_) {
+          failures++;
+        }
+      }
+      if (context.mounted) {
+        message(
+          context,
+          failures == 0
+              ? '导入完成。接口和播放可用性需单独检查'
+              : '已保存成功的子仓，$failures 个子仓失败，可重新导入',
+        );
+      }
+    },
+  );
 });
 
 final class CatalogImportDialog extends StatefulWidget {

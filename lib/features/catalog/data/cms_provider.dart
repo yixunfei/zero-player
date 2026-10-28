@@ -138,6 +138,8 @@ final class CmsProvider implements VodProvider {
           : source.endpoint.resolve(text('vod_pic').trim()).toString(),
       year: displayText(text('vod_year')),
       category: displayText(text('type_name')),
+      categoryId: text('type_id'),
+      tags: displayText('${text('vod_tag')} ${text('vod_class')}'),
       area: displayText(text('vod_area')),
       remarks: displayText(text('vod_remarks')),
       description: displayText(text('vod_content')),

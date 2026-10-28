@@ -40,7 +40,15 @@ final class _RadioPageState extends State<RadioPage> {
     _removeCloseHook = widget.services.addCloseHook(() async {
       _request?.cancel();
     });
+    widget.services.contentPolicy.addListener(_policyChanged);
     unawaited(_load());
+  }
+
+  void _policyChanged() {
+    if (mounted) {
+      setState(() => _catalog = null);
+      unawaited(_load());
+    }
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -77,6 +85,7 @@ final class _RadioPageState extends State<RadioPage> {
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     _removeCloseHook();
     _request?.cancel();
     _query.dispose();
@@ -152,6 +161,10 @@ final class _RadioPageState extends State<RadioPage> {
     final stations = (_catalog?.stations ?? [])
         .where(
           (station) =>
+              widget.services.contentPolicy.channelAllowed(
+                station,
+                radio: true,
+              ) &&
               (!_favoritesOnly || station.favorite) &&
               (_category == null || radioCategory(station) == _category) &&
               (_group.isEmpty || station.group == _group) &&

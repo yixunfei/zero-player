@@ -27,7 +27,12 @@ final class _ReleaseCalendarPageState extends State<ReleaseCalendarPage> {
   void initState() {
     super.initState();
     _removeHook = widget.services.addCloseHook(_stop);
+    widget.services.contentPolicy.addListener(_policyChanged);
     _pending = _load();
+  }
+
+  void _policyChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -59,6 +64,7 @@ final class _ReleaseCalendarPageState extends State<ReleaseCalendarPage> {
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     unawaited(_stop().whenComplete(_removeHook));
     super.dispose();
   }
@@ -86,7 +92,12 @@ final class _ReleaseCalendarPageState extends State<ReleaseCalendarPage> {
         if (_loading) const LinearProgressIndicator(),
         if (_error != null)
           Padding(padding: const EdgeInsets.all(12), child: Text(_error!)),
-        for (final item in _data?.items ?? <FilmRelease>[])
+        for (final item in (_data?.items ?? <FilmRelease>[]).where(
+          (i) => widget.services.contentPolicy.textAllowed(
+            i.title,
+            category: i.genres,
+          ),
+        ))
           Card(
             child: ListTile(
               leading: const Icon(Icons.movie_outlined),

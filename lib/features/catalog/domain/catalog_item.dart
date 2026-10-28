@@ -6,6 +6,8 @@ final class CatalogItem {
     this.poster = '',
     this.year = '',
     this.category = '',
+    this.categoryId = '',
+    this.tags = '',
     this.area = '',
     this.remarks = '',
     this.description = '',
@@ -19,12 +21,30 @@ final class CatalogItem {
   final String poster;
   final String year;
   final String category;
+  final String categoryId;
+  final String tags;
   final String area;
   final String remarks;
   final String description;
   final String actors;
   final String director;
   final List<PlayLine> lines;
+  CatalogItem withCategory(String value) => CatalogItem(
+    sourceId: sourceId,
+    id: id,
+    title: title,
+    poster: poster,
+    year: year,
+    category: value,
+    categoryId: categoryId,
+    tags: tags,
+    area: area,
+    remarks: remarks,
+    description: description,
+    actors: actors,
+    director: director,
+    lines: lines,
+  );
   String get groupKey =>
       '${title.toLowerCase().replaceAll(RegExp(r'[\s·•]'), '')}|$year|$category';
 }

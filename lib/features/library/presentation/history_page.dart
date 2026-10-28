@@ -19,9 +19,14 @@ final class _HistoryPageState extends State<HistoryPage> {
   void initState() {
     super.initState();
     _load();
+    widget.services.contentPolicy.addListener(_policyChanged);
     subscription = widget.services.db.changes.listen((_) {
       if (mounted) setState(_load);
     });
+  }
+
+  void _policyChanged() {
+    if (mounted) setState(_load);
   }
 
   void _load() {
@@ -30,6 +35,7 @@ final class _HistoryPageState extends State<HistoryPage> {
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     subscription.cancel();
     super.dispose();
   }
@@ -38,7 +44,7 @@ final class _HistoryPageState extends State<HistoryPage> {
   Widget build(BuildContext context) => LoadView(
     future: future,
     builder: (items) => items.isEmpty
-        ? const EmptyState('观看记录为空', '播放进度会自动保存在本机')
+        ? const EmptyState('观看记录为空', '播放进度保存在本机；受限或缺少可验证分类的旧记录会被过滤')
         : ListView(
             padding: const EdgeInsets.all(16),
             children: [

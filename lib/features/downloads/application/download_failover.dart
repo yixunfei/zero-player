@@ -42,7 +42,9 @@ final class DownloadFailover {
               (s) =>
                   s.available &&
                   !excluded.contains(s.id) &&
-                  (!settings.value.filterAdult || s.classification != 'adult'),
+                  (sources.policy?.sourceAllowed(s) ??
+                      (!settings.value.filterAdult ||
+                          s.classification != 'adult')),
             )
             .toList()
           ..sort(
@@ -65,6 +67,7 @@ final class DownloadFailover {
             network,
             cancellation: child,
             priority: RequestPriority.background,
+            policy: sources.policy,
           );
           final results = await provider.search(original.title);
           final matches = results.items

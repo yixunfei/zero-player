@@ -55,6 +55,7 @@ migrate_working_dir/
 !/docs/implementation/SOURCE-CURATION-2026-10-28.md
 !/docs/implementation/HARDENING-2026-10-28.md
 !/docs/implementation/LIVE-SEARCH-2026-10-28.md
+!/docs/implementation/SUPERVISION-2026-10-28.md
 !/docs/implementation/CHANNEL-RADIO-DEDUPE-2026-10-28.md
 
 # Symbolication related

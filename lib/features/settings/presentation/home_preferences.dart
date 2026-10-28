@@ -70,7 +70,7 @@ final class _HomePreferencesState extends State<HomePreferences> {
                 (s) =>
                     s.enabled &&
                     !s.suppressed &&
-                    (!settings.filterAdult || s.classification != 'adult'),
+                    widget.services.contentPolicy.sourceAllowed(s),
               )
               .toList()
             ..sort(compareRecommendedSources);

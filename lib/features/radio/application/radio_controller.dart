@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../../../core/platform/background_audio_session.dart';
 import '../../live/domain/live_channel.dart';
 import '../../playback/domain/player_engine.dart';
+import '../../supervision/application/content_policy.dart';
+import '../../supervision/domain/supervision_rules.dart';
 
 /// Serializes native player commands, discarding superseded station selections.
 final class RadioController extends ChangeNotifier
@@ -10,7 +12,20 @@ final class RadioController extends ChangeNotifier
   RadioController(
     this.createEngine, {
     this.operationTimeout = const Duration(seconds: 20),
-  });
+    this.policy,
+  }) {
+    policy?.addListener(_policyChanged);
+  }
+  final ContentPolicy? policy;
+
+  void _policyChanged() {
+    final current = selected;
+    if (current != null &&
+        !(policy?.channelAllowed(current, radio: true) ?? true)) {
+      unawaited(stop().catchError((Object _) {}));
+    }
+  }
+
   final PlayerEngine Function() createEngine;
   final Duration operationTimeout;
   final _closing = Completer<void>();
@@ -63,6 +78,9 @@ final class RadioController extends ChangeNotifier
 
   Future<void> select(LiveChannel station, {int lineIndex = 0}) {
     if (_closed || station.urls.isEmpty) return Future<void>.value();
+    if (!(policy?.channelAllowed(station, radio: true) ?? true)) {
+      return Future.error(const ContentBlocked());
+    }
     final retire = loading && _engine != null;
     final generation = ++_generation;
     _interruptSelection();
@@ -88,6 +106,7 @@ final class RadioController extends ChangeNotifier
           interrupted: interrupt.future,
         );
         if (_closed || generation != _generation) return;
+        policy?.requireChannel(station, radio: true);
         await _untilClosed(
           engine.open(uri, headers: station.headersFor(uri)),
           interrupted: interrupt.future,
@@ -109,6 +128,11 @@ final class RadioController extends ChangeNotifier
 
   @override
   Future<void> toggle() {
+    if (_closed || selected == null) return Future<void>.value();
+    if (selected != null &&
+        !(policy?.channelAllowed(selected!, radio: true) ?? true)) {
+      return stop();
+    }
     if (_needsOpen && selected != null) {
       return select(selected!, lineIndex: line);
     }
@@ -196,6 +220,7 @@ final class RadioController extends ChangeNotifier
   Future<void> close() => _closeFuture ??= _close();
 
   Future<void> _close() async {
+    policy?.removeListener(_policyChanged);
     _closed = true;
     _interruptSelection();
     ++_generation;

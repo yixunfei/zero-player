@@ -156,8 +156,9 @@ final class UserSettings {
 }
 
 final class SettingsController extends ChangeNotifier {
-  SettingsController(this.db);
+  SettingsController(this.db, {this.authorize});
   final AppDatabase db;
+  final void Function()? authorize;
   UserSettings value = const UserSettings();
   Future<void> _pending = Future.value();
   Future<void>? _closing;
@@ -201,11 +202,13 @@ final class SettingsController extends ChangeNotifier {
   }
 
   Future<void> _update(Map<String, Object> changes) async {
+    if (changes['filterAdult'] == false) authorize?.call();
     for (final entry in changes.entries) {
       validateSetting(entry.key, entry.value);
     }
     final next = UserSettings.fromMap({...value.toMap(), ...changes});
     await db.atomic(() async {
+      if (changes['filterAdult'] == false) authorize?.call();
       for (final entry in changes.entries) {
         await db.customStatement(
           'INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)',

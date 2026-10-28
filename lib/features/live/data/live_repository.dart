@@ -14,22 +14,37 @@ import '../domain/live_health.dart';
 import '../domain/live_metadata.dart';
 import '../domain/channel_merge.dart';
 import '../domain/epg_channel_match.dart';
+import '../../supervision/application/content_policy.dart';
 
 final class LiveRepository {
-  const LiveRepository(this.db, this.network, {this.defaults});
+  const LiveRepository(
+    this.db,
+    this.network, {
+    this.defaults,
+    this.policy,
+    this.authorize,
+    this.canEnable,
+  });
   final AppDatabase db;
   final DocumentClient network;
   final LiveAuditDefaults? defaults;
+  final ContentPolicy? policy;
+  final void Function()? authorize;
+  final bool Function()? canEnable;
 
   Future<List<Map<String, Object?>>> lists() => db.rows(
     '''SELECT l.*, CASE WHEN m.value='false' THEN 0 ELSE 1 END AS enabled
         FROM live_lists l LEFT JOIN app_meta m ON m.key='live_list_enabled:'||l.id
         ORDER BY l.name''',
   );
-  Future<void> setListEnabled(String id, bool enabled) => db.write(
-    'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
-    ['live_list_enabled:$id', jsonEncode(enabled)],
-  );
+  Future<void> setListEnabled(String id, bool enabled) async {
+    if (enabled) authorize?.call();
+    await db.write('INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)', [
+      'live_list_enabled:$id',
+      jsonEncode(enabled),
+    ]);
+  }
+
   Future<void> removeList(String id) =>
       db.write('DELETE FROM live_lists WHERE id=?', [id]);
 
@@ -109,6 +124,7 @@ final class LiveRepository {
     final audit = await defaults?.entries;
     await db.atomic(() async {
       cancellation?.check();
+      if (!existingOnly) authorize?.call();
       if (existingOnly &&
           (await db.rows('SELECT id FROM live_lists WHERE id=?', [
             id,
@@ -167,7 +183,7 @@ final class LiveRepository {
     });
   }
 
-  Future<List<LiveChannel>> channels() async {
+  Future<List<LiveChannel>> channels({bool includeBlocked = false}) async {
     final rows = await db.rows(
       '''SELECT c.*,p.favorite,p.watched_at,l.name AS list_name,m.value AS health,d.value AS metadata FROM live_channels c
       JOIN live_lists l ON l.id=c.list_id
@@ -232,7 +248,11 @@ final class LiveRepository {
           health: LiveHealth.decode(row['health'], const []),
         ),
     ];
-    return mergeChannelAliases(result);
+    final merged = mergeChannelAliases(result);
+    policy?.rememberChannels(merged);
+    return includeBlocked
+        ? merged
+        : merged.where((c) => policy?.channelAllowed(c) ?? true).toList();
   }
 
   Future<void> favorite(LiveChannel channel, bool value) => db.atomic(() async {
@@ -294,7 +314,12 @@ final class LiveRepository {
   Future<List<EpgProgram>> schedule(LiveChannel channel) async {
     for (final entry in channel.entries) {
       final programs = await _scheduleEntry(entry);
-      if (programs.isNotEmpty) return programs;
+      policy?.rememberPrograms(channel.name, programs);
+      if (programs.isNotEmpty) {
+        return programs
+            .where((p) => policy?.textAllowed(p.title) ?? true)
+            .toList();
+      }
     }
     return [];
   }

@@ -18,6 +18,7 @@ void main() {
       AppDatabase.memory(),
       allowPrivateNetworks: true,
     );
+    await services.supervision.load();
     await services.settings.load();
     id = await services.sources.saveManual(
       '测试渠道',

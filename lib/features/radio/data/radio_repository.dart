@@ -10,6 +10,7 @@ import '../domain/radio_category.dart';
 import 'radio_snapshot.dart';
 import 'radio_snapshot_store.dart';
 import 'radio_subscription_store.dart';
+import '../../supervision/application/content_policy.dart';
 
 export '../domain/radio_subscription.dart';
 
@@ -32,10 +33,14 @@ final class RadioRepository {
     this.network, {
     Uri? source,
     Directory? snapshotDirectory,
+    this.policy,
+    this.authorize,
   }) : source = source ?? Uri.parse(builtinRadioUrl),
        snapshots = RadioSnapshotStore(db, directory: snapshotDirectory);
   final AppDatabase db;
   final DocumentClient network;
+  final ContentPolicy? policy;
+  final void Function()? authorize;
   final Uri source;
   final RadioSnapshotStore snapshots;
   late final _configuration = RadioSubscriptionStore(db, source);
@@ -49,6 +54,7 @@ final class RadioRepository {
   Future<RadioCatalog> load({
     bool refresh = false,
     CancellationToken? cancellation,
+    bool includeBlocked = false,
   }) => _track(() async {
     final enabled = (await subscriptions()).where((s) => s.enabled).toList();
     final catalogs = <RadioCatalog>[];
@@ -70,7 +76,14 @@ final class RadioRepository {
     if (enabled.isNotEmpty && catalogs.isEmpty) {
       throw const FormatException('广播订阅暂不可用，且没有成功快照');
     }
-    final stations = catalogs.expand((c) => c.stations).toList();
+    final stations = catalogs
+        .expand((c) => c.stations)
+        .where(
+          (c) =>
+              includeBlocked ||
+              (policy?.channelAllowed(c, radio: true) ?? true),
+        )
+        .toList();
     final dates = catalogs.map((c) => c.updatedAt).toList()..sort();
     return RadioCatalog(
       await withFavorites(stations),
@@ -148,6 +161,7 @@ final class RadioRepository {
     await _loadOne(subscription, true, cancellation);
     _check(cancellation);
     await _configuration.update((items) {
+      authorize?.call();
       final previous = items.where((s) => s.id == subscription.id).firstOrNull;
       return [
         for (final item in items)
@@ -161,18 +175,20 @@ final class RadioRepository {
     });
   });
 
-  Future<void> setEnabled(String id, bool enabled) => _configuration.update(
-    (items) => [
-      for (final item in items)
-        item.id == id
-            ? RadioSubscription(
-                name: item.name,
-                url: item.url,
-                enabled: enabled,
-              )
-            : item,
-    ],
-  );
+  Future<void> setEnabled(String id, bool enabled) =>
+      _configuration.update((items) {
+        if (enabled) authorize?.call();
+        return [
+          for (final item in items)
+            item.id == id
+                ? RadioSubscription(
+                    name: item.name,
+                    url: item.url,
+                    enabled: enabled,
+                  )
+                : item,
+        ];
+      });
   Future<void> removeSubscription(String id) => _configuration.update(
     (items) => items.where((item) => item.id != id).toList(),
   );

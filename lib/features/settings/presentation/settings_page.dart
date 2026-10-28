@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/app_services.dart';
@@ -25,6 +26,13 @@ final class SettingsPage extends StatelessWidget {
             subtitle: const Text('候选、手动接口、导入、健康状态'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/sources'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.shield_outlined),
+            title: const Text('监管模式'),
+            subtitle: const Text('密码保护、屏蔽频道和关键词、恢复码'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/supervision'),
           ),
           ..._appearanceOptions(context),
           _choice(
@@ -264,7 +272,7 @@ final class SettingsPage extends StatelessWidget {
   List<Widget> _dataActions(BuildContext context) => [
     ListTile(
       title: const Text('导出本地数据备份'),
-      subtitle: const Text('包含设置、源请求头、历史和直播；不含离线视频'),
+      subtitle: const Text('包含设置、源请求头、历史和直播；不含离线视频、监管凭据和规则'),
       onTap: () => _backup(context),
     ),
     ListTile(
@@ -273,12 +281,12 @@ final class SettingsPage extends StatelessWidget {
       onTap: () => _restore(context),
     ),
     ListTile(
-      title: const Text('Zero Player 0.0.1'),
+      title: const Text('Zero Player 0.0.4'),
       subtitle: const Text('AGPL-3.0-or-later · 本地数据 · 无需独立后端'),
       onTap: () => showLicensePage(
         context: context,
         applicationName: 'Zero Player',
-        applicationVersion: '0.0.1',
+        applicationVersion: '0.0.4',
         applicationLegalese: 'AGPL-3.0-or-later\n媒体依赖许可见源码 NOTICE.md',
       ),
     ),
@@ -326,8 +334,16 @@ final class SettingsPage extends StatelessWidget {
     title: Text(title),
     subtitle: subtitle == null ? null : Text(subtitle),
     value: value,
-    onChanged: (v) =>
-        perform(context, () => services.settings.update({key: v})),
+    onChanged: (v) => perform(
+      context,
+      () => runSensitive(
+        context,
+        services.supervision,
+        SensitiveOperation.settings,
+        () => services.settings.update({key: v}),
+        needed: key == 'filterAdult' && !v,
+      ),
+    ),
   );
   Future<void> _backup(BuildContext context) => perform(context, () async {
     if (!await confirm(
@@ -354,8 +370,20 @@ final class SettingsPage extends StatelessWidget {
     )) {
       return;
     }
-    await services.backup.restore(preview);
-    await services.settings.load();
+    if (!context.mounted) return;
+    if (!await runSensitive(
+      context,
+      services.supervision,
+      SensitiveOperation.restore,
+      () async {
+        await services.backup.restore(preview);
+        services.contentPolicy.forgetSources();
+        await services.sources.all(includeSuppressed: true);
+        await services.settings.load();
+      },
+    )) {
+      return;
+    }
     if (context.mounted) message(context, '备份已恢复');
   });
 }

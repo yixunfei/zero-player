@@ -1,4 +1,7 @@
 import '../../catalog/data/provider_factory.dart';
+import '../../supervision/application/content_policy.dart';
+import '../../supervision/domain/content_classification.dart';
+export '../../supervision/domain/content_classification.dart' show adultContent;
 import '../../sources/domain/video_source.dart';
 import '../../../core/network/document_client.dart';
 import '../../../core/network/cancellation_token.dart';
@@ -11,11 +14,13 @@ Future<Recommendations> discoverCatalog(
   bool filterAdult = true,
   int page = 1,
   CancellationToken? cancellation,
+  ContentPolicy? policy,
 }) async {
   final provider = createVodProvider(
     source,
     network,
     cancellation: cancellation,
+    policy: policy,
   );
   final data = await provider.browse(category: category, page: page);
   cancellation?.check();
@@ -44,8 +49,3 @@ Future<Recommendations> discoverCatalog(
     hasMore: page < data.page.pageCount,
   );
 }
-
-bool adultContent(String text) => RegExp(
-  r'成人|伦理片|情色|色情|里番|无码|有码|\bxxx\b',
-  caseSensitive: false,
-).hasMatch(text);

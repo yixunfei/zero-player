@@ -11,6 +11,7 @@ import '../../../media/export/media_exporter.dart';
 import '../../catalog/domain/catalog_item.dart';
 import '../../playback/application/playback_controller.dart';
 import '../domain/download_task.dart';
+import '../../supervision/data/content_records.dart';
 
 final class DownloadsPage extends StatefulWidget {
   const DownloadsPage({super.key, required this.services});
@@ -27,6 +28,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
   void initState() {
     super.initState();
     _load();
+    widget.services.contentPolicy.addListener(_policyChanged);
     changes = widget.services.downloads.changes.listen((_) {
       _reloadTimer ??= Timer(const Duration(milliseconds: 250), () {
         _reloadTimer = null;
@@ -35,12 +37,19 @@ final class _DownloadsPageState extends State<DownloadsPage> {
     });
   }
 
+  void _policyChanged() {
+    if (mounted) setState(_load);
+  }
+
   void _load() {
-    future = widget.services.downloads.all();
+    future = widget.services.downloads.all().then(
+      (items) => items.where(widget.services.downloads.allowed).toList(),
+    );
   }
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     changes.cancel();
     _reloadTimer?.cancel();
     super.dispose();
@@ -140,6 +149,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
     DownloadStatus.complete => '已完成',
   };
   Future<void> _play(DownloadTask task) => perform(context, () async {
+    widget.services.downloads.requireAllowed(task);
     final session = await widget.services.offline.open(
       task.id,
       Directory(task.directory),
@@ -153,9 +163,12 @@ final class _DownloadsPageState extends State<DownloadsPage> {
       '/player',
       extra: PlaybackRequest(
         CatalogItem(
-          sourceId: 'offline',
-          id: task.id,
+          sourceId: task.row['source_id'] as String,
+          id: task.row['remote_id'] as String,
           title: task.title,
+          category: recordedItem(task.row)?.category ?? '',
+          tags: recordedItem(task.row)?.tags ?? '',
+          description: recordedItem(task.row)?.description ?? '',
           lines: [
             PlayLine('离线', [Episode(task.title, session.uri)]),
           ],
@@ -169,6 +182,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
     ExportFormat format,
   ) => perform(context, () async {
     final token = CancellationToken();
+    widget.services.downloads.requireAllowed(task);
     final session = await widget.services.offline.open(
       task.id,
       Directory(task.directory),
@@ -217,7 +231,16 @@ final class _DownloadsPageState extends State<DownloadsPage> {
         },
       ),
     );
+    void cancelRestricted() {
+      if (!widget.services.downloads.allowed(task)) {
+        token.cancel();
+        session.close();
+      }
+    }
+
+    widget.services.contentPolicy.addListener(cancelRestricted);
     try {
+      widget.services.downloads.requireAllowed(task);
       await widget.services.exporter.export(
         session.uri,
         file.path,
@@ -225,6 +248,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
         cancellation: token,
       );
       token.check();
+      widget.services.downloads.requireAllowed(task);
       closeDialog();
       dialogContext = null;
       await FileTransfer.saveFile(
@@ -235,6 +259,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
     } on RequestCancelled {
       if (mounted) message(context, '导出已取消');
     } finally {
+      widget.services.contentPolicy.removeListener(cancelRestricted);
       closeDialog();
       session.close();
       if (await file.exists()) await file.delete();

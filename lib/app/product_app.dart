@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../features/supervision/presentation/supervision_page.dart';
 import 'dart:ui' show AppExitResponse;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,6 +93,10 @@ final class _ProductAppState extends ConsumerState<ProductApp>
                   PageListNavigation(child: SettingsPage(services: services)),
             ),
           ],
+        ),
+        GoRoute(
+          path: '/supervision',
+          builder: (_, state) => SupervisionPage(services: services),
         ),
         GoRoute(
           path: '/sources',

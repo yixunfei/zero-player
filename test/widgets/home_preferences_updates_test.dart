@@ -13,6 +13,7 @@ void main() {
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('home-preferences');
     services = AppServices.scoped(directory, AppDatabase.memory());
+    await services.supervision.load();
     await services.settings.load();
     id = await services.sources.saveManual(
       'new-source',

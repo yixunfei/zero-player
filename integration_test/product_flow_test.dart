@@ -44,6 +44,7 @@ void main() {
       AppDatabase.memory(),
       allowPrivateNetworks: true,
     );
+    await services.supervision.load();
     await services.settings.load();
     await services.settings.update({
       'navigationGuideSeen': true,

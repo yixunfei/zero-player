@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
@@ -81,7 +82,15 @@ final class _LiveSubscriptionsDialogState
               value: row['enabled'] == 1,
               subtitle: Text(row['enabled'] == 1 ? '已启用' : '已停用'),
               onChanged: (enabled) => perform(context, () async {
-                await widget.services.live.setListEnabled(id, enabled);
+                if (!await runSensitive(
+                  context,
+                  widget.services.supervision,
+                  SensitiveOperation.channels,
+                  () => widget.services.live.setListEnabled(id, enabled),
+                  needed: enabled,
+                )) {
+                  return;
+                }
                 if (enabled && row['snapshot'] == null && mounted) {
                   await _refresh(row);
                 }

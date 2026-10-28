@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import '../../supervision/application/content_policy.dart';
+import '../../supervision/data/content_records.dart';
+import '../../supervision/domain/supervision_rules.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/persistence/app_database.dart';
@@ -10,7 +13,13 @@ import '../domain/download_task.dart';
 import '../domain/download_location.dart';
 
 final class DownloadRepository {
-  const DownloadRepository(this.db, this.root);
+  const DownloadRepository(this.db, this.root, {this.policy});
+  final ContentPolicy? policy;
+  bool allowed(DownloadTask task) => recordAllowed(policy, task.row);
+  void requireAllowed(DownloadTask task) {
+    if (!allowed(task)) throw const ContentBlocked();
+  }
+
   final AppDatabase db;
   final Directory root;
   Stream<void> get changes => db.changesFor(const {'downloads'});
@@ -28,6 +37,7 @@ final class DownloadRepository {
     Episode episode,
     Map<String, String> headers,
   ) async {
+    policy?.requireItem(item);
     final id = stableId(
       '${DateTime.now().microsecondsSinceEpoch}|${Random.secure().nextInt(1 << 32)}',
     );
@@ -47,13 +57,7 @@ final class DownloadRepository {
         jsonEncode(headers),
         directory,
         DateTime.now().millisecondsSinceEpoch,
-        jsonEncode({
-          'title': item.title,
-          'year': item.year,
-          'category': item.category,
-          'director': item.director,
-          'remarks': item.remarks,
-        }),
+        jsonEncode(contentRecord(item)),
       ],
     );
     return id;
@@ -63,19 +67,26 @@ final class DownloadRepository {
     String id,
     DownloadLocation location,
     String directory,
-  ) => db.write(
-    "UPDATE downloads SET source_id=?,remote_id=?,line_name=?,url=?,headers=?,directory=?,completed=0,total=0,bytes=0,local_path=NULL,status='queued',error=? WHERE id=?",
-    [
-      location.item.sourceId,
-      location.item.id,
-      location.line.name,
-      location.episode.uri.toString(),
-      jsonEncode(location.headers),
-      directory,
-      '已自动换源，正在重新下载整集',
+  ) async {
+    policy?.requireItem(location.item);
+    await db.write(
+      "UPDATE downloads SET source_id=?,remote_id=?,line_name=?,url=?,headers=?,directory=?,completed=0,total=0,bytes=0,local_path=NULL,status='queued',error=? WHERE id=?",
+      [
+        location.item.sourceId,
+        location.item.id,
+        location.line.name,
+        location.episode.uri.toString(),
+        jsonEncode(location.headers),
+        directory,
+        '已自动换源，正在重新下载整集',
+        id,
+      ],
+    );
+    await db.write('UPDATE downloads SET work_json=? WHERE id=?', [
+      jsonEncode(contentRecord(location.item)),
       id,
-    ],
-  );
+    ]);
+  }
 
   Future<void> status(String id, DownloadStatus status, {String? error}) =>
       db.write('UPDATE downloads SET status=?,error=? WHERE id=?', [

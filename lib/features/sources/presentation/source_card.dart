@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import '../../../app/widgets.dart';
 import '../data/source_repository.dart';
@@ -95,7 +96,13 @@ final class SourceCard extends StatelessWidget {
                       value: source.enabled,
                       onChanged: (value) => perform(
                         context,
-                        () => repository.setEnabled(source.id, value),
+                        () => runSensitive(
+                          context,
+                          repository.policy?.supervision,
+                          SensitiveOperation.channels,
+                          () => repository.setEnabled(source.id, value),
+                          needed: value,
+                        ),
                       ),
                     ),
                   ],

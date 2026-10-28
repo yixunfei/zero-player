@@ -94,7 +94,10 @@ final class SourceProbe extends ChangeNotifier {
       parent.check();
       final state = results[source.id];
       if (state == null || state == SourceProbeState.cancelled) return;
-      await SourceDiagnosticsStore(repository.db).save(
+      await SourceDiagnosticsStore(
+        repository.db,
+        canEnable: repository.canEnable,
+      ).save(
         source.id,
         SourceDiagnostics(
           state: connection.missingDomain ? 'missingDomain' : state.name,

@@ -41,6 +41,7 @@ void main() {
         (request) => _serve(request, fixture.baseUri),
       );
       try {
+        await services.supervision.load();
         await services.settings.load();
         await services.settings.update({
           'autoplay': false,

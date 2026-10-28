@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../supervision/domain/content_classification.dart';
 
 import '../domain/source_catalog.dart';
 import '../domain/source_identity.dart';
@@ -109,7 +110,9 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
         endpoint: uri,
         kind: kind,
         classification:
-            row['group'] == '18禁' || row['classification'] == 'adult'
+            adultContent(row['group']?.toString() ?? '', category: true) ||
+                adultContent(name) ||
+                row['classification'] == 'adult'
             ? 'adult'
             : row['group'] == '影视' || row['classification'] == 'general'
             ? 'general'

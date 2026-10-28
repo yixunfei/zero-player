@@ -124,6 +124,7 @@ Future<void> _categoryFilters(WidgetTester tester) async {
 }
 
 Future<void> _prepareServices(AppServices services) async {
+  await services.supervision.load();
   await services.settings.load();
   await services.settings.update({
     'navigationGuideSeen': true,

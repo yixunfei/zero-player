@@ -143,15 +143,21 @@ final class _PlayerPageState extends State<PlayerPage>
     data: ThemeData.dark(useMaterial3: true),
     child: PlaybackSurface(
       controller: controller,
-      video: Video(
-        controller: engine.video,
-        controls: NoVideoControls,
-        fit: fit,
-      ),
-      transport: _transport(),
-      title: controller.request?.item.title ?? widget.request.item.title,
+      video: controller.blocked
+          ? const ColoredBox(color: Colors.black)
+          : Video(
+              controller: engine.video,
+              controls: NoVideoControls,
+              fit: fit,
+            ),
+      transport: controller.blocked ? const SizedBox.shrink() : _transport(),
+      title: controller.blocked
+          ? '内容已屏蔽'
+          : controller.request?.item.title ?? widget.request.item.title,
       onBack: _leave,
-      onOptions: _showOptions,
+      onOptions: () {
+        if (!controller.blocked) _showOptions();
+      },
       locked: locked,
       onLock: (value) {
         controller.endSpeed();

@@ -3,8 +3,9 @@ import '../../../core/persistence/app_database.dart';
 import '../domain/source_diagnostics.dart';
 
 final class SourceDiagnosticsStore {
-  const SourceDiagnosticsStore(this.db);
+  const SourceDiagnosticsStore(this.db, {this.canEnable});
   final AppDatabase db;
+  final bool Function()? canEnable;
 
   Future<void> save(
     String id,
@@ -23,7 +24,7 @@ final class SourceDiagnosticsStore {
         'UPDATE source_overrides SET enabled=0 WHERE source_id=?',
         [id],
       );
-    } else if (result.state == 'available') {
+    } else if (result.state == 'available' && (canEnable?.call() ?? true)) {
       await db.customStatement(
         'UPDATE source_overrides SET enabled=1 WHERE source_id=? AND suppressed=0',
         [id],

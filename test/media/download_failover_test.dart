@@ -135,7 +135,8 @@ Future<void> _setup() async {
     AppDatabase.memory(),
     allowPrivateNetworks: true,
   );
-  await services.settings.load();
+  await services.supervision.load();
+    await services.settings.load();
   await services.store.initialize();
   server = await HttpTestServer.start(_respond);
   originalId = await services.sources.saveManual(

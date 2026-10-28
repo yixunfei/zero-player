@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import '../features/supervision/application/content_policy.dart';
+import '../features/supervision/application/supervision_controller.dart';
+import '../features/supervision/domain/supervision_rules.dart';
+import '../features/supervision/data/content_records.dart';
 import 'package:flutter/foundation.dart';
 import '../core/platform/close_resources.dart';
 import '../features/discovery/data/synopsis_repository.dart';
@@ -59,6 +63,7 @@ final class AppServices {
   RadioController? _radioPlayer;
   RadioController get radioPlayer => _radioPlayer ??= RadioController(
     radioEngine ?? () => MediaKitEngine(videoOutput: false, gateway: gateway),
+    policy: contentPolicy,
   );
   Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
   final Directory root;
@@ -70,30 +75,54 @@ final class AppServices {
   final MediaHttpClient http;
   late final network = DocumentClient(http);
   late final posters = PosterRepository(network);
-  late final settings = SettingsController(db);
-  late final sources = SourceRepository(db);
+  late final supervision = SupervisionController(db);
+  late final settings = SettingsController(
+    db,
+    authorize: () => supervision.require(SensitiveOperation.settings),
+  );
+  late final contentPolicy = ContentPolicy(settings, supervision);
+  void _authorizeChannels() => supervision.require(SensitiveOperation.channels);
+  bool _canEnableChannels() => supervision.allows(SensitiveOperation.channels);
+  late final sources = SourceRepository(
+    db,
+    policy: contentPolicy,
+    authorize: _authorizeChannels,
+    canEnable: _canEnableChannels,
+  );
   late final builtins = BuiltinSources(sources);
   late final sourceProbe = SourceProbe(sources, network);
   late final sourceMonitor = BackgroundSourceMonitor(sourceProbe, settings);
   late final subscriptions = SubscriptionService(network, sources);
-  late final history = HistoryRepository(db);
+  late final history = HistoryRepository(db, policy: contentPolicy);
   late final skips = SkipRepository(db);
   late final live = LiveRepository(
     db,
     network,
     defaults: LiveAuditDefaults.bundled(),
+    policy: contentPolicy,
+    authorize: _authorizeChannels,
+    canEnable: _canEnableChannels,
   );
   late final radio = RadioRepository(
     db,
     network,
     snapshotDirectory: Directory(p.join(root.path, 'radio_snapshots')),
+    policy: contentPolicy,
+    authorize: _authorizeChannels,
   );
-  late final liveHealth = LiveHealthRepository(db);
+  late final liveHealth = LiveHealthRepository(
+    db,
+    authorize: _authorizeChannels,
+    canEnable: _canEnableChannels,
+  );
   late final liveProbe = LiveProbe(http, liveHealth);
   late final builtinLive = BuiltinLiveSources(live);
   late final synopses = SynopsisRepository(network, db);
   late final recommendations = RecommendationRepository(network, db);
-  late final backup = BackupService(db);
+  late final backup = BackupService(
+    db,
+    authorize: () => supervision.require(SensitiveOperation.restore),
+  );
   late final store = SegmentStore(
     Directory(p.join(root.path, 'segments')),
     metadata: SegmentIndex(db),
@@ -104,6 +133,7 @@ final class AppServices {
   late final downloads = DownloadRepository(
     db,
     Directory(p.join(root.path, 'downloads')),
+    policy: contentPolicy,
   );
   late final downloadScheduler = DownloadScheduler(
     downloads,
@@ -119,6 +149,9 @@ final class AppServices {
   );
   final exporter = FfmpegExporter();
   Future<void>? _closing;
+  StreamSubscription<void>? _sourcePolicyChanges;
+  Timer? _sourcePolicyTimer;
+  Future<void> _sourcePolicyRefresh = Future<void>.value();
   final _closeHooks = <Future<void> Function()>{};
 
   void Function() addCloseHook(Future<void> Function() hook) {
@@ -155,8 +188,26 @@ final class AppServices {
 
   Future<void> _initialize() async {
     final services = this;
-    await services.builtins.initialize();
+    await services.supervision.load();
     await services.settings.load();
+    await services.builtins.initialize();
+    await services.sources.all(includeSuppressed: true);
+    _sourcePolicyChanges = db
+        .changesFor(const {'sources', 'source_overrides', 'source_memberships'})
+        .listen((_) {
+          _sourcePolicyTimer ??= Timer(const Duration(milliseconds: 100), () {
+            _sourcePolicyTimer = null;
+            if (_closing == null) {
+              _sourcePolicyRefresh = _sourcePolicyRefresh
+                  .then((_) async {
+                    if (_closing == null) {
+                      await sources.all(includeSuppressed: true);
+                    }
+                  })
+                  .catchError((Object _) {});
+            }
+          });
+        });
     await services.builtinLive.initialize();
     await services.store.initialize();
     await services.platform.initialize(
@@ -178,12 +229,18 @@ final class AppServices {
     if (source == null) throw const FormatException('此来源已移除，请重新搜索作品');
     final watch = Stopwatch()..start();
     try {
-      final item = await createVodProvider(source, network).detail(remoteId);
+      final item = await createVodProvider(
+        source,
+        network,
+        policy: contentPolicy,
+      ).detail(remoteId);
       await sources.health(
         sourceId,
         null,
         latencyMs: watch.elapsedMilliseconds,
       );
+      await rememberContent(db, item);
+      contentPolicy.requireItem(item);
       return item;
     } on RemoteFailure catch (failure) {
       await sources.health(sourceId, failure);
@@ -209,6 +266,11 @@ final class AppServices {
 
   Future<void> _close() => closeResources([
     () async {
+      _sourcePolicyTimer?.cancel();
+      await _sourcePolicyChanges?.cancel();
+      await _sourcePolicyRefresh;
+    },
+    () async {
       await platform.radioTray?.dispose();
     },
     () async {
@@ -229,7 +291,9 @@ final class AppServices {
     () => synopses.close(),
     () => http.close(),
     () => platform.dispose(),
+    () => contentPolicy.dispose(),
     () => settings.close(),
+    () => supervision.close(),
     () => db.close(),
   ]);
 }

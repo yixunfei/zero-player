@@ -28,6 +28,7 @@ Future<DownloadTask> resolveDownload(
     network,
     cancellation: token,
     priority: RequestPriority.background,
+    policy: sources.policy,
   ).detail(remoteId);
   final lines = item.lines.where((line) => line.name == task.row['line_name']);
   if (lines.length != 1) throw const FormatException('原下载线路已变化，请在详情中重新选择');
@@ -41,6 +42,7 @@ Future<DownloadTask> resolveDownload(
     network,
     cancellation: token,
     priority: RequestPriority.background,
+    policy: sources.policy,
   ).resolve(lines.single.episodes[matches.single]);
   await downloads.relocate(task.id, media.uri, media.headers);
   return (await downloads.find(task.id))!;

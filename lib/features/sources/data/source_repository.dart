@@ -7,10 +7,26 @@ import '../domain/video_source.dart';
 import 'source_identity_store.dart';
 import 'source_preferences.dart';
 import 'source_duplicate_store.dart';
+import '../../supervision/application/content_policy.dart';
 
 final class SourceRepository {
-  const SourceRepository(this.db);
+  const SourceRepository(
+    this.db, {
+    this.policy,
+    this.authorize,
+    this.canEnable,
+  });
   final AppDatabase db;
+  final ContentPolicy? policy;
+  final void Function()? authorize;
+  final bool Function()? canEnable;
+
+  VideoSource _read(Map<String, Object?> row) {
+    final source = VideoSource.fromRow(row);
+    policy?.rememberSource(source);
+    return source;
+  }
+
   static const tables = {
     'sources',
     'source_overrides',
@@ -67,11 +83,11 @@ final class SourceRepository {
         '''$_select
     WHERE ${includeSuppressed ? '1=1' : 'o.suppressed=0'} AND (s.manual=1 OR EXISTS(
     SELECT 1 FROM source_memberships m WHERE m.source_id=s.id)) ORDER BY display_name''',
-      )).map(VideoSource.fromRow).toList();
+      )).map(_read).toList();
 
   Future<VideoSource?> find(String id) async {
     final rows = await db.rows('$_select WHERE s.id=?', [id]);
-    return rows.isEmpty ? null : VideoSource.fromRow(rows.first);
+    return rows.isEmpty ? null : _read(rows.first);
   }
 
   Future<String> saveManual(
@@ -91,6 +107,7 @@ final class SourceRepository {
       throw const FormatException('不支持的来源类型');
     }
     return db.atomic(() async {
+      authorize?.call();
       final id = await SourceIdentityStore(db).resolve(kind, endpoint);
       await db.customStatement(
         '''INSERT INTO sources(id,name,endpoint,kind,headers,manual,classification)
@@ -117,6 +134,7 @@ final class SourceRepository {
   }
 
   Future<void> setEnabled(String id, bool enabled) => db.atomic(() async {
+    if (enabled) authorize?.call();
     await db.customStatement(
       'UPDATE source_overrides SET enabled=? WHERE source_id=?',
       [enabled ? 1 : 0, id],
@@ -173,6 +191,7 @@ final class SourceRepository {
     bool? suppressed,
     bool deduplicateSources = true,
   }) => db.atomic(() async {
+    if (enabled == true || suppressed == false) authorize?.call();
     for (final id in ids.toSet()) {
       if (enabled != null) {
         await db.customStatement(
@@ -256,7 +275,10 @@ final class SourceRepository {
         'INSERT OR IGNORE INTO source_overrides(source_id,enabled) VALUES(?,?)',
         [
           id,
-          (initialEnabled[candidate.endpoint.toString()] ?? enableNew) ? 1 : 0,
+          (canEnable?.call() ?? true) &&
+                  (initialEnabled[candidate.endpoint.toString()] ?? enableNew)
+              ? 1
+              : 0,
         ],
       );
       await db.customStatement(

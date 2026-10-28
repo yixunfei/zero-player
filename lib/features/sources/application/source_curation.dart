@@ -52,6 +52,7 @@ final class SourceCuration {
       }
       await SourceDiagnosticsStore(
         repository.db,
+        canEnable: repository.canEnable,
       ).save(id, result, applyPolicy: true);
       if (result.state == 'available' &&
           (source.checkedAt == null ||

@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -61,15 +62,7 @@ final class _SourcesPageState extends State<SourcesPage> {
                   label: const Text('手动添加'),
                 ),
                 OutlinedButton(
-                  onPressed: () => perform(context, () async {
-                    if (await confirm(
-                      context,
-                      '恢复内置默认',
-                      '按最近内置核查恢复默认：明确失效停用，双 DNS 确认域名不存在的来源移入已移除；不确定来源标记“可能失效”。会覆盖内置源的手动启停选择，收藏不变。',
-                    )) {
-                      await widget.services.builtins.initialize(restore: true);
-                    }
-                  }),
+                  onPressed: _restoreBuiltins,
                   child: const Text('恢复内置默认'),
                 ),
                 OutlinedButton(
@@ -141,6 +134,19 @@ final class _SourcesPageState extends State<SourcesPage> {
       ),
     ),
   );
+
+  Future<void> _restoreBuiltins() => perform(context, () async {
+    if (!await confirm(context, '恢复内置默认', '恢复内置来源的默认启停选择，收藏保持不变。此操作受监管密码保护。')) {
+      return;
+    }
+    if (!mounted) return;
+    await runSensitive(
+      context,
+      widget.services.supervision,
+      SensitiveOperation.channels,
+      () => widget.services.builtins.initialize(restore: true),
+    );
+  });
 
   Widget _batchBar(List<VideoSource> items) => SourceBatchBar(
     services: widget.services,
@@ -261,24 +267,37 @@ final class _SourcesPageState extends State<SourcesPage> {
     final headers = input[2].isEmpty
         ? <String, String>{}
         : Map<String, String>.from(jsonDecode(input[2]));
-    final id = await widget.services.sources.saveManual(
-      input[0],
-      Uri.parse(input[1]),
-      headers: headers,
-      enabled: source?.enabled ?? true,
-      classification: input[3],
-      kind: source?.kind ?? 'cms',
+    if (!mounted) return;
+    await runSensitive(
+      context,
+      widget.services.supervision,
+      SensitiveOperation.channels,
+      () async {
+        final id = await widget.services.sources.saveManual(
+          input[0],
+          Uri.parse(input[1]),
+          headers: headers,
+          enabled: source?.enabled ?? true,
+          classification: input[3],
+          kind: source?.kind ?? 'cms',
+        );
+        if (source != null && source.id != id) {
+          await widget.services.sources.suppress(source.id, true);
+        }
+      },
     );
-    if (source != null && source.id != id) {
-      await widget.services.sources.suppress(source.id, true);
-    }
   });
   Future<void> _probe(VideoSource source) => perform(
     context,
-    () => widget.services.sourceProbe.run(
-      [source],
-      concurrency: 1,
-      applyPolicy: true,
+    () => runSensitive(
+      context,
+      widget.services.supervision,
+      SensitiveOperation.channels,
+      () => widget.services.sourceProbe.run(
+        [source],
+        concurrency: 1,
+        applyPolicy: true,
+      ),
     ),
   );
   Future<void> _remove(VideoSource source) async {
@@ -294,7 +313,12 @@ final class _SourcesPageState extends State<SourcesPage> {
           label: '撤销',
           onPressed: () => perform(
             context,
-            () => widget.services.sources.suppress(source.id, false),
+            () => runSensitive(
+              context,
+              widget.services.supervision,
+              SensitiveOperation.channels,
+              () => widget.services.sources.suppress(source.id, false),
+            ),
           ),
         ),
       ),

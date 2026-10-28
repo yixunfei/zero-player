@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import '../../supervision/domain/supervision_rules.dart';
 import 'package:path/path.dart' as p;
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/media_http_client.dart';
@@ -24,7 +25,9 @@ final class DownloadScheduler {
     required this.validateMp4,
     this.resolve,
     this.failover,
-  });
+  }) {
+    repository.policy?.addListener(_policyChanged);
+  }
   final Future<void> Function(File, CancellationToken) validateMp4;
   final Future<bool> Function()? isMetered;
   final Future<DownloadTask> Function(DownloadTask, CancellationToken)? resolve;
@@ -44,6 +47,13 @@ final class DownloadScheduler {
   bool _pendingKick = false;
   bool foreground = true;
 
+  void _policyChanged() {
+    // Cancel immediately; no transfer may continue under an obsolete policy.
+    for (final token in _tokens.values) {
+      token.cancel();
+    }
+  }
+
   Future<void> initialize() async {
     await repository.recover();
     await repository.cleanupPending();
@@ -55,6 +65,9 @@ final class DownloadScheduler {
     if (token != null && !token.isCancelled) return;
     await _jobs[id];
     if (_closed) return;
+    final task = await repository.find(id);
+    if (task == null) return;
+    repository.requireAllowed(task);
     await repository.status(id, DownloadStatus.queued);
     kick();
   });
@@ -156,6 +169,7 @@ final class DownloadScheduler {
           token.isCancelled) {
         return;
       }
+      repository.requireAllowed(task);
       await repository.status(task.id, DownloadStatus.running);
       if (!settings.value.allowMetered && (await isMetered?.call() ?? false)) {
         await repository.status(
@@ -199,6 +213,7 @@ final class DownloadScheduler {
       try {
         if (attempt == 0 && resolve != null) task = await resolve!(task, token);
         token.check();
+        repository.requireAllowed(task);
         await repository.status(task.id, DownloadStatus.running);
         final limit = settings.value.downloadMiB * 1024 * 1024;
         await transferDownload(
@@ -220,7 +235,8 @@ final class DownloadScheduler {
         return;
       } catch (error) {
         token.check();
-        if (error is FileSystemException ||
+        if (error is ContentBlocked ||
+            error is FileSystemException ||
             !settings.value.autoDownloadFallback ||
             failover == null ||
             attempt == 3) {
@@ -296,6 +312,7 @@ final class DownloadScheduler {
   });
 
   Future<void> close() async {
+    repository.policy?.removeListener(_policyChanged);
     _closed = true;
     for (final token in _tokens.values) {
       token.cancel();

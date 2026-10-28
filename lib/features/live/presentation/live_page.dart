@@ -1,3 +1,4 @@
+import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ final class _LivePageState extends State<LivePage> {
   void initState() {
     super.initState();
     _load();
+    widget.services.contentPolicy.addListener(_policyChanged);
     unawaited(widget.services.builtinLive.refresh(onlyMissing: true));
     changes = widget.services.db
         .changesFor({
@@ -53,12 +55,17 @@ final class _LivePageState extends State<LivePage> {
         });
   }
 
+  void _policyChanged() {
+    if (mounted) setState(_load);
+  }
+
   void _load() {
     future = widget.services.live.channels();
   }
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     changes.cancel();
     _reloadTimer?.cancel();
     _scroll.dispose();
@@ -196,8 +203,15 @@ final class _LivePageState extends State<LivePage> {
         showTonkiang(context, widget.services);
       case 'restore':
         perform(context, () async {
-          await widget.services.builtinLive.initialize(restore: true);
-          await widget.services.builtinLive.refresh();
+          await runSensitive(
+            context,
+            widget.services.supervision,
+            SensitiveOperation.channels,
+            () async {
+              await widget.services.builtinLive.initialize(restore: true);
+              await widget.services.builtinLive.refresh();
+            },
+          );
         }, success: '刷新完成，失败详情见订阅管理');
       case 'export':
         perform(context, () async {
@@ -219,9 +233,15 @@ final class _LivePageState extends State<LivePage> {
         !await confirm(context, '停用频道', '停用后从正常浏览和换台列表隐藏，收藏保留；可在已停用分组恢复。')) {
       return;
     }
-    await widget.services.liveHealth.setEnabled(
-      channel.preferenceIds,
-      !channel.health.enabled || channel.health.removed,
+    if (!mounted) return;
+    final enable = !channel.health.enabled || channel.health.removed;
+    await runSensitive(
+      context,
+      widget.services.supervision,
+      SensitiveOperation.channels,
+      () =>
+          widget.services.liveHealth.setEnabled(channel.preferenceIds, enable),
+      needed: enable,
     );
   });
 
@@ -231,13 +251,14 @@ final class _LivePageState extends State<LivePage> {
         channel.urls.isEmpty) {
       return;
     }
+    widget.services.contentPolicy.requireChannel(channel);
     await widget.services.live.watched(channel);
     final channels = (await widget.services.live.channels())
         .where(
           (c) => c.urls.isNotEmpty && c.health.enabled && !c.health.removed,
         )
         .toList();
-    if (!mounted) return;
+    if (!mounted || !channels.any((c) => c.id == channel.id)) return;
     final item = CatalogItem(
       sourceId: 'live',
       id: channel.id,
@@ -311,10 +332,16 @@ final class _LivePageState extends State<LivePage> {
       'XMLTV / XMLTV.GZ URL（可留空）',
     ]);
     if (values == null) return;
-    await widget.services.live.import(
-      values[0],
-      Uri.parse(values[1]),
-      epg: values[2].isEmpty ? null : Uri.parse(values[2]),
+    if (!mounted) return;
+    await runSensitive(
+      context,
+      widget.services.supervision,
+      SensitiveOperation.channels,
+      () => widget.services.live.import(
+        values[0],
+        Uri.parse(values[1]),
+        epg: values[2].isEmpty ? null : Uri.parse(values[2]),
+      ),
     );
   }, success: '直播列表已保存');
   Future<void> _epg(LiveChannel channel) => perform(context, () async {

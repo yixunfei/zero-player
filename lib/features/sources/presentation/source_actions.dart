@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../app/app_services.dart';
@@ -30,28 +31,35 @@ Future<void> batchProbeSources(BuildContext context, AppServices services) =>
     perform(context, () async {
       final sources = await services.sources.all();
       if (!context.mounted) return;
-      final probe = SourceProbe(services.sources, services.network);
-      final work = probe.run(
-        sources,
-        concurrency: services.settings.value.probeConcurrency,
-        applyPolicy: true,
+      await runSensitive(
+        context,
+        services.supervision,
+        SensitiveOperation.channels,
+        () async {
+          final probe = SourceProbe(services.sources, services.network);
+          final work = probe.run(
+            sources,
+            concurrency: services.settings.value.probeConcurrency,
+            applyPolicy: true,
+          );
+          final removeCloseHook = services.addCloseHook(() async {
+            probe.cancel();
+            await work;
+          });
+          try {
+            await showDialog<void>(
+              context: context,
+              builder: (context) =>
+                  SourceProbeDialog(services: services, probe: probe),
+            );
+          } finally {
+            removeCloseHook();
+            probe.cancel();
+            await work;
+            probe.dispose();
+          }
+        },
       );
-      final removeCloseHook = services.addCloseHook(() async {
-        probe.cancel();
-        await work;
-      });
-      try {
-        await showDialog<void>(
-          context: context,
-          builder: (context) =>
-              SourceProbeDialog(services: services, probe: probe),
-        );
-      } finally {
-        removeCloseHook();
-        probe.cancel();
-        await work;
-        probe.dispose();
-      }
     });
 
 Future<void> publishSources(

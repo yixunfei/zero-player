@@ -3,6 +3,7 @@ import '../data/catalog_parser.dart';
 import '../data/source_identity_store.dart';
 import '../data/source_repository.dart';
 import '../domain/video_source.dart';
+import '../domain/source_catalog.dart';
 
 final class MaccmsSources {
   const MaccmsSources(this.repository);
@@ -12,13 +13,13 @@ final class MaccmsSources {
     final done = await repository.db.rows(
       "SELECT value FROM app_meta WHERE key='builtin_maccms'",
     );
-    if (done.isNotEmpty && done.single['value'] == '1' && !restore) return;
+    if (done.isNotEmpty && done.single['value'] == '2' && !restore) return;
     await SourceIdentityStore(repository.db).consolidate();
     for (final file in ['Site.json', 'R18.json']) {
       await _import(file, restore);
     }
     await repository.db.write(
-      "INSERT OR REPLACE INTO app_meta VALUES('builtin_maccms','1')",
+      "INSERT OR REPLACE INTO app_meta VALUES('builtin_maccms','2')",
     );
   }
 
@@ -33,7 +34,18 @@ final class MaccmsSources {
       origin,
       adult ? 'MaccmsResources · 成人' : 'MaccmsResources · 普通',
       text,
-      catalog.sources,
+      adult
+          ? [
+              for (final c in catalog.sources)
+                SourceCandidate(
+                  name: c.name,
+                  endpoint: c.endpoint,
+                  kind: c.kind,
+                  requestedEnabled: false,
+                  classification: 'adult',
+                ),
+            ]
+          : catalog.sources,
       enableNew: !adult,
       deduplicateSources: false,
     );

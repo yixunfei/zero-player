@@ -1,4 +1,6 @@
 import '../../../core/persistence/app_database.dart';
+import '../../supervision/application/content_policy.dart';
+import '../../supervision/data/content_records.dart';
 import '../../../core/text/display_text.dart';
 import '../../catalog/domain/catalog_item.dart';
 import '../../sources/domain/video_source.dart';
@@ -18,16 +20,17 @@ final class WatchEntry {
 }
 
 final class HistoryRepository {
-  const HistoryRepository(this.db);
+  const HistoryRepository(this.db, {this.policy});
+  final ContentPolicy? policy;
   final AppDatabase db;
   Future<List<WatchEntry>> recentWorks() async => (await db.rows(
-    'SELECT * FROM (SELECT *, ROW_NUMBER() OVER '
+    'SELECT * FROM (SELECT h.*, m.value AS content_record, ROW_NUMBER() OVER '
     '(PARTITION BY source_id,remote_id ORDER BY updated_at DESC) AS recent '
-    'FROM watch_history) WHERE recent=1 ORDER BY updated_at DESC LIMIT 8',
-  )).map(WatchEntry.new).toList();
+    "FROM watch_history h LEFT JOIN app_meta m ON m.key='content_label:'||h.source_id||':'||h.remote_id) WHERE recent=1 ORDER BY updated_at DESC LIMIT 50",
+  )).where((r) => recordAllowed(policy, r)).map(WatchEntry.new).toList();
   Future<List<WatchEntry>> all() async => (await db.rows(
-    'SELECT * FROM watch_history ORDER BY updated_at DESC LIMIT 500',
-  )).map(WatchEntry.new).toList();
+    "SELECT h.*,m.value AS content_record FROM watch_history h LEFT JOIN app_meta m ON m.key='content_label:'||h.source_id||':'||h.remote_id ORDER BY updated_at DESC LIMIT 500",
+  )).where((r) => recordAllowed(policy, r)).map(WatchEntry.new).toList();
   Future<WatchEntry?> latest(String sourceId, String remoteId) async {
     final rows = await db.rows(
       'SELECT * FROM watch_history WHERE source_id=? AND remote_id=? ORDER BY updated_at DESC LIMIT 1',
@@ -44,6 +47,8 @@ final class HistoryRepository {
     Duration duration,
   ) async {
     if (duration <= Duration.zero) return;
+    policy?.requireItem(item);
+    await rememberContent(db, item);
     final id = stableId(
       '${item.sourceId}|${item.id}|${line.name}|${episode.label}',
     );
@@ -71,9 +76,13 @@ final class HistoryRepository {
   Future<void> remove(String id) =>
       db.write('DELETE FROM watch_history WHERE id=?', [id]);
   Future<void> clear() => db.write('DELETE FROM watch_history');
-  Future<List<String>> searches() async => (await db.rows(
-    'SELECT query FROM search_history ORDER BY used_at DESC LIMIT 20',
-  )).map((row) => row['query'] as String).toList();
+  Future<List<String>> searches() async =>
+      (await db.rows(
+            'SELECT query FROM search_history ORDER BY used_at DESC LIMIT 20',
+          ))
+          .map((row) => row['query'] as String)
+          .where((q) => policy?.textAllowed(q) ?? true)
+          .toList();
   Future<void> recordSearch(String query) => db.write(
     'INSERT OR REPLACE INTO search_history(query,used_at) VALUES(?,?)',
     [query, DateTime.now().millisecondsSinceEpoch],

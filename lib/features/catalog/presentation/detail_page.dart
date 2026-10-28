@@ -30,6 +30,17 @@ final class _DetailPageState extends State<DetailPage> {
   void initState() {
     super.initState();
     _load();
+    widget.services.contentPolicy.addListener(_policyChanged);
+  }
+
+  void _policyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
+    super.dispose();
   }
 
   void _load() {
@@ -49,7 +60,9 @@ final class _DetailPageState extends State<DetailPage> {
           onBlock: () =>
               widget.services.sources.setEnabled(widget.sourceId, false),
         ),
-        builder: _content,
+        builder: (item) => widget.services.contentPolicy.itemAllowed(item)
+            ? _content(item)
+            : const EmptyState('内容已屏蔽', '当前成人过滤或监管规则不允许访问此内容'),
       ),
     ),
   );

@@ -30,6 +30,7 @@ final class BuiltinLiveSources {
         entry['url']: entry['defaultEnabled'] == true,
     };
     await repository.db.atomic(() async {
+      if (restore) repository.authorize?.call();
       for (final entry in entries) {
         final id = stableId(entry['url'] as String);
         final key = 'builtin_live:$id';
@@ -42,7 +43,9 @@ final class BuiltinLiveSources {
           'SELECT id FROM live_lists WHERE id=?',
           [id],
         );
-        final enabled = defaults[entry['url']] ?? true;
+        final enabled =
+            (repository.canEnable?.call() ?? true) &&
+            (defaults[entry['url']] ?? true);
         await repository.db.customStatement(
           'INSERT OR IGNORE INTO live_lists(id,name,url,error) VALUES(?,?,?,?)',
           [

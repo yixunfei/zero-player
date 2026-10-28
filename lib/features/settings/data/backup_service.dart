@@ -10,8 +10,9 @@ final class BackupPreview {
 }
 
 final class BackupService {
-  const BackupService(this.db);
+  const BackupService(this.db, {this.authorize});
   final AppDatabase db;
+  final void Function()? authorize;
   static const maxBytes = 20 * 1024 * 1024;
   static const maxRowsPerTable = 20000;
   static const tables = [
@@ -113,6 +114,7 @@ final class BackupService {
   }
 
   Future<void> restore(BackupPreview preview) => db.atomic(() async {
+    authorize?.call();
     for (final table in tables.reversed) {
       await db.customStatement(
         'DELETE FROM $table${table == 'app_meta' ? _liveMetadata : ''}',
