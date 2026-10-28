@@ -6,32 +6,7 @@ import '../../radio/data/radio_backup_validation.dart';
 /// SQL string alone must not turn malformed JSON into a persistent startup fault.
 void validateBackupRecord(String table, Map row) {
   if (table == 'app_meta') {
-    if ((row['key'] as String).startsWith('source_favorite:')) {
-      if (!RegExp(
-            r'^source_favorite:[a-f0-9]{64}$',
-          ).hasMatch(row['key'] as String) ||
-          !{'true', 'false'}.contains(row['value'])) {
-        throw const FormatException('渠道收藏字段无效');
-      }
-      return;
-    }
-    if (validateRadioMetadata(row['key'] as String, row['value'] as String)) {
-      return;
-    }
-    if ((row['key'] as String).startsWith('live_list_enabled:')) {
-      if (!{'true', 'false'}.contains(row['value'])) {
-        throw const FormatException('直播订阅启停字段无效');
-      }
-      return;
-    }
-    if ((row['key'] as String).startsWith('live_state:')) {
-      _liveState(jsonDecode(row['value'] as String));
-      return;
-    }
-    if (!(row['key'] as String).startsWith('live_headers:')) {
-      throw const FormatException('备份包含未知的直播元数据');
-    }
-    validateBackupRecord('live_headers', {'headers': row['value']});
+    _appMetadata(row);
     return;
   }
   for (final key in ['enabled', 'suppressed', 'manual', 'paused', 'favorite']) {
@@ -101,6 +76,8 @@ void _liveState(Object? value) {
           'message',
           'preferredUrl',
           'signature',
+          'resolution',
+          'languages',
         }.contains(key),
       ) ||
       (value.containsKey('enabled') && value['enabled'] is! bool) ||
@@ -125,6 +102,24 @@ void _liveState(Object? value) {
     }
   }
   if (value['preferredUrl'] != null) _url(value['preferredUrl']);
+  _mediaMetadata(value);
+}
+
+void _mediaMetadata(Map value) {
+  if (value['resolution'] != null &&
+      (value['resolution'] is! String ||
+          (value['resolution'] as String).length > 50)) {
+    throw const FormatException('直播分辨率字段无效');
+  }
+  for (final key in ['languages', 'countries', 'categories']) {
+    final list = value[key];
+    if (list != null &&
+        (list is! List ||
+            list.length > 100 ||
+            list.any((v) => v is! String || v.length > 200))) {
+      throw const FormatException('直播分类字段无效');
+    }
+  }
 }
 
 void _url(Object? value) {
@@ -135,4 +130,52 @@ void _url(Object? value) {
       uri.userInfo.isNotEmpty) {
     throw const FormatException('备份含无效的 HTTP(S) 地址');
   }
+}
+
+void _appMetadata(Map row) {
+  if ((row['key'] as String).startsWith('source_favorite:')) {
+    if (!RegExp(
+          r'^source_favorite:[a-f0-9]{64}$',
+        ).hasMatch(row['key'] as String) ||
+        !{'true', 'false'}.contains(row['value'])) {
+      throw const FormatException('渠道收藏字段无效');
+    }
+    return;
+  }
+  if (validateRadioMetadata(row['key'] as String, row['value'] as String)) {
+    return;
+  }
+  if ((row['key'] as String).startsWith('live_list_enabled:')) {
+    if (!{'true', 'false'}.contains(row['value'])) {
+      throw const FormatException('直播订阅启停字段无效');
+    }
+    return;
+  }
+  if ((row['key'] as String).startsWith('live_state:')) {
+    _liveState(jsonDecode(row['value'] as String));
+    return;
+  }
+  if ((row['key'] as String).startsWith('live_metadata:')) {
+    final data = jsonDecode(row['value'] as String);
+    if (data is! Map ||
+        data.keys.any(
+          (k) => !{
+            'signature',
+            'languages',
+            'countries',
+            'categories',
+            'resolution',
+          }.contains(k),
+        ) ||
+        data['signature'] is! String) {
+      throw const FormatException('直播元数据无效');
+    }
+    _mediaMetadata(data);
+    return;
+  }
+  if (!(row['key'] as String).startsWith('live_headers:')) {
+    throw const FormatException('备份包含未知的直播元数据');
+  }
+  validateBackupRecord('live_headers', {'headers': row['value']});
+  return;
 }

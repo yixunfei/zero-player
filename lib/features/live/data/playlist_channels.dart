@@ -45,6 +45,7 @@ List<LiveChannel> preparePlaylistChannels(
       tvgId: first?.tvgId.isNotEmpty == true ? first!.tvgId : channel.tvgId,
       urls: appendChannelUrls(first?.urls ?? [], channel.urls),
       headers: headers,
+      metadata: channel.metadata,
     );
   }
   return result.values.toList();

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -76,6 +77,20 @@ Future<void> _setUp() async {
   await services.store.initialize();
   await services.gateway.start();
   fixture = await HttpTestServer.start((request) async {
+    if (request.uri.path == '/vod') {
+      request.response.write(
+        jsonEncode({
+          'pagecount': 1,
+          'class': [
+            {'type_id': '1', 'type_name': '电影'},
+          ],
+          'list': [
+            {'vod_id': 'one', 'vod_name': '测试电影', 'vod_year': '2026'},
+          ],
+        }),
+      );
+      return;
+    }
     await serveLocalFile(
       request,
       File('$project/test_support/generated/sample.mp4'),
@@ -113,6 +128,19 @@ Future<void> _mount(WidgetTester tester) async {
     isNull,
     reason: 'selection must not autoplay',
   );
+  final channels = await services.live.channels();
+  await tester.tap(find.byKey(ValueKey('live-focus-${channels[1].id}')));
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pumpAndSettle();
+  expect(
+    tester.widget<LiveBrowser>(find.byType(LiveBrowser)).selectedId,
+    channels[1].id,
+  );
+  expect(find.byType(PlayerPage), findsNothing);
+  expect(fixture.calls['/sample.mp4'], isNull);
+  await tester.tap(find.byKey(ValueKey('live-focus-${channels.first.id}')));
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pumpAndSettle();
   await _screenshot('interaction-live-desktop.png');
 }
 
@@ -152,7 +180,13 @@ Future<void> _liveManagement(WidgetTester tester) async {
     isNull,
   );
   await _screenshot('interaction-live-disabled.png');
-  await tester.tap(find.text('重新启用'));
+  await tester.tap(find.byTooltip('直播管理'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('一键检测并启用已停用频道'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(FilledButton, '确认'));
+  await _until(tester, () => find.text('关闭').evaluate().isNotEmpty);
+  await tester.tap(find.text('关闭'));
   await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(ListTile, '央视'));
   await tester.pumpAndSettle();
@@ -261,16 +295,40 @@ Future<void> _explicitPlayback(WidgetTester tester) async {
   GoRouter.of(tester.element(find.byType(PlayerPage))).pop();
   await tester.pumpAndSettle();
   expect((await services.live.channels()).first.recent, isTrue);
+  final first = (await services.live.channels()).first;
+  final tile = find.byKey(ValueKey('live-focus-${first.id}'));
+  await tester.tap(tile);
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.tap(tile);
+  await _until(tester, () => find.byType(PlayerPage).evaluate().isNotEmpty);
+  GoRouter.of(tester.element(find.byType(PlayerPage))).pop();
+  await tester.pumpAndSettle();
 }
 
 Future<void> _searchNavigation(WidgetTester tester) async {
+  await services.sources.saveManual('当前来源', fixture.baseUri.resolve('vod'));
+  final preferred = (await services.sources.all()).single.id;
+  await services.settings.update({'homeChannel': preferred});
   final router = _router(tester);
   router.go('/');
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('home-search')));
   await tester.pumpAndSettle();
   expect(find.byType(SearchPage), findsOneWidget);
+  expect(
+    tester.widget<SearchPage>(find.byType(SearchPage)).preferredSourceId,
+    preferred,
+  );
   await tester.enterText(find.byType(TextField), '电影');
+  await tester.tap(find.widgetWithText(FilledButton, '搜索'));
+  await _until(tester, () => find.text('测试电影').evaluate().isNotEmpty);
+  await tester.pumpAndSettle();
+  expect(find.text('全站 · 优先 当前来源'), findsOneWidget);
+  await tester.tap(find.text('仅当前来源'));
+  await _until(tester, () => find.text('测试电影').evaluate().isNotEmpty);
+  await tester.pumpAndSettle();
+  await _screenshot('interaction-search-preferred.png');
+  expect(find.textContaining('操作失败'), findsNothing);
   await tester.tap(find.byTooltip('清空输入'));
   await tester.pumpAndSettle();
   expect(

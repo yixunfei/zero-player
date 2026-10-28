@@ -33,6 +33,7 @@ final class _DetailPageState extends State<DetailPage> {
   }
 
   void _load() {
+    widget.services.searchSourceId = widget.sourceId;
     _future = widget.services.detail(widget.sourceId, widget.remoteId);
   }
 
@@ -80,8 +81,12 @@ final class _DetailPageState extends State<DetailPage> {
             label: const Text('下载选集'),
           ),
           OutlinedButton.icon(
-            onPressed: () =>
-                context.go('/search?q=${Uri.encodeQueryComponent(item.title)}'),
+            onPressed: () => context.push(
+              Uri(
+                path: '/search',
+                queryParameters: {'q': item.title, 'source': item.sourceId},
+              ).toString(),
+            ),
             icon: const Icon(Icons.swap_horiz),
             label: const Text('查找其他来源'),
           ),

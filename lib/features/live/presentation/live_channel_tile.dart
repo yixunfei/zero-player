@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../app/poster_image.dart';
 import '../domain/live_channel.dart';
 
@@ -36,57 +37,79 @@ final class _LiveChannelTileState extends State<LiveChannelTile> {
   Widget build(BuildContext context) {
     final channel = widget.channel;
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: widget.selected
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: _focused ? scheme.primary : Colors.transparent,
-            width: 2,
+    return Focus(
+      onKeyEvent: _handleKey,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: widget.selected
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+              color: _focused ? scheme.primary : Colors.transparent,
+              width: 2,
+            ),
           ),
-        ),
-        child: InkWell(
-          key: ValueKey('live-focus-${channel.id}'),
-          focusNode: _focus,
-          autofocus: widget.selected,
-          borderRadius: BorderRadius.circular(14),
-          onFocusChange: (focused) {
-            setState(() => _focused = focused);
-            if (focused) widget.onSelect();
-          },
-          onTap: () {
-            widget.onSelect();
-            if (channel.health.enabled && channel.urls.isNotEmpty) {
-              widget.onPlay();
-            }
-          },
-          child: ListTile(
-            leading: SizedBox(
-              width: 44,
-              height: 44,
-              child: channel.logo.isEmpty
-                  ? Icon(channel.health.enabled ? Icons.live_tv : Icons.tv_off)
-                  : PosterImage(url: channel.logo, fit: BoxFit.contain),
+          child: InkWell(
+            key: ValueKey('live-focus-${channel.id}'),
+            focusNode: _focus,
+            autofocus: widget.selected,
+            borderRadius: BorderRadius.circular(14),
+            onFocusChange: (focused) {
+              setState(() => _focused = focused);
+              if (focused) widget.onSelect();
+            },
+            onTap: widget.onSelect,
+            onDoubleTap: _play,
+            child: ListTile(
+              leading: SizedBox(
+                width: 44,
+                height: 44,
+                child: channel.logo.isEmpty
+                    ? Icon(
+                        channel.health.enabled ? Icons.live_tv : Icons.tv_off,
+                      )
+                    : PosterImage(url: channel.logo, fit: BoxFit.contain),
+              ),
+              title: Text(
+                channel.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${channel.health.label} · ${channel.listName}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: _menu(channel),
             ),
-            title: Text(
-              channel.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${channel.health.label} · ${channel.listName}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: _menu(channel),
           ),
         ),
       ),
     );
+  }
+
+  void _play() {
+    widget.onSelect();
+    final channel = widget.channel;
+    if (channel.health.enabled &&
+        !channel.health.removed &&
+        channel.urls.isNotEmpty) {
+      widget.onPlay();
+    }
+  }
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (_focus.hasPrimaryFocus &&
+        event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.select)) {
+      _play();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   Widget _menu(LiveChannel channel) => PopupMenuButton<LiveChannelAction>(

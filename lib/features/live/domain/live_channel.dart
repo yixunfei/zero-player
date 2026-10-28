@@ -1,4 +1,5 @@
 import 'live_health.dart';
+import 'live_metadata.dart';
 
 final class LiveChannel {
   const LiveChannel({
@@ -16,6 +17,7 @@ final class LiveChannel {
     this.listName = '',
     this.watchedAt,
     this.members = const [],
+    this.metadata = const LiveMetadata(),
   });
   final String id;
   final String listId;
@@ -31,6 +33,23 @@ final class LiveChannel {
   final String listName;
   final DateTime? watchedAt;
   final List<LiveChannel> members;
+  final LiveMetadata metadata;
+  List<String> get categories => {
+    for (final entry in entries) ...entry.metadata.categories,
+    for (final entry in entries)
+      if (entry.group.isNotEmpty) entry.group,
+  }.toList();
+  List<String> get languages => {
+    for (final entry in entries) ...entry.metadata.languages,
+    for (final entry in entries) ...entry.health.languages,
+  }.toList();
+  List<String> get resolutions => {
+    for (final entry in entries)
+      if (entry.health.resolution?.isNotEmpty == true)
+        entry.health.resolution!
+      else if (entry.metadata.resolution.isNotEmpty)
+        entry.metadata.resolution,
+  }.toList();
   List<LiveChannel> get entries => members.isEmpty ? [this] : members;
   List<String> get preferenceIds => entries.map((c) => c.id).toList();
 
@@ -53,6 +72,7 @@ final class LiveChannel {
     listName: listName,
     watchedAt: watchedAt,
     members: members,
+    metadata: metadata,
   );
 
   /// A successful probe only reorders this channel's own alternatives.
@@ -66,9 +86,19 @@ final class LiveChannel {
 }
 
 final class EpgProgram {
-  const EpgProgram(this.channelId, this.title, this.start, this.end);
+  const EpgProgram(
+    this.channelId,
+    this.title,
+    this.start,
+    this.end, {
+    this.matchedByName = false,
+    this.sourceUrl = '',
+  });
   final String channelId;
   final String title;
   final DateTime start;
   final DateTime end;
+  final bool matchedByName;
+  final String sourceUrl;
+  Duration get duration => end.difference(start);
 }

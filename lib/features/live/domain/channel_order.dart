@@ -43,16 +43,23 @@ int compareChannels(LiveChannel a, LiveChannel b) {
 
 bool matchesChannel(LiveChannel c, String group, String query) {
   if (!channelMatchesQuery(c.name, query) &&
-      !c.entries.any((entry) => channelMatchesQuery(entry.name, query))) {
+      !c.entries.any((entry) => channelMatchesQuery(entry.name, query)) &&
+      ![c.listName, ...c.categories, ...c.languages, ...c.resolutions].any(
+        (text) => text.toLowerCase().contains(query.trim().toLowerCase()),
+      )) {
     return false;
   }
   if (group == '已移除') return c.health.removed;
   if (c.health.removed) return false;
   if (group == '已停用') return !c.health.enabled;
+  if (group == '待处理') {
+    return {'unavailable', 'inconclusive'}.contains(c.health.availability.name);
+  }
   if (!c.health.enabled) return false;
   return group == '全部' ||
       group == '收藏' && c.favorite ||
       group == '最近' && c.recent ||
-      group == '待处理' && c.health.availability.name == 'unavailable' ||
+      group == '未确定' && c.health.availability.name == 'inconclusive' ||
+      group == '有媒体响应' && c.health.availability.name == 'responding' ||
       channelGroup(c) == group;
 }

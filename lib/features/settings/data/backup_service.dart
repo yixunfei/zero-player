@@ -30,7 +30,7 @@ final class BackupService {
     'app_meta',
   ];
   static const _liveMetadata =
-      " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*'"
+      " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*' OR key GLOB 'live_metadata:*'"
       " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'"
       " OR key GLOB 'source_favorite:*'";
 

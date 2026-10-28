@@ -6,13 +6,21 @@ import '../../core/network/header_policy.dart';
 import '../../core/network/media_http_client.dart';
 import '../../core/network/request_scheduler.dart';
 import '../hls/hls_manifest.dart';
+import '../hls/hls_probe_variant.dart';
 
 final class ProbeResult {
-  const ProbeResult(this.firstByte, this.bytes, this.elapsed, this.resolution);
+  const ProbeResult(
+    this.firstByte,
+    this.bytes,
+    this.elapsed,
+    this.resolution, {
+    this.languages = const [],
+  });
   final Duration firstByte;
   final int bytes;
   final Duration elapsed;
   final String? resolution;
+  final List<String> languages;
   double get kibPerSecond => elapsed.inMicroseconds <= 0
       ? 0
       : bytes / 1024 / (elapsed.inMicroseconds / 1000000);
@@ -71,6 +79,7 @@ Future<ProbeResult> _probe(
 }) async {
   var bytes = 0;
   String? resolution;
+  var languages = <String>[];
   for (var depth = 0; depth < 4; depth++) {
     token.check();
     final response = await http.open(
@@ -109,15 +118,17 @@ Future<ProbeResult> _probe(
         bytes,
         budget.clock.elapsed,
         resolution,
+        languages: languages,
       );
     }
     final text = utf8.decode(sample.content);
     final parsed = HlsManifest.parse(text, response.uri);
-    resolution ??= RegExp(r'RESOLUTION=(\d+x\d+)').firstMatch(text)?[1];
     if (bytes >= maxBytes) throw const ProbeInconclusive('清单超过探测流量上限');
     if (parsed.isMaster) {
-      if (parsed.playlistUris.isEmpty) throw const FormatException('没有播放变体');
-      uri = parsed.playlistUris.first;
+      final variant = probeVariant(parsed);
+      uri = variant.uri;
+      resolution = variant.resolution ?? resolution;
+      if (variant.languages.isNotEmpty) languages = variant.languages;
     } else {
       final media = parsed.lines.firstWhere(
         (l) => l.isNotEmpty && !l.startsWith('#'),

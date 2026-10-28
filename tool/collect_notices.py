@@ -1,4 +1,5 @@
 """Collect dependency notices without changing package caches."""
+import hashlib
 import json
 import shutil
 import tarfile
@@ -49,7 +50,10 @@ def collect_native_notices(target):
     manifest = sources / 'manifest.json'
     if manifest.exists():
         shutil.copy2(manifest, target / 'native-source-manifest.json')
-    for archive in sources.glob('*.tar.gz'):
+    index = []
+    for archive in sorted(sources.glob('*.tar.gz')):
+        archive_key = (archive.name.removesuffix('.tar.gz')[:32] + '-'
+                       + hashlib.sha256(archive.name.encode()).hexdigest()[:16])
         with tarfile.open(archive) as bundle:
             for member in bundle.getmembers():
                 path = Path(member.name)
@@ -57,9 +61,18 @@ def collect_native_notices(target):
                         or path.is_absolute() or '..' in path.parts
                         or not path.name.lower().startswith(('license', 'copying', 'notice'))):
                     continue
-                destination = target / 'native-sources' / archive.name / path
+                # Preserve provenance in the index, not in deeply nested paths.
+                member_key = hashlib.sha256(member.name.encode()).hexdigest()[:16]
+                relative = Path('native-sources') / archive_key / (member_key + '-' + path.name[:48])
+                destination = target / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(bundle.extractfile(member).read())
+                data = bundle.extractfile(member).read()
+                destination.write_bytes(data)
+                index.append({'archive': archive.name, 'member': member.name,
+                              'notice': relative.as_posix(),
+                              'sha256': hashlib.sha256(data).hexdigest()})
+    (target / 'native-notice-index.json').write_text(
+        json.dumps(index, indent=2), encoding='utf-8')
 
 
 if __name__ == '__main__':

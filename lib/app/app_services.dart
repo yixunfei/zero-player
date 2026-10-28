@@ -25,6 +25,7 @@ import '../features/downloads/application/download_failover.dart';
 import '../features/downloads/data/download_repository.dart';
 import '../features/library/data/history_repository.dart';
 import '../features/live/data/live_repository.dart';
+import '../features/live/data/live_audit_defaults.dart';
 import '../features/radio/data/radio_repository.dart';
 import '../features/radio/application/radio_controller.dart';
 import '../features/playback/domain/player_engine.dart';
@@ -61,6 +62,9 @@ final class AppServices {
   );
   Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
   final Directory root;
+
+  /// In-session browsing context; distinct from the user's saved home default.
+  String? searchSourceId;
   final AppDatabase db;
   final platform = PlatformServices();
   final MediaHttpClient http;
@@ -74,7 +78,11 @@ final class AppServices {
   late final subscriptions = SubscriptionService(network, sources);
   late final history = HistoryRepository(db);
   late final skips = SkipRepository(db);
-  late final live = LiveRepository(db, network);
+  late final live = LiveRepository(
+    db,
+    network,
+    defaults: LiveAuditDefaults.bundled(),
+  );
   late final radio = RadioRepository(
     db,
     network,

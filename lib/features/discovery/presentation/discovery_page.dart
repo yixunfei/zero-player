@@ -109,6 +109,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   Future<void> _reload({bool discoverCategories = false}) {
+    widget.services.searchSourceId = _channel.isEmpty ? null : _channel;
     final source = _sources.where((s) => s.id == _channel).firstOrNull;
     final provider = _provider;
     final filter = _filterAdult;
@@ -233,8 +234,15 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
       ? () => widget.services.synopses.get(item.id)
       : null;
 
-  void _search(Recommendation item) =>
-      context.push('/search?q=${Uri.encodeQueryComponent(item.title)}');
+  void _search(Recommendation item) => context.push(
+    Uri(
+      path: '/search',
+      queryParameters: {
+        'q': item.title,
+        if (_channel.isNotEmpty) 'source': _channel,
+      },
+    ).toString(),
+  );
 
   Future<void> _saveDefault() => perform(
     context,

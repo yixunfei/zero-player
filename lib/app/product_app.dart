@@ -58,6 +58,9 @@ final class _ProductAppState extends ConsumerState<ProductApp>
                 child: SearchPage(
                   services: services,
                   initial: state.uri.queryParameters['q'] ?? '',
+                  preferredSourceId:
+                      state.uri.queryParameters['source'] ??
+                      services.searchSourceId,
                 ),
               ),
             ),

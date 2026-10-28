@@ -31,6 +31,12 @@ Copy-Item -Path "$windowsBuild/*" -Destination $stage -Recurse
 Copy-Item -Path "$VcRuntime/*.dll" -Destination $stage
 Copy-Item -LiteralPath "$projectRoot/LICENSE","$projectRoot/NOTICE.md","$projectRoot/README.md" -Destination $stage
 Copy-Item -LiteralPath "$projectRoot/artifacts/notices" -Destination "$stage/third-party-notices" -Recurse
+$longPaths = @(Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object {
+    $_.FullName.Substring($stage.Length + 1).Length -gt 160
+})
+if ($longPaths.Count -gt 0) {
+    throw 'Package paths exceed 160 characters. Regenerate dependency notices with collect_notices.py before packaging.'
+}
 if (!$WindowsOnly) {
     foreach ($name in $androidFiles.Keys) {
         Copy-Item -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name" -Destination (Join-Path $release $androidFiles[$name])

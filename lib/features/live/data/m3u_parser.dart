@@ -1,6 +1,7 @@
 import '../../sources/domain/video_source.dart';
 import '../../../core/text/display_text.dart';
 import '../domain/live_channel.dart';
+import '../domain/live_metadata.dart';
 import 'channel_urls.dart';
 import 'playlist_channels.dart';
 
@@ -15,6 +16,7 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
   var group = '';
   var logo = '';
   var tvgId = '';
+  var metadata = const LiveMetadata();
   var headers = <String, String>{};
   final attributes = RegExp(r'([\w-]+)="([^"]*)"');
   for (final raw in input.split(RegExp(r'\r?\n'))) {
@@ -38,6 +40,7 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
       group = displayText(attrs['group-title'] ?? '');
       logo = attrs['tvg-logo'] ?? '';
       tvgId = attrs['tvg-id'] ?? '';
+      metadata = LiveMetadata.fromAttributes(attrs);
       headers = {};
     } else if (line.startsWith('#EXTGRP:')) {
       group = displayText(line.substring(8));
@@ -71,6 +74,7 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
         group: group,
         logo: _logoUrl(logo, base),
         tvgId: tvgId,
+        metadata: metadata,
         urls: appendChannelUrls(old?.urls ?? const [], [uri]),
         headers: Map.unmodifiable({...?old?.headers, ...headers}),
       );
@@ -95,11 +99,14 @@ String _logoUrl(String value, Uri base) {
 String exportM3u(List<LiveChannel> channels) {
   String clean(String value) => value.replaceAll(RegExp(r'[\r\n"]'), ' ');
   final output = StringBuffer('#EXTM3U\n');
-  for (final channel in channels) {
+  for (final channel in channels.expand((c) => c.entries)) {
     for (final uri in channel.urls) {
       output.writeln(
         '#EXTINF:-1 tvg-id="${clean(channel.tvgId)}" '
-        'tvg-logo="${clean(channel.logo)}" group-title="${clean(channel.group)}",${clean(channel.name)}',
+        'tvg-logo="${clean(channel.logo)}" group-title="${clean(channel.group)}" '
+        'tvg-language="${clean(channel.metadata.languages.join(';'))}" '
+        'tvg-country="${clean(channel.metadata.countries.join(';'))}" '
+        'tvg-resolution="${clean(channel.metadata.resolution)}",${clean(channel.name)}',
       );
       for (final header in channel.headersFor(uri).entries) {
         final option = switch (header.key.toLowerCase()) {

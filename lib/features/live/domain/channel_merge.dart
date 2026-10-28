@@ -41,6 +41,8 @@ LiveChannel _merge(List<LiveChannel> members) {
       : health.isNotEmpty &&
             health.every((h) => h.availability == LiveAvailability.unavailable)
       ? LiveAvailability.unavailable
+      : health.any((h) => h.availability == LiveAvailability.inconclusive)
+      ? LiveAvailability.inconclusive
       : LiveAvailability.unknown;
   return LiveChannel(
     id: stableId(
@@ -57,6 +59,7 @@ LiveChannel _merge(List<LiveChannel> members) {
         '',
     tvgId: first.tvgId,
     headers: first.headers,
+    metadata: first.metadata,
     urls: {for (final c in members) ...c.playbackUrls}.toList(),
     favorite: members.any((c) => c.favorite),
     recent: watched.isNotEmpty,
@@ -74,6 +77,8 @@ LiveChannel _merge(List<LiveChannel> members) {
       checkedAt: first.health.checkedAt,
       message: first.health.message,
       preferredUrl: first.health.preferredUrl,
+      resolution: first.health.resolution,
+      languages: first.health.languages,
     ),
     members: List.unmodifiable(members),
   );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../app/list_keyboard_navigation.dart';
 import 'live_channel_tile.dart';
+import 'live_channel_filters.dart';
+import 'live_channel_details.dart';
 import '../domain/live_channel.dart';
 import '../domain/channel_order.dart';
 
@@ -20,10 +22,12 @@ final class LiveBrowser extends StatelessWidget {
     required this.onEpg,
     required this.onProbe,
     this.selectedId,
+    this.filter = const LiveChannelFilter(),
   });
   final List<LiveChannel> channels;
   final String group, query;
   final String? selectedId;
+  final LiveChannelFilter filter;
   final ScrollController controller;
   final ValueChanged<String> onGroup, onSelect;
   final ValueChanged<LiveChannel> onPlay, onFavorite, onToggle, onEpg, onProbe;
@@ -31,7 +35,7 @@ final class LiveBrowser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shown = channels
-        .where((c) => matchesChannel(c, group, query))
+        .where((c) => matchesChannel(c, group, query) && filter.matches(c))
         .toList();
     if (group == '最近') {
       shown.sort(
@@ -43,13 +47,26 @@ final class LiveBrowser extends StatelessWidget {
     final selected =
         shown.where((c) => c.id == selectedId).firstOrNull ?? shown.firstOrNull;
     final extra = channels.map(channelGroup).toSet()
-      ..removeAll({'央视', '卫视', '收藏', '最近', '全部', '待处理', '已停用', '已移除'});
+      ..removeAll({
+        '央视',
+        '卫视',
+        '收藏',
+        '最近',
+        '全部',
+        '待处理',
+        '有媒体响应',
+        '未确定',
+        '已停用',
+        '已移除',
+      });
     final groups = [
       '央视',
       '卫视',
       '收藏',
       '最近',
       '全部',
+      '有媒体响应',
+      '未确定',
       '待处理',
       '已停用',
       '已移除',
@@ -77,7 +94,7 @@ final class LiveBrowser extends StatelessWidget {
                             vertical: 8,
                           ),
                           child: Text(
-                            '$group · ${shown.length} 个频道 · 方向键选择，确认播放',
+                            '$group · ${shown.length} 个频道 · 单击选中，双击 / Enter 播放',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -178,7 +195,7 @@ final class LiveBrowser extends StatelessWidget {
         onSelect: () => onSelect(channel.id),
         onPlay: () => onPlay(channel),
         onAction: (action) => switch (action) {
-          LiveChannelAction.info => onSelect(channel.id),
+          LiveChannelAction.info => _info(context, channel),
           LiveChannelAction.favorite => onFavorite(channel),
           LiveChannelAction.probe => onProbe(channel),
           LiveChannelAction.epg => onEpg(channel),
@@ -195,6 +212,19 @@ final class LiveBrowser extends StatelessWidget {
             '已选 ${channel.name}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        IconButton(
+          tooltip: '频道详情',
+          onPressed: () => _info(context, channel),
+          icon: const Icon(Icons.info_outline),
+        ),
+        IconButton(
+          tooltip: channel.health.enabled ? '停用频道' : '检测此频道',
+          onPressed: () =>
+              channel.health.enabled ? onToggle(channel) : onProbe(channel),
+          icon: Icon(
+            channel.health.enabled ? Icons.block : Icons.network_check,
           ),
         ),
         IconButton(
@@ -230,6 +260,7 @@ final class LiveBrowser extends StatelessWidget {
           Text(channel.listName, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           Text(channel.health.label),
+          if (!channel.health.enabled) Text(channel.health.availabilityLabel),
           Text(channel.health.message),
           if (channel.health.checkedAt != null)
             Text(
@@ -237,36 +268,65 @@ final class LiveBrowser extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           Text('${channel.urls.length} 条备用线路'),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: channel.health.enabled && channel.urls.isNotEmpty
-                ? () => onPlay(channel)
-                : null,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('播放频道'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              FilledButton.icon(
+                onPressed: channel.health.enabled && channel.urls.isNotEmpty
+                    ? () => onPlay(channel)
+                    : null,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('播放频道'),
+              ),
+              TextButton.icon(
+                onPressed: () => onToggle(channel),
+                icon: Icon(
+                  channel.health.enabled ? Icons.block : Icons.restore,
+                ),
+                label: Text(channel.health.enabled ? '停用频道' : '重新启用'),
+              ),
+              TextButton.icon(
+                onPressed: () => onFavorite(channel),
+                icon: Icon(channel.favorite ? Icons.star : Icons.star_outline),
+                label: Text(channel.favorite ? '取消收藏' : '收藏频道'),
+              ),
+              TextButton.icon(
+                onPressed: () => onEpg(channel),
+                icon: const Icon(Icons.event_note),
+                label: const Text('查看节目单'),
+              ),
+              TextButton.icon(
+                onPressed: () => onProbe(channel),
+                icon: const Icon(Icons.network_check),
+                label: const Text('检测线路'),
+              ),
+            ],
           ),
-          TextButton.icon(
-            onPressed: () => onFavorite(channel),
-            icon: Icon(channel.favorite ? Icons.star : Icons.star_outline),
-            label: Text(channel.favorite ? '取消收藏' : '收藏频道'),
-          ),
-          TextButton.icon(
-            onPressed: () => onEpg(channel),
-            icon: const Icon(Icons.event_note),
-            label: const Text('查看节目单'),
-          ),
-          TextButton.icon(
-            onPressed: () => onProbe(channel),
-            icon: const Icon(Icons.network_check),
-            label: const Text('检测线路'),
-          ),
-          TextButton.icon(
-            onPressed: () => onToggle(channel),
-            icon: Icon(channel.health.enabled ? Icons.block : Icons.restore),
-            label: Text(channel.health.enabled ? '停用频道' : '重新启用'),
-          ),
+          const Divider(),
+          LiveChannelDetails(channel: channel),
         ],
       ),
     ),
   );
+
+  void _info(BuildContext context, LiveChannel channel) {
+    onSelect(channel.id);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(channel.name),
+        content: SingleChildScrollView(
+          child: LiveChannelDetails(channel: channel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
 }

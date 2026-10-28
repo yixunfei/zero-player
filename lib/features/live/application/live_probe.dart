@@ -20,13 +20,17 @@ final class LiveProbe {
   final _tokens = <CancellationToken>{};
   bool _closed = false;
 
-  Future<LiveHealth> check(LiveChannel channel, CancellationToken token) {
+  Future<LiveHealth> check(
+    LiveChannel channel,
+    CancellationToken token, {
+    bool enableResponding = false,
+  }) {
     if (_closed) throw StateError('直播检测已关闭');
     final local = CancellationToken();
     final unlink = token.listen(local.cancel);
     _tokens.add(local);
     late final Future<LiveHealth> work;
-    work = _check(channel, local).whenComplete(() {
+    work = _check(channel, local, enableResponding).whenComplete(() {
       unlink();
       _tokens.remove(local);
       _active.remove(work);
@@ -54,6 +58,7 @@ final class LiveProbe {
   Future<LiveHealth> _check(
     LiveChannel channel,
     CancellationToken token,
+    bool enableResponding,
   ) async {
     var uncertain = channel.urls.length > 3;
     var message = '频道没有可播放线路';
@@ -74,9 +79,15 @@ final class LiveProbe {
           availability: LiveAvailability.responding,
           latencyMs: result.firstByte.inMilliseconds,
           preferredUrl: uri.toString(),
+          resolution: result.resolution,
+          languages: result.languages,
           message: '已收到媒体数据，未验证完整解码',
         );
-        await repository.record(channel, health);
+        await repository.record(
+          channel,
+          health,
+          enableResponding: enableResponding,
+        );
         return health;
       } catch (error) {
         token.check();
@@ -95,7 +106,7 @@ final class LiveProbe {
           : LiveAvailability.unavailable,
       message: message,
     );
-    await repository.record(channel, result);
+    await repository.record(channel, result, disableUnavailable: true);
     return result;
   }
 }

@@ -6,13 +6,19 @@ import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
 import '../../catalog/domain/catalog_item.dart';
 import '../application/search_controller.dart';
-import '../../sources/presentation/block_source_button.dart';
+import 'search_status_panel.dart';
 import '../../catalog/presentation/source_choices.dart';
 
 final class SearchPage extends StatefulWidget {
-  const SearchPage({super.key, required this.services, this.initial = ''});
+  const SearchPage({
+    super.key,
+    required this.services,
+    this.initial = '',
+    this.preferredSourceId,
+  });
   final AppServices services;
   final String initial;
+  final String? preferredSourceId;
   @override
   State<SearchPage> createState() => _SearchPageState();
 }
@@ -22,6 +28,9 @@ final class _SearchPageState extends State<SearchPage> {
   late final TextEditingController text;
   late Future<List<String>> history;
   final _inputFocus = FocusNode();
+  String? _preferredId;
+  late Future<String?> _preferredName;
+  bool _onlyPreferred = false;
   @override
   void initState() {
     super.initState();
@@ -32,25 +41,67 @@ final class _SearchPageState extends State<SearchPage> {
     );
     text = TextEditingController(text: widget.initial);
     history = widget.services.history.searches();
+    _readPreferred();
     if (widget.initial.isNotEmpty) unawaited(_search());
   }
 
   @override
   void didUpdateWidget(covariant SearchPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initial != widget.initial) {
+    if (oldWidget.initial != widget.initial ||
+        oldWidget.preferredSourceId != widget.preferredSourceId) {
+      _readPreferred();
       text.text = widget.initial;
       unawaited(_search());
     }
   }
 
-  Future<void> _search() => perform(
-    context,
-    () => controller.search(
+  void _readPreferred() {
+    _preferredId = widget.preferredSourceId ?? widget.services.searchSourceId;
+    if (_preferredId == null) _onlyPreferred = false;
+    _preferredName = _preferredId == null
+        ? Future.value(null)
+        : widget.services.sources
+              .find(_preferredId!)
+              .then((s) => s?.displayName);
+  }
+
+  Future<void> _search() => perform(context, () async {
+    await controller.search(
       text.text,
       filterAdult: widget.services.settings.value.filterAdult,
       concurrency: widget.services.settings.value.searchConcurrency,
-    ),
+      preferredSourceId: _preferredId,
+      onlyPreferred: _onlyPreferred,
+    );
+    if (mounted) {
+      final updatedHistory = widget.services.history.searches();
+      setState(() {
+        history = updatedHistory;
+      });
+    }
+  });
+
+  Widget _scope() => FutureBuilder<String?>(
+    future: _preferredName,
+    builder: (context, snapshot) => snapshot.data == null
+        ? const SizedBox.shrink()
+        : Wrap(
+            spacing: 8,
+            children: [
+              for (final only in [false, true])
+                ChoiceChip(
+                  label: Text(only ? '仅当前来源' : '全站 · 优先 ${snapshot.data}'),
+                  selected: _onlyPreferred == only,
+                  onSelected: controller.loading
+                      ? null
+                      : (_) {
+                          setState(() => _onlyPreferred = only);
+                          if (text.text.trim().isNotEmpty) unawaited(_search());
+                        },
+                ),
+            ],
+          ),
   );
   @override
   void dispose() {
@@ -78,47 +129,20 @@ final class _SearchPageState extends State<SearchPage> {
         builder: (context, _) => Column(
           children: [
             _searchBar(),
+            _scope(),
             if (controller.loading) const LinearProgressIndicator(),
             if (controller.query.isEmpty) _history(),
-            if (controller.statuses.isNotEmpty)
-              ExpansionTile(
-                title: Text(
-                  '${controller.groups.length} 部作品 · ${controller.statuses.length} 个来源',
-                ),
-                children: [
-                  SizedBox(
-                    height: 140,
-                    child: ListView(
-                      primary: false,
-                      children: [
-                        for (final status in controller.statuses.entries)
-                          ListTile(
-                            dense: true,
-                            title: Text(
-                              controller.sourceNames[status.key] ?? '',
-                            ),
-                            subtitle: Text(status.value),
-                            trailing:
-                                controller.failedSources.contains(status.key)
-                                ? BlockSourceButton(
-                                    name:
-                                        controller.sourceNames[status.key] ??
-                                        '此来源',
-                                    onBlock: () =>
-                                        controller.blockSource(status.key),
-                                  )
-                                : null,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            SearchStatusPanel(controller: controller),
             Expanded(
               child: controller.items.isEmpty
                   ? EmptyState(
                       controller.loading ? '正在逐源搜索' : '还没有搜索结果',
-                      controller.error ?? '结果会随来源响应陆续出现',
+                      controller.error ??
+                          (controller.loading
+                              ? '结果会随来源响应陆续出现'
+                              : controller.query.isEmpty
+                              ? '输入片名，或选择搜索记录'
+                              : '未找到匹配内容，可缩短关键词或切换搜索范围'),
                       action: TextButton(
                         onPressed: () => context.push('/sources'),
                         child: const Text('管理视频源'),
