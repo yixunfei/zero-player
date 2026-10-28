@@ -23,7 +23,16 @@ final class SourceCard extends StatelessWidget {
   final ValueChanged<String> onAction;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => repository.policy == null
+      ? _card(context)
+      : ListenableBuilder(
+          listenable: repository.policy!,
+          builder: (context, _) => _card(context),
+        );
+
+  bool get _restricted => !(repository.policy?.sourceAllowed(source) ?? true);
+
+  Widget _card(BuildContext context) => Card(
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -44,13 +53,15 @@ final class SourceCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          source.displayName,
+                          _restricted ? '受限频道' : source.displayName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Text(
-                          source.description,
+                          _restricted
+                              ? '频道和网站信息已被过滤或监管规则隐藏'
+                              : source.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -79,9 +90,11 @@ final class SourceCard extends StatelessWidget {
               children: [
                 _statusTags(context),
                 Text(
-                  source.error ??
-                      source.diagnostics?.label ??
-                      (source.apiOk ? '接口查询成功，媒体未验证' : '尚未验证接口和播放'),
+                  _restricted
+                      ? '禁止访问受限内容'
+                      : source.error ??
+                            source.diagnostics?.label ??
+                            (source.apiOk ? '接口查询成功，媒体未验证' : '尚未验证接口和播放'),
                 ),
                 Row(
                   children: [

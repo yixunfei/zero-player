@@ -15,7 +15,7 @@ final class SourceProbeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: probe,
+    listenable: Listenable.merge([probe, services.contentPolicy]),
     builder: (context, _) => AlertDialog(
       title: const Text('批量探测接口'),
       content: SizedBox(
@@ -34,7 +34,13 @@ final class SourceProbeDialog extends StatelessWidget {
               child: ListView.builder(
                 itemCount: probe.statuses.length,
                 itemBuilder: (_, index) => ListTile(
-                  title: Text(probe.statuses.values.elementAt(index)),
+                  title: Text(
+                    services.contentPolicy.sourceIdAllowed(
+                          probe.statuses.keys.elementAt(index),
+                        )
+                        ? probe.statuses.values.elementAt(index)
+                        : '受限频道：信息已隐藏',
+                  ),
                 ),
               ),
             ),

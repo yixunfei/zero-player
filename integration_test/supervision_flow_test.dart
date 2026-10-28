@@ -16,6 +16,7 @@ import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/sources/presentation/source_card.dart';
 import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
+import 'package:zero_player/features/settings/presentation/adult_filter_setting.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
 import '../test_support/http_test_server.dart';
 
@@ -27,7 +28,7 @@ const password = 'acceptance-password-only';
 late AppServices services;
 late Directory root;
 late HttpTestServer fixture;
-late String ordinaryId, adultId;
+late String ordinaryId, adultId, forestId;
 late IntegrationTestWidgetsFlutterBinding binding;
 final boundary = GlobalKey();
 
@@ -57,6 +58,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       final recovery = await _setupPassword(tester);
       debugPrint('SUPERVISION_STAGE credentials configured');
+      await _homePolicyCheck(tester, router);
+      router.go('/supervision');
+      await tester.pump(const Duration(milliseconds: 350));
       await _rules(tester);
       debugPrint('SUPERVISION_STAGE rules saved');
       await _capture('supervision-settings-desktop.png');
@@ -131,10 +135,14 @@ Future<void> _setup() async {
     fixture.baseUri.resolve('vod'),
   );
   adultId = await services.sources.saveManual(
-    '受限演示源',
+    '鲨鱼',
     fixture.baseUri.resolve('adult'),
     classification: 'adult',
     enabled: false,
+  );
+  forestId = await services.sources.saveManual(
+    '森林',
+    Uri.parse('https://slapibf.com/api.php/provide/vod'),
   );
   await services.live.importText(
     '测试列表',
@@ -168,6 +176,58 @@ Future<String> _setupPassword(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
   expect(services.supervision.enabled, isTrue);
   return code;
+}
+
+Future<void> _homePolicyCheck(WidgetTester tester, GoRouter router) async {
+  await services.supervision.execute(
+    SensitiveOperation.supervision,
+    () => services.supervision.setEnabled(false),
+    password: password,
+  );
+  await services.settings.update({'filterAdult': false});
+  await services.sources.setEnabled(adultId, true);
+  await services.supervision.execute(
+    SensitiveOperation.supervision,
+    () => services.supervision.setEnabled(true),
+    password: password,
+  );
+  expect(services.settings.value.filterAdult, isFalse);
+  expect(services.contentPolicy.filterAdult, isTrue);
+  router.go('/');
+  await tester.pump(const Duration(milliseconds: 350));
+  await _until(
+    tester,
+    () => find.byType(DropdownButton<String>).evaluate().isNotEmpty,
+  );
+  await tester.pump(const Duration(milliseconds: 350));
+  final choices = tester
+      .widget<DropdownButton<String>>(find.byType(DropdownButton<String>).first)
+      .items!
+      .map((e) => e.value)
+      .toList();
+  expect(choices, contains(ordinaryId));
+  expect(choices, isNot(contains(adultId)));
+  expect(choices, isNot(contains(forestId)));
+  await _capture('supervision-home-filtered-0.0.5.png');
+  router.go('/settings');
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.scrollUntilVisible(
+    find.byType(AdultFilterSetting),
+    300,
+    scrollable: find.byType(Scrollable).first,
+  );
+  final toggle = tester.widget<SwitchListTile>(
+    find.descendant(
+      of: find.byType(AdultFilterSetting),
+      matching: find.byType(SwitchListTile),
+    ),
+  );
+  expect(toggle.value, isTrue);
+  expect(toggle.onChanged, isNull);
+  await services.sources.setEnabled(adultId, false);
+  debugPrint(
+    'SUPERVISION_HOME verified=forest,shark preference=false mandatory=true',
+  );
 }
 
 Future<void> _newPassword(WidgetTester tester, String value) async {
@@ -213,6 +273,16 @@ Future<void> _channelGate(WidgetTester tester, GoRouter router) async {
   final toggle = find.descendant(of: card, matching: find.byType(Switch));
   await _until(tester, () => card.evaluate().isNotEmpty);
   await tester.ensureVisible(toggle);
+  await tester.tap(find.descendant(of: card, matching: find.text('详情')));
+  await tester.pump(const Duration(milliseconds: 350));
+  expect(find.text('禁止访问'), findsOneWidget);
+  expect(find.textContaining('监管设置人已禁止访问'), findsOneWidget);
+  expect(find.text('接口网址'), findsNothing);
+  expect(find.text('网站主页'), findsNothing);
+  expect(find.byType(SelectableText), findsNothing);
+  await _capture('supervision-blocked-source-0.0.5.png');
+  await tester.tap(find.text('关闭'));
+  await tester.pump(const Duration(milliseconds: 350));
   await tester.tap(toggle);
   await tester.pump(const Duration(milliseconds: 350));
   expect(find.text('验证监管密码'), findsOneWidget);

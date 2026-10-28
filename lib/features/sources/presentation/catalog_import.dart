@@ -218,7 +218,9 @@ Future<void> exportSources(
   BuildContext context,
   AppServices services,
 ) => perform(context, () async {
-  final sources = await services.sources.all();
+  final sources = (await services.sources.all())
+      .where(services.contentPolicy.sourceAllowed)
+      .toList();
   final output = const JsonEncoder.withIndent('  ').convert({
     'sources': [
       for (final source in sources)

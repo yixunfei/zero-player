@@ -69,7 +69,7 @@ final class _SearchPageState extends State<SearchPage> {
   Future<void> _search() => perform(context, () async {
     await controller.search(
       text.text,
-      filterAdult: widget.services.settings.value.filterAdult,
+      filterAdult: widget.services.contentPolicy.filterAdult,
       concurrency: widget.services.settings.value.searchConcurrency,
       preferredSourceId: _preferredId,
       onlyPreferred: _onlyPreferred,
@@ -84,7 +84,10 @@ final class _SearchPageState extends State<SearchPage> {
 
   Widget _scope() => FutureBuilder<String?>(
     future: _preferredName,
-    builder: (context, snapshot) => snapshot.data == null
+    builder: (context, snapshot) =>
+        snapshot.data == null ||
+            (_preferredId != null &&
+                !widget.services.contentPolicy.sourceIdAllowed(_preferredId!))
         ? const SizedBox.shrink()
         : Wrap(
             spacing: 8,

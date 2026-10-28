@@ -50,12 +50,12 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     _channel = settings.homeChannel;
     _aggregate = settings.homeLayout == 'aggregate';
     _provider = settings.recommendation;
-    _filterAdult = settings.filterAdult;
+    _filterAdult = widget.services.contentPolicy.filterAdult;
     _history = widget.services.history.recentWorks();
     _feed.addListener(_changed);
     _scroll.addListener(_loadNearEnd);
     widget.services.settings.addListener(_settingsChanged);
-    widget.services.supervision.addListener(_policyChanged);
+    widget.services.contentPolicy.addListener(_policyChanged);
     _sourceChanges = widget.services.sources.changes.listen(
       (_) => unawaited(_syncSources()),
     );
@@ -79,16 +79,15 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
         [item.title, item.subtitle, item.description].join(' '),
       );
   void _policyChanged() {
+    _filterAdult = widget.services.contentPolicy.filterAdult;
     if (mounted) setState(() {});
     unawaited(_refresh());
   }
 
   void _settingsChanged() {
     final settings = widget.services.settings.value;
-    if (settings.recommendation != _provider ||
-        settings.filterAdult != _filterAdult) {
+    if (settings.recommendation != _provider) {
       _provider = settings.recommendation;
-      _filterAdult = settings.filterAdult;
       unawaited(_refresh());
     } else if (mounted) {
       setState(() {});
@@ -162,9 +161,10 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   Future<void> _syncSources() async {
+    final generation = _sourceGeneration;
     final sources = await widget.services.sources.all();
     final preferred = await widget.services.sources.preferredId(_channel);
-    if (!mounted) return;
+    if (!mounted || generation != _sourceGeneration) return;
     final visible =
         sources
             .where(
@@ -280,7 +280,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   void dispose() {
     unawaited(_sourceChanges?.cancel());
     widget.services.settings.removeListener(_settingsChanged);
-    widget.services.supervision.removeListener(_policyChanged);
+    widget.services.contentPolicy.removeListener(_policyChanged);
     _feed.removeListener(_changed);
     _feed.dispose();
     _scroll.dispose();
@@ -412,7 +412,10 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _menus() {
     final settings = widget.services.settings.value;
-    final current = _sources
+    final visible = _sources
+        .where(widget.services.contentPolicy.sourceAllowed)
+        .toList();
+    final current = visible
         .where((source) => source.id == _channel)
         .firstOrNull;
     return Column(
@@ -420,7 +423,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
       children: [
         DiscoveryToolbar(
           onSearch: () => context.push('/search'),
-          sources: _sources,
+          sources: visible,
           channel: _channel,
           providerName: recommendationNames[_provider] ?? '精选推荐',
           isFavorite: current?.favorite ?? false,
@@ -443,6 +446,14 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
           onRefresh: () => unawaited(_refresh()),
           onSaveDefault: () => unawaited(_saveDefault()),
           onChannel: (value) {
+            if (value.isNotEmpty &&
+                !visible.any(
+                  (s) =>
+                      s.id == value &&
+                      widget.services.contentPolicy.sourceAllowed(s),
+                )) {
+              return;
+            }
             _sourceGeneration++;
             _channel = value;
             _type = value.isEmpty

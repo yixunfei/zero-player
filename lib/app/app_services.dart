@@ -79,6 +79,7 @@ final class AppServices {
   late final settings = SettingsController(
     db,
     authorize: () => supervision.require(SensitiveOperation.settings),
+    adultFilterRequired: () => supervision.enabled,
   );
   late final contentPolicy = ContentPolicy(settings, supervision);
   void _authorizeChannels() => supervision.require(SensitiveOperation.channels);
@@ -122,6 +123,7 @@ final class AppServices {
   late final backup = BackupService(
     db,
     authorize: () => supervision.require(SensitiveOperation.restore),
+    authorizeExport: () => supervision.require(SensitiveOperation.export),
   );
   late final store = SegmentStore(
     Directory(p.join(root.path, 'segments')),

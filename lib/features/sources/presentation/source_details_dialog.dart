@@ -6,6 +6,7 @@ import '../../../core/network/request_trace.dart';
 import '../application/source_probe.dart';
 import '../domain/video_source.dart';
 import 'source_favorite_button.dart';
+import '../../supervision/presentation/content_blocked_dialog.dart';
 
 Future<void> showSourceDetails(
   BuildContext context,
@@ -47,6 +48,13 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
       (_) => unawaited(_reload()),
     );
     _removeHook = widget.services.addCloseHook(_stop);
+    widget.services.contentPolicy.addListener(_policyChanged);
+  }
+
+  bool get _allowed => widget.services.contentPolicy.sourceAllowed(_source);
+  void _policyChanged() {
+    if (!_allowed) _probe.cancel();
+    if (mounted) setState(() {});
   }
 
   Future<void> _reload() async {
@@ -55,7 +63,7 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
   }
 
   Future<void> _refresh() async {
-    if (_busy) return;
+    if (_busy || !_allowed) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -79,6 +87,7 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
 
   @override
   void dispose() {
+    widget.services.contentPolicy.removeListener(_policyChanged);
     unawaited(_changes.cancel());
     unawaited(
       _stop().whenComplete(() {
@@ -90,7 +99,11 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => _allowed
+      ? _details(context)
+      : ContentBlockedDialog(supervised: widget.services.supervision.enabled);
+
+  Widget _details(BuildContext context) => AlertDialog(
     title: Row(
       children: [
         Expanded(child: Text(_source.displayName)),

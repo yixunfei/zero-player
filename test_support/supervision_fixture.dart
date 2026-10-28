@@ -44,6 +44,7 @@ final class SupervisionFixture {
   late final settings = SettingsController(
     db,
     authorize: () => guard.require(SensitiveOperation.settings),
+    adultFilterRequired: () => guard.enabled,
   );
   late final policy = ContentPolicy(settings, guard);
   late final sources = SourceRepository(

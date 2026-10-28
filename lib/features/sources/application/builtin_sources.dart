@@ -19,6 +19,7 @@ final class BuiltinSources {
     await _initializeOriginal(restore: restore);
     await MaccmsSources(repository).initialize(restore: restore);
     await SourceCuration(repository).initialize(restore: restore);
+    await repository.applyVerifiedContentLabels();
     await SourcePreferences(
       repository.db,
     ).seedDefaults(await repository.all(includeSuppressed: true));

@@ -36,6 +36,10 @@ void _recordCases() {
   test(
     'history and downloads preserve classification across filter changes',
     () async {
+      await f.authorized(
+        SensitiveOperation.supervision,
+        () => f.guard.setEnabled(false),
+      );
       final history = HistoryRepository(f.db, policy: f.policy);
       final downloads = DownloadRepository(f.db, root, policy: f.policy);
       final episode = Episode('1', Uri.parse('https://example.org/movie.mp4'));
@@ -63,7 +67,11 @@ void _recordCases() {
         await downloads.create(item, line, episode, {});
       }
       expect((await history.all()).length, 2);
-      await f.settings.update({'filterAdult': true});
+      await f.authorized(
+        SensitiveOperation.supervision,
+        () => f.guard.setEnabled(true),
+      );
+      expect(f.settings.value.filterAdult, isFalse);
       expect((await history.all()).map((e) => e.remoteId), ['ordinary']);
       expect((await history.recentWorks()).map((e) => e.remoteId), [
         'ordinary',

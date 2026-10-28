@@ -8,6 +8,7 @@ import 'source_identity_store.dart';
 import 'source_preferences.dart';
 import 'source_duplicate_store.dart';
 import '../../supervision/application/content_policy.dart';
+import '../../supervision/domain/adult_source_evidence.dart';
 
 final class SourceRepository {
   const SourceRepository(
@@ -88,6 +89,37 @@ final class SourceRepository {
   Future<VideoSource?> find(String id) async {
     final rows = await db.rows('$_select WHERE s.id=?', [id]);
     return rows.isEmpty ? null : _read(rows.first);
+  }
+
+  Future<void> classifyCatalog(
+    String id,
+    Map<String, String> categories,
+  ) async {
+    policy?.rememberCategories(id, categories);
+    if (!adultCatalog(categories.values)) return;
+    await db.write(
+      "UPDATE sources SET classification='adult' WHERE id=? AND classification!='adult'",
+      [id],
+    );
+    await find(id);
+  }
+
+  Future<void> applyVerifiedContentLabels() async {
+    final targets = (await all(includeSuppressed: true))
+        .where(
+          (s) => s.classification != 'adult' && knownAdultHost(s.endpoint.host),
+        )
+        .toList();
+    if (targets.isEmpty) return;
+    await db.atomic(() async {
+      for (final source in targets) {
+        await db.customStatement(
+          "UPDATE sources SET classification='adult' WHERE id=?",
+          [source.id],
+        );
+      }
+    }, tables: const {'sources'});
+    await all(includeSuppressed: true);
   }
 
   Future<String> saveManual(

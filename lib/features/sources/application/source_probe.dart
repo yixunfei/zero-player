@@ -140,6 +140,7 @@ final class SourceProbe extends ChangeNotifier {
       token.check();
       deadline.cancel();
       apiSucceeded = true;
+      await repository.classifyCatalog(source.id, data.categories);
       await repository.health(
         source.id,
         null,

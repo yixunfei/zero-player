@@ -10,9 +10,10 @@ final class BackupPreview {
 }
 
 final class BackupService {
-  const BackupService(this.db, {this.authorize});
+  const BackupService(this.db, {this.authorize, this.authorizeExport});
   final AppDatabase db;
   final void Function()? authorize;
+  final void Function()? authorizeExport;
   static const maxBytes = 20 * 1024 * 1024;
   static const maxRowsPerTable = 20000;
   static const tables = [
@@ -36,6 +37,7 @@ final class BackupService {
       " OR key GLOB 'source_favorite:*'";
 
   Future<String> export() async => db.transaction(() async {
+    authorizeExport?.call();
     final data = <String, Object>{};
     for (final name in tables) {
       data[name] = await db.rows(
@@ -55,6 +57,7 @@ final class BackupService {
     });
     // Never offer a successfully exported file that our importer rejects.
     await preview(text);
+    authorizeExport?.call();
     return text;
   });
 

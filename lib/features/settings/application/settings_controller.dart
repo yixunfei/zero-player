@@ -156,9 +156,10 @@ final class UserSettings {
 }
 
 final class SettingsController extends ChangeNotifier {
-  SettingsController(this.db, {this.authorize});
+  SettingsController(this.db, {this.authorize, this.adultFilterRequired});
   final AppDatabase db;
   final void Function()? authorize;
+  final bool Function()? adultFilterRequired;
   UserSettings value = const UserSettings();
   Future<void> _pending = Future.value();
   Future<void>? _closing;
@@ -202,13 +203,13 @@ final class SettingsController extends ChangeNotifier {
   }
 
   Future<void> _update(Map<String, Object> changes) async {
-    if (changes['filterAdult'] == false) authorize?.call();
+    _checkAdultFilter(changes);
     for (final entry in changes.entries) {
       validateSetting(entry.key, entry.value);
     }
     final next = UserSettings.fromMap({...value.toMap(), ...changes});
     await db.atomic(() async {
-      if (changes['filterAdult'] == false) authorize?.call();
+      _checkAdultFilter(changes);
       for (final entry in changes.entries) {
         await db.customStatement(
           'INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)',
@@ -218,6 +219,14 @@ final class SettingsController extends ChangeNotifier {
     }, tables: const {'settings'});
     value = next;
     if (!_disposed) notifyListeners();
+  }
+
+  void _checkAdultFilter(Map<String, Object> changes) {
+    if (changes['filterAdult'] != false) return;
+    if (adultFilterRequired?.call() == true) {
+      throw const FormatException('监管模式强制开启成人过滤，请先验证密码关闭监管模式');
+    }
+    authorize?.call();
   }
 
   Future<void> close() => _closing ??= _pending.then((_) => dispose());

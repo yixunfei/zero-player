@@ -6,6 +6,7 @@ import '../../settings/application/settings_controller.dart';
 import '../../sources/domain/source_identity.dart';
 import '../../sources/domain/video_source.dart';
 import '../domain/content_classification.dart';
+import '../domain/adult_source_evidence.dart';
 import '../domain/supervision_rules.dart';
 import 'supervision_controller.dart';
 
@@ -29,7 +30,10 @@ final class ContentPolicy extends ChangeNotifier {
   final _live = <String, LiveChannel>{};
   final _programs = <String, List<EpgProgram>>{};
   final _categories = <String, (DateTime, Map<String, String>)>{};
-  bool get filterAdult => settings.value.filterAdult;
+  final _adultCatalogs = <String>{};
+  // Supervision is a content boundary, not only a settings password gate.
+  // Persisted preferences (including restored backups) cannot weaken it.
+  bool get filterAdult => settings.value.filterAdult || supervision.enabled;
   bool get active => filterAdult || supervision.enabled;
   String sourceKey(VideoSource source) =>
       'vod:${stableId(sourceIdentity(source.kind, source.endpoint))}';
@@ -48,7 +52,12 @@ final class ContentPolicy extends ChangeNotifier {
     }
   }
 
-  void forgetSources() => _sources.clear();
+  void forgetSources() {
+    _sources.clear();
+    _categories.clear();
+    _adultCatalogs.clear();
+  }
+
   void rememberChannels(Iterable<LiveChannel> channels) {
     _live.clear();
     for (final channel in channels) {
@@ -80,6 +89,8 @@ final class ContentPolicy extends ChangeNotifier {
 
   bool adultSource(VideoSource source) =>
       source.classification == 'adult' ||
+      knownAdultHost(source.endpoint.host) ||
+      _adultCatalogs.contains(source.id) ||
       adultContent(source.name) ||
       adultContent(source.displayName) ||
       adultContent(source.siteTitle ?? '') ||
@@ -152,6 +163,9 @@ final class ContentPolicy extends ChangeNotifier {
   void rememberCategories(String id, Map<String, String> values) {
     if (_categories.length >= 256) _categories.remove(_categories.keys.first);
     _categories[id] = (DateTime.now(), Map.unmodifiable(values));
+    if (adultCatalog(values.values) && _adultCatalogs.add(id)) {
+      notifyListeners();
+    }
   }
 
   Map<String, String>? categories(String id) {

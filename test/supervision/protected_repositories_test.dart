@@ -55,10 +55,19 @@ void _registerCases0() {
       expect((await f.sources.find(id))!.enabled, isTrue);
       await f.sources.setEnabled(id, false);
       await expectLater(f.sources.setEnabled(id, true), throwsFormatException);
-      await f.authorized(
-        SensitiveOperation.settings,
-        () => f.settings.update({'filterAdult': false}),
+      await expectLater(
+        f.authorized(
+          SensitiveOperation.settings,
+          () => f.settings.update({'filterAdult': false}),
+        ),
+        throwsFormatException,
       );
+      expect(f.settings.value.filterAdult, isTrue);
+      await f.authorized(
+        SensitiveOperation.supervision,
+        () => f.guard.setEnabled(false),
+      );
+      await f.settings.update({'filterAdult': false});
       expect(f.settings.value.filterAdult, isFalse);
       await f.settings.update({'filterAdult': true});
     },

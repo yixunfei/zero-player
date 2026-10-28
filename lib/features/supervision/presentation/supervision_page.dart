@@ -100,7 +100,9 @@ final class _SupervisionPageState extends State<SupervisionPage> {
             const ListTile(
               leading: Icon(Icons.shield_outlined),
               title: Text('每次操作单独验证'),
-              subtitle: Text('覆盖点播、直播和广播。关闭成人过滤、启用或导入渠道、恢复备份及修改监管规则都需要密码。'),
+              subtitle: Text(
+                '覆盖点播、直播和广播。监管开启期间强制成人过滤；启用渠道的单次授权不会解除过滤。关闭监管、启用或导入渠道、恢复备份及修改规则都需要密码。',
+              ),
             ),
             if (guard.corrupted)
               const ListTile(

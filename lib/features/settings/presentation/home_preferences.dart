@@ -60,7 +60,15 @@ final class _HomePreferencesState extends State<HomePreferences> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<VideoSource>>(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      widget.services.settings,
+      widget.services.contentPolicy,
+    ]),
+    builder: (context, _) => _content(),
+  );
+
+  Widget _content() => FutureBuilder<List<VideoSource>>(
     future: _sources,
     builder: (context, snapshot) {
       final settings = widget.services.settings.value;
@@ -87,7 +95,7 @@ final class _HomePreferencesState extends State<HomePreferences> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: DropdownButtonFormField<String>(
-              key: ValueKey('home-${settings.homeChannel}'),
+              key: ValueKey((settings.homeChannel, choices.keys.join(','))),
               initialValue: settings.homeChannel,
               isExpanded: true,
               decoration: const InputDecoration(labelText: '默认开屏频道'),
@@ -102,12 +110,22 @@ final class _HomePreferencesState extends State<HomePreferences> {
                   )
                   .toList(),
               onChanged: snapshot.hasData
-                  ? (value) => perform(
-                      context,
-                      () => widget.services.settings.update({
-                        'homeChannel': value ?? '',
-                      }),
-                    )
+                  ? (value) {
+                      final source = sourceById[value];
+                      if (value != '' &&
+                          (source == null ||
+                              !widget.services.contentPolicy.sourceAllowed(
+                                source,
+                              ))) {
+                        return;
+                      }
+                      perform(
+                        context,
+                        () => widget.services.settings.update({
+                          'homeChannel': value ?? '',
+                        }),
+                      );
+                    }
                   : null,
             ),
           ),

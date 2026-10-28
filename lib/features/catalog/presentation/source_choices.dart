@@ -49,7 +49,13 @@ final class _SourceChoicesState extends State<SourceChoices> {
       final sources = await widget.services.sources.all();
       if (!mounted) return;
       await _probe.run(
-        sources.where((s) => ids.contains(s.id)).toList(),
+        sources
+            .where(
+              (s) =>
+                  ids.contains(s.id) &&
+                  widget.services.contentPolicy.sourceAllowed(s),
+            )
+            .toList(),
         preserveStatuses: true,
       );
     } catch (_) {
@@ -74,7 +80,7 @@ final class _SourceChoicesState extends State<SourceChoices> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _probe,
+    listenable: Listenable.merge([_probe, widget.services.contentPolicy]),
     builder: (context, _) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -83,13 +89,18 @@ final class _SourceChoicesState extends State<SourceChoices> {
           child: Text('正在检测渠道接口延迟；API 可用不代表视频可播。播放线路会单独检测媒体响应。'),
         ),
         for (final item in widget.items)
-          if (!_blocked.contains(item.sourceId))
+          if (!_blocked.contains(item.sourceId) &&
+              widget.services.contentPolicy.itemAllowed(item))
             ListTile(
               title: Text(item.title),
               subtitle: Text(
                 '${item.year} ${item.remarks} · ${_probe.statuses[item.sourceId] ?? '等待接口检测'}',
               ),
-              onTap: () => widget.onSelected(item),
+              onTap: () {
+                if (widget.services.contentPolicy.itemAllowed(item)) {
+                  widget.onSelected(item);
+                }
+              },
               trailing: BlockSourceButton(
                 name: '此来源',
                 onBlock: () async {

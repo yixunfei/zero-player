@@ -70,6 +70,7 @@ Future<void> publishSources(
   final sources = all
       .where(
         (s) =>
+            services.contentPolicy.sourceAllowed(s) &&
             s.headers.isEmpty &&
             s.endpoint.query.isEmpty &&
             s.endpoint.userInfo.isEmpty,

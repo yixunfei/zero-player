@@ -1,6 +1,6 @@
 import 'content_classification.dart';
 
-enum SensitiveOperation { channels, settings, restore, supervision }
+enum SensitiveOperation { channels, settings, restore, export, supervision }
 
 final class BlockedChannel {
   const BlockedChannel(this.key, this.label);

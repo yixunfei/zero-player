@@ -18,6 +18,22 @@ final class SearchController extends ChangeNotifier {
   void _policyChanged() {
     cancel(notify: false);
     items.removeWhere((item) => !(sources.policy?.itemAllowed(item) ?? true));
+    final policy = sources.policy;
+    if (policy != null) {
+      final hidden = statuses.keys
+          .where((id) => !policy.sourceIdAllowed(id))
+          .toSet();
+      for (final id in hidden) {
+        statuses.remove(id);
+        sourceNames.remove(id);
+        latencies.remove(id);
+        failedSources.remove(id);
+      }
+      if (preferredSourceId != null &&
+          !policy.sourceIdAllowed(preferredSourceId!)) {
+        preferredSourceId = null;
+      }
+    }
     notifyListeners();
   }
 

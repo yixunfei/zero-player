@@ -10,6 +10,7 @@ import 'source_actions.dart';
 import 'source_batch_bar.dart';
 import 'source_card.dart';
 import 'source_details_dialog.dart';
+import '../../supervision/presentation/content_blocked_dialog.dart';
 
 final class SourcesPage extends StatefulWidget {
   const SourcesPage({super.key, required this.services});
@@ -248,6 +249,16 @@ final class _SourcesPageState extends State<SourcesPage> {
   );
 
   Future<void> _edit([VideoSource? source]) => perform(context, () async {
+    if (source != null &&
+        !widget.services.contentPolicy.sourceAllowed(source)) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => ContentBlockedDialog(
+          supervised: widget.services.supervision.enabled,
+        ),
+      );
+      return;
+    }
     final input = await inputDialog(
       context,
       source == null ? '添加接口' : '编辑接口',
@@ -308,7 +319,11 @@ final class _SourcesPageState extends State<SourcesPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('已移除 ${source.name}'),
+        content: Text(
+          widget.services.contentPolicy.sourceAllowed(source)
+              ? '已移除 ${source.name}'
+              : '已移除受限频道',
+        ),
         action: SnackBarAction(
           label: '撤销',
           onPressed: () => perform(

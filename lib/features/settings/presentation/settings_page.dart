@@ -8,6 +8,7 @@ import 'home_preferences.dart';
 import '../../../app/app_fonts.dart';
 import '../../../app/navigation_guide.dart';
 import 'disclaimer_dialog.dart';
+import 'adult_filter_setting.dart';
 
 final class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.services});
@@ -58,13 +59,7 @@ final class SettingsPage extends StatelessWidget {
             settings.adFilter,
             subtitle: '实验功能：只处理无加密静态 TS 单清单的成对 CUE 标记；不支持时保留原视频。离线文件保留完整原片。',
           ),
-          _toggle(
-            context,
-            '成人源与内容关键词过滤',
-            'filterAdult',
-            settings.filterAdult,
-            subtitle: '过滤成人分类来源及标题/分类中的显式成人关键词，不能识别所有漏标内容。未知分类不代表普通内容。',
-          ),
+          AdultFilterSetting(policy: services.contentPolicy),
           const Divider(),
           _toggle(context, '边播边缓存 HLS 分片', 'cache', settings.cache),
           ..._cacheOptions(context),
@@ -281,12 +276,12 @@ final class SettingsPage extends StatelessWidget {
       onTap: () => _restore(context),
     ),
     ListTile(
-      title: const Text('Zero Player 0.0.4'),
+      title: const Text('Zero Player 0.0.5'),
       subtitle: const Text('AGPL-3.0-or-later · 本地数据 · 无需独立后端'),
       onTap: () => showLicensePage(
         context: context,
         applicationName: 'Zero Player',
-        applicationVersion: '0.0.4',
+        applicationVersion: '0.0.5',
         applicationLegalese: 'AGPL-3.0-or-later\n媒体依赖许可见源码 NOTICE.md',
       ),
     ),
@@ -353,9 +348,15 @@ final class SettingsPage extends StatelessWidget {
     )) {
       return;
     }
-    await FileTransfer.saveText(
-      'zero-player-backup.json',
-      await services.backup.export(),
+    if (!context.mounted) return;
+    await runSensitive(
+      context,
+      services.supervision,
+      SensitiveOperation.export,
+      () async => FileTransfer.saveText(
+        'zero-player-backup.json',
+        await services.backup.export(),
+      ),
     );
   });
   Future<void> _restore(BuildContext context) => perform(context, () async {

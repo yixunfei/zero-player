@@ -83,7 +83,9 @@ final class DiscoveryToolbar extends StatelessWidget {
   );
 
   Widget _channel() => DropdownButtonFormField<String>(
-    key: ValueKey('home-channel:$channel'),
+    // Recreate an open menu when its allowed choices change. Flutter's popup
+    // otherwise retains the old entries even after the parent is rebuilt.
+    key: ValueKey((channel, sources.map((s) => s.id).join(','))),
     initialValue: sources.any((s) => s.id == channel) ? channel : '',
     isExpanded: true,
     itemHeight: 48,
