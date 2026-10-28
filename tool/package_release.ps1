@@ -6,14 +6,20 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $versionLine = (Select-String -LiteralPath "$projectRoot/pubspec.yaml" -Pattern '^version:').Line
-$version = ($versionLine -replace '^version:\s*', '').Split('+')[0].Trim()
+$buildVersion = ($versionLine -replace '^version:\s*', '').Trim()
+$version = $buildVersion.Split('+')[0]
 $release = Join-Path $projectRoot "artifacts/release/$version"
 $windowsBuild = Join-Path $projectRoot 'build/windows/x64/runner/Release'
 $stage = Join-Path $release 'windows'
 if (!(Test-Path -LiteralPath "$windowsBuild/zero_player.exe")) { throw 'Build Windows release first.' }
+if ((Get-Item -LiteralPath "$windowsBuild/zero_player.exe").VersionInfo.ProductVersion -ne $buildVersion) {
+    throw 'Windows binary version does not match pubspec.yaml. Rebuild the release first.'
+}
 if (!(Test-Path -LiteralPath "$projectRoot/artifacts/notices/inventory.json")) { throw 'Run collect_notices.py first.' }
+if (!(Test-Path -LiteralPath "$projectRoot/artifacts/native-sources/manifest.json")) { throw 'Run collect_native_sources.py first.' }
+if (!(Test-Path -LiteralPath "$release/zero-player-$version-source.zip")) { throw 'Stage reviewed sources and run package_source.py first.' }
 if (!(Test-Path -LiteralPath $VcRuntime)) { throw 'Specify the installed Visual C++ redistributable directory.' }
-if (Test-Path -LiteralPath "$stage/zero_player.exe") { throw 'Staging already exists. Inspect it before retrying.' }
+if (Test-Path -LiteralPath $stage) { throw 'Staging already exists. Inspect it before retrying.' }
 $androidFiles = @{
     'app-release.apk' = "zero-player-$version-android-universal.apk"
     'app-arm64-v8a-release.apk' = "zero-player-$version-android-arm64.apk"
@@ -47,7 +53,6 @@ Compress-Archive -Path "$stage/*" -DestinationPath "$release/zero-player-$versio
 & $Iscc "/DProductVersion=$version" "/DReleaseRoot=$release" "$projectRoot/tool/windows.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
 Compress-Archive -Path "$projectRoot/artifacts/notices/*" -DestinationPath "$release/zero-player-$version-third-party-notices.zip" -CompressionLevel Optimal -Force
-if (!(Test-Path -LiteralPath "$projectRoot/artifacts/native-sources/manifest.json")) { throw 'Run collect_native_sources.py first.' }
 Compress-Archive -Path "$projectRoot/artifacts/native-sources/*" -DestinationPath "$release/zero-player-$version-native-sources.zip" -CompressionLevel Fastest -Force
 Get-ChildItem -LiteralPath $release -File | Where-Object { $_.Extension -in '.apk','.aab','.zip','.exe' } | Sort-Object Name | ForEach-Object {
     $digest = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()

@@ -15,19 +15,20 @@ Future<void> serveLocalFile(
   final range = request.headers.value('range');
   if (range != null) {
     final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(range);
-    if (match == null || (match[1]!.isEmpty && match[2]!.isEmpty)) {
-      request.response.statusCode = 416;
+    if (size == 0 ||
+        match == null ||
+        (match[1]!.isEmpty && match[2]!.isEmpty)) {
+      _rejectRange(request.response, size);
       return;
     }
     if (match[1]!.isEmpty) {
-      start = (size - int.parse(match[2]!)).clamp(0, size);
+      start = size - _boundedOffset(match[2]!, size);
     } else {
-      start = int.parse(match[1]!);
-      if (match[2]!.isNotEmpty) end = int.parse(match[2]!).clamp(0, size - 1);
+      start = _boundedOffset(match[1]!, size);
+      if (match[2]!.isNotEmpty) end = _boundedOffset(match[2]!, size - 1);
     }
     if (start > end || start >= size) {
-      request.response.statusCode = 416;
-      request.response.headers.set('content-range', 'bytes */$size');
+      _rejectRange(request.response, size);
       return;
     }
     request.response.statusCode = 206;
@@ -41,4 +42,16 @@ Future<void> serveLocalFile(
   if (request.method != 'HEAD') {
     await request.response.addStream(file.openRead(start, end + 1));
   }
+}
+
+int _boundedOffset(String digits, int limit) {
+  // A valid HTTP range can exceed Dart's native integer width. Compare before
+  // converting so oversized ends/suffixes still serve the available bytes.
+  final value = BigInt.parse(digits);
+  return value > BigInt.from(limit) ? limit : value.toInt();
+}
+
+void _rejectRange(HttpResponse response, int size) {
+  response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
+  response.headers.set('content-range', 'bytes */$size');
 }

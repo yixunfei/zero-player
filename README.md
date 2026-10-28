@@ -4,7 +4,7 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.4 Windows 监管模式构建** · [上一个公开版本 v0.0.1](https://github.com/yixunfei/zero-player/releases/tag/v0.0.1) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [本轮改进](docs/implementation/SUPERVISION-2026-10-28.md)
+**v0.0.6 Windows 阶段性正式版** · [下载发布包](https://github.com/yixunfei/zero-player/releases/tag/v0.0.6) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.6.md)
 
 ## 功能
 
@@ -33,7 +33,7 @@
 | Android 分发工具输入 | android.aab（不能直接安装） |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-上一个公开版本文件以 zero-player-0.0.1 开头；本轮 Windows 本地验收包以 zero-player-0.0.4 开头，未发布至 GitHub Releases。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
+本次 v0.0.6 仅发布 Windows x64，文件以 zero-player-0.0.6 开头；Android APK/AAB 仍在 [v0.0.1 发布页](https://github.com/yixunfei/zero-player/releases/tag/v0.0.1)，不包含后续 Windows 版本的全部改进。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
 
 ## 开发
 

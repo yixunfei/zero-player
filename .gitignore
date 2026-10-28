@@ -51,6 +51,7 @@ migrate_working_dir/
 !/docs/implementation/BUILD.md
 !/docs/implementation/USER-GUIDE.md
 !/docs/implementation/RELEASE-0.0.1.md
+!/docs/implementation/RELEASE-0.0.6.md
 !/docs/implementation/CHANNEL-RADIO-2026-10-28.md
 !/docs/implementation/SOURCE-CURATION-2026-10-28.md
 !/docs/implementation/HARDENING-2026-10-28.md

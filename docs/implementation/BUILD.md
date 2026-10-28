@@ -1,6 +1,6 @@
 # 构建与打包
 
-v0.0.5 本轮只验收 Windows x64。先执行 `flutter build windows --release --no-pub`，再执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。产物在 `artifacts/release/0.0.5/`；该模式不会把旧 Android 构建混入新版本。必须保留便携目录的 DLL、data 和第三方声明。
+v0.0.6 本轮只验收 Windows x64。先执行 `flutter build windows --release --no-pub`，核验原生来源及许可证，暂存经审查的源码并运行 `python tool/package_source.py`，再执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。产物在 `artifacts/release/0.0.6/`；该模式不会把旧 Android 构建混入新版本。必须保留便携目录的 DLL、data 和第三方声明。打包前验证 Windows 二进制完整版本号与 pubspec.yaml 一致，拒绝复用已有 staging。
 
 渠道核查使用 `flutter test tool/audit_sources.dart`；可用 `--dart-define=SOURCE_DATABASE=<路径>` 纳入本机渠道。对实际用户数据库应用快照前先用 `tool/backup_database.py` 创建一致性备份，再运行 `tool/apply_source_audit.dart`，显式提供 SOURCE_DATABASE 与 SOURCE_BACKUP。测试使用显式 `allowPrivateNetworks: true` 访问合成回环服务，生产入口不开放该权限。
 
@@ -13,6 +13,7 @@ flutter pub get
 flutter analyze
 dart run tool/check_source_size.dart
 flutter test
+python -m unittest discover -s tool -p test_package_source.py -v
 pwsh -File tool/generate_fixtures.ps1 -FFmpeg <path-to-ffmpeg.exe>
 flutter test integration_test/radio_flow_test.dart -d windows --no-pub
 flutter test integration_test/radio_tray_test.dart -d windows --no-pub
@@ -61,6 +62,8 @@ pwsh -File tool/package_release.ps1
 ~~~
 
 产物位于 artifacts/release/<version>/。包括通用及分架构 APK、AAB、Windows x64 安装器/便携 ZIP、源码 ZIP、第三方声明和 SHA256SUMS.txt。AAB 是分发输入，不能直接安装；安装器未做商业 Authenticode 签名。打包脚本拒绝覆盖已有 Windows staging，请检查旧目录后换用新的干净 staging。
+
+源码 ZIP 从一次固定的 Git index tree 读取版本与文件 blob，保留暂存内容的精确字节。未暂存的修改、工作区删除或本地换行转换不会改变归档；修改发行源码后须重新暂存并重新生成源码 ZIP 与 SHA256SUMS.txt。
 
 Windows 打包默认使用 .tools/inno/ISCC.exe，可通过 -Iscc 指定。-VcRuntime 指向本机 VS 可再分发运行库目录；安装器按用户安装无需管理员权限。便携版必须完整解压，不能只复制 EXE。
 
