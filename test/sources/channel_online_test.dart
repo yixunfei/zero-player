@@ -19,7 +19,7 @@ void main() {
   test(
     'public channel integration sample',
     () async {
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final network = DocumentClient(http);
       final results = <Map<String, Object?>>[];
       try {

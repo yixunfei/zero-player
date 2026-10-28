@@ -28,7 +28,7 @@ void _missingFavoriteTest() {
     'missing favorites retain disable choice and cannot displace CCTV default',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(() async {
         http.close();
         await db.close();
@@ -60,7 +60,7 @@ void _subscriptionStateTest() {
     'disabled subscriptions retain data and stay disabled after refresh and backup',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(() async {
         http.close();
         await db.close();
@@ -141,7 +141,7 @@ void _persistenceTests() {
     'disable, probe, refresh, changed URLs and backup preserve personal choices',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(() async {
         http.close();
         await db.close();
@@ -201,7 +201,7 @@ void _probeTests() {
   late Completer<void> stalled, release;
   setUp(() async {
     db = AppDatabase.memory();
-    http = MediaHttpClient();
+    http = MediaHttpClient(allowPrivateNetworks: true);
     stalled = Completer<void>();
     release = Completer<void>();
     server = await HttpTestServer.start((request) async {

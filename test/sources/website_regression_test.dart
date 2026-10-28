@@ -24,7 +24,7 @@ void main() {
           );
         }
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(http.close);
       addTearDown(server.close);
       final source = VideoSource(

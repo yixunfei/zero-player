@@ -1,4 +1,5 @@
 param(
+    [switch]$WindowsOnly,
     [string]$Iscc = "$PSScriptRoot/../.tools/inno/ISCC.exe",
     [string]$VcRuntime = 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.44.35112/x64/Microsoft.VC143.CRT'
 )
@@ -18,20 +19,24 @@ $androidFiles = @{
     'app-arm64-v8a-release.apk' = "zero-player-$version-android-arm64.apk"
     'app-x86_64-release.apk' = "zero-player-$version-android-x64.apk"
 }
-foreach ($name in $androidFiles.Keys) {
-    if (!(Test-Path -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name")) { throw "Missing Android APK: $name" }
-}
 $bundle = "$projectRoot/build/app/outputs/bundle/release/app-release.aab"
-if (!(Test-Path -LiteralPath $bundle)) { throw 'Build Android appbundle first.' }
+if (!$WindowsOnly) {
+    foreach ($name in $androidFiles.Keys) {
+        if (!(Test-Path -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name")) { throw "Missing Android APK: $name" }
+    }
+    if (!(Test-Path -LiteralPath $bundle)) { throw 'Build Android appbundle first.' }
+}
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item -Path "$windowsBuild/*" -Destination $stage -Recurse
 Copy-Item -Path "$VcRuntime/*.dll" -Destination $stage
 Copy-Item -LiteralPath "$projectRoot/LICENSE","$projectRoot/NOTICE.md","$projectRoot/README.md" -Destination $stage
 Copy-Item -LiteralPath "$projectRoot/artifacts/notices" -Destination "$stage/third-party-notices" -Recurse
-foreach ($name in $androidFiles.Keys) {
-    Copy-Item -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name" -Destination (Join-Path $release $androidFiles[$name])
+if (!$WindowsOnly) {
+    foreach ($name in $androidFiles.Keys) {
+        Copy-Item -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name" -Destination (Join-Path $release $androidFiles[$name])
+    }
+    Copy-Item -LiteralPath $bundle -Destination "$release/zero-player-$version-android.aab"
 }
-Copy-Item -LiteralPath $bundle -Destination "$release/zero-player-$version-android.aab"
 Compress-Archive -Path "$stage/*" -DestinationPath "$release/zero-player-$version-windows-x64-portable.zip" -CompressionLevel Optimal
 & $Iscc "/DProductVersion=$version" "/DReleaseRoot=$release" "$projectRoot/tool/windows.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }

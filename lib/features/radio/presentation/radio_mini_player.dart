@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../application/radio_controller.dart';
 
 final class RadioMiniPlayer extends StatelessWidget {
-  const RadioMiniPlayer({super.key, required this.controller});
+  const RadioMiniPlayer({super.key, required this.controller, this.onExpand});
   final RadioController controller;
+  final VoidCallback? onExpand;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -24,7 +25,7 @@ final class RadioMiniPlayer extends StatelessWidget {
                   ),
                   Expanded(
                     child: InkWell(
-                      onTap: () => context.go('/radio'),
+                      onTap: onExpand ?? () => context.push('/radio'),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Column(
@@ -51,6 +52,11 @@ final class RadioMiniPlayer extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                  IconButton(
+                    tooltip: onExpand == null ? '展开广播页面' : '展开广播播放器',
+                    onPressed: onExpand ?? () => context.push('/radio'),
+                    icon: const Icon(Icons.keyboard_arrow_up),
                   ),
                   IconButton(
                     tooltip: controller.playing ? '暂停广播' : '播放广播',

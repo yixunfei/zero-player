@@ -25,7 +25,10 @@ void _timeoutTests() {
       if (r.uri.path == '/stall') await finish.future;
     });
     final scheduler = RequestScheduler(globalLimit: 1, originLimit: 1);
-    final http = MediaHttpClient(scheduler: scheduler);
+    final http = MediaHttpClient(
+      allowPrivateNetworks: true,
+      scheduler: scheduler,
+    );
     try {
       await expectLater(
         probeMedia(
@@ -69,7 +72,7 @@ void _mediaTests() {
           await finish.future;
         }
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final result = await probeMedia(
           http,
@@ -106,7 +109,10 @@ void _queueTests() {
         r.response.add(List.filled(188, 0x47));
       });
       final scheduler = RequestScheduler(globalLimit: 1, originLimit: 1);
-      final http = MediaHttpClient(scheduler: scheduler);
+      final http = MediaHttpClient(
+        allowPrivateNetworks: true,
+        scheduler: scheduler,
+      );
       try {
         for (final media in [false, true]) {
           final permit = await scheduler.acquire(server.baseUri);
@@ -139,7 +145,10 @@ void _queueTests() {
   test('queued cancellation releases without making a request', () async {
     final server = await HttpTestServer.start((r) => r.response.write('ok'));
     final scheduler = RequestScheduler(globalLimit: 1);
-    final http = MediaHttpClient(scheduler: scheduler);
+    final http = MediaHttpClient(
+      allowPrivateNetworks: true,
+      scheduler: scheduler,
+    );
     final permit = await scheduler.acquire(server.baseUri);
     final token = CancellationToken();
     try {

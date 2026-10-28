@@ -117,7 +117,7 @@ final class _Fixture {
   _Fixture(this.directory, this.server);
   final Directory directory;
   final HttpTestServer server;
-  final http = MediaHttpClient();
+  final http = MediaHttpClient(allowPrivateNetworks: true);
   var validated = 0;
   List<int>? progress;
   File get output => File('${directory.path}/video.mp4');

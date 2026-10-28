@@ -41,7 +41,11 @@ final class _PlayerPageState extends State<PlayerPage>
   @override
   void initState() {
     super.initState();
-    engine = MediaKitEngine();
+    engine = MediaKitEngine(
+      isTrustedPlaylist: (uri) =>
+          widget.services.gateway.isRegisteredPlaylist(uri) ||
+          widget.services.offline.isRegisteredPlaylist(uri),
+    );
     controller = PlaybackController(widget.services, engine);
     _removeCloseHook = widget.services.addCloseHook(controller.close);
     WidgetsBinding.instance.addObserver(this);

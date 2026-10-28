@@ -27,8 +27,14 @@ void main() {
       final root = await Directory.systemTemp.createTemp(
         'zero-website-playback-',
       );
-      final services = AppServices.scoped(root, AppDatabase.memory());
-      final engine = MediaKitEngine();
+      final services = AppServices.scoped(
+        root,
+        AppDatabase.memory(),
+        allowPrivateNetworks: true,
+      );
+      final engine = MediaKitEngine(
+        isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
+      );
       final controller = PlaybackController(services, engine);
       late HttpTestServer fixture;
       fixture = await HttpTestServer.start(
@@ -50,9 +56,12 @@ void main() {
         for (final kind in ['macCmsHtml', 'kanju']) {
           final id = await services.sources.saveManual(
             kind,
-            fixture.baseUri,
+            kind == 'kanju'
+                ? fixture.baseUri
+                : fixture.baseUri.resolve('$kind/'),
             kind: kind,
           );
+          expect((await services.sources.find(id))!.kind, kind);
           final item = await services.detail(id, '1');
           expect(item.lines.single.episodes.single.requiresResolution, isTrue);
           await controller.open(PlaybackRequest(item));
@@ -90,7 +99,10 @@ void main() {
 }
 
 Future<void> _serve(HttpRequest request, Uri base) async {
-  final path = request.uri.path;
+  final path = request.uri.path.replaceFirst(
+    RegExp(r'^/(macCmsHtml|kanju)/'),
+    '/',
+  );
   if (path == '/voddetail/1.html') {
     request.response.write(
       '<h1>测试影片</h1><a href="/vodplay/1-1-1.html">第1集</a>',

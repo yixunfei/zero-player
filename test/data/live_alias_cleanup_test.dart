@@ -35,7 +35,7 @@ late LiveHealthRepository health;
 void _repositoryTests() {
   setUp(() {
     db = AppDatabase.memory();
-    http = MediaHttpClient();
+    http = MediaHttpClient(allowPrivateNetworks: true);
     live = LiveRepository(db, DocumentClient(http));
     health = LiveHealthRepository(db);
   });

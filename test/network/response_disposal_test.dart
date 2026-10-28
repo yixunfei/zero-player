@@ -9,7 +9,10 @@ void main() {
     'rejected responses release permits before the next request',
     () async {
       final scheduler = RequestScheduler(globalLimit: 1);
-      final http = MediaHttpClient(scheduler: scheduler);
+      final http = MediaHttpClient(
+        allowPrivateNetworks: true,
+        scheduler: scheduler,
+      );
       final server = await HttpTestServer.start((request) async {
         request.response.statusCode = 404;
         request.response.write('missing');

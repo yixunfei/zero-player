@@ -21,7 +21,7 @@ void main() {
       final server = await HttpTestServer.start(
         (request) => request.response.write(_xml),
       );
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(server.close);
       addTearDown(http.close);
       final provider = CmsProvider(

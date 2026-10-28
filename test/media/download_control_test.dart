@@ -111,7 +111,11 @@ final class _Fixture {
   final HttpTestServer server;
   static Future<_Fixture> create() async {
     final root = await Directory.systemTemp.createTemp('download-control');
-    final services = AppServices.scoped(root, AppDatabase.memory());
+    final services = AppServices.scoped(
+      root,
+      AppDatabase.memory(),
+      allowPrivateNetworks: true,
+    );
     await services.settings.load();
     await services.store.initialize();
     final server = await HttpTestServer.start((request) {

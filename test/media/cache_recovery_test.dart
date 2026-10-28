@@ -137,7 +137,7 @@ final class _Fixture {
   }
   final Directory directory;
   final AppDatabase db;
-  final http = MediaHttpClient();
+  final http = MediaHttpClient(allowPrivateNetworks: true);
   late final _DelayedMetadata metadata;
   late final SegmentStore store;
   static Future<_Fixture> create() async {

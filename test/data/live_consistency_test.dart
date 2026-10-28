@@ -18,7 +18,7 @@ void main() {
 void _playlistTests() {
   test('reimport without EPG preserves the configured EPG URL', () async {
     final db = AppDatabase.memory();
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     addTearDown(db.close);
     addTearDown(http.close);
     final live = LiveRepository(db, DocumentClient(http));
@@ -120,7 +120,7 @@ void _epgRefreshTests() {
         (request) => request.response.write(xml),
       );
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(db.close);
       addTearDown(server.close);
       addTearDown(http.close);

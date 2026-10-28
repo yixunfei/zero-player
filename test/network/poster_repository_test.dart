@@ -45,7 +45,7 @@ void _networkTests() {
         await complete.future;
         request.response.add(jpeg);
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final posters = PosterRepository(DocumentClient(http));
       final a = posters.acquire('${server.baseUri}poster');
       final b = posters.acquire('${server.baseUri}poster');
@@ -71,7 +71,7 @@ void _networkTests() {
       final server = await HttpTestServer.start((r) {
         r.response.write('<script>challenge</script>');
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final posters = PosterRepository(DocumentClient(http));
       for (var i = 0; i < 2; i++) {
         final lease = posters.acquire('${server.baseUri}bad');
@@ -93,7 +93,7 @@ void _networkTests() {
     final server = await HttpTestServer.start((r) {
       r.response.add(jpeg);
     });
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     final posters = PosterRepository(
       DocumentClient(http),
       maxBytes: jpeg.length * 2,
@@ -126,7 +126,7 @@ void _cancellationTests() {
         /* Cancelled client. */
       }
     });
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     final posters = PosterRepository(DocumentClient(http), concurrency: 1);
     final active = posters.acquire('${server.baseUri}active');
     final activeResult = expectLater(active.bytes, throwsA(anything));

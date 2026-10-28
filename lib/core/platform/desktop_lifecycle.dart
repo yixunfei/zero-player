@@ -6,8 +6,14 @@ import 'package:window_manager/window_manager.dart';
 
 /// Saves a normal window size and awaits pending progress before native close.
 final class DesktopLifecycle with WindowListener {
-  DesktopLifecycle(this.file);
+  DesktopLifecycle(
+    this.file, {
+    this.stepTimeout = const Duration(seconds: 2),
+    this.shutdownTimeout = const Duration(seconds: 8),
+  });
   final File file;
+  final Duration stepTimeout;
+  final Duration shutdownTimeout;
   Future<void> Function()? beforeClose;
   Future<void> Function()? shutdown;
   bool Function()? keepInTray;
@@ -54,8 +60,8 @@ final class DesktopLifecycle with WindowListener {
     _closing = true;
     if (!force && keepInTray?.call() == true && hideToTray != null) {
       try {
-        await saveWindow();
-        await hideToTray!();
+        await saveWindow().timeout(stepTimeout);
+        await hideToTray!().timeout(stepTimeout);
       } finally {
         _closing = false;
       }
@@ -63,7 +69,9 @@ final class DesktopLifecycle with WindowListener {
     }
     for (final step in [beforeClose, saveWindow, shutdown]) {
       try {
-        await step?.call();
+        await Future<void>.sync(
+          () async => step?.call(),
+        ).timeout(step == shutdown ? shutdownTimeout : stepTimeout);
       } catch (error, stack) {
         _report(error, stack);
       }

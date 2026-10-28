@@ -37,7 +37,7 @@ void main() {
         }
       });
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final sources = SourceRepository(db);
       final controller = SearchController(
         sources,

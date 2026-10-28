@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/catalog/presentation/detail_page.dart';
 import '../features/discovery/presentation/discovery_page.dart';
+import '../features/discovery/presentation/release_calendar_page.dart';
 import '../features/downloads/presentation/downloads_page.dart';
 import '../features/library/presentation/history_page.dart';
 import '../features/live/presentation/live_page.dart';
@@ -67,6 +68,10 @@ final class _ProductAppState extends ConsumerState<ProductApp>
             GoRoute(
               path: '/radio',
               builder: (_, state) => RadioPage(services: services),
+            ),
+            GoRoute(
+              path: '/calendar',
+              builder: (_, _) => ReleaseCalendarPage(services: services),
             ),
             GoRoute(
               path: '/history',
@@ -146,10 +151,8 @@ final class _ProductAppState extends ConsumerState<ProductApp>
   }
 
   @override
-  Future<AppExitResponse> didRequestAppExit() async {
-    await services.closeSafely();
-    return AppExitResponse.exit;
-  }
+  Future<AppExitResponse> didRequestAppExit() =>
+      services.platform.requestAppExit(services.closeSafely);
 
   @override
   void dispose() {

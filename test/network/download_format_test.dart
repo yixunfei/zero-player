@@ -8,7 +8,7 @@ import 'package:zero_player/features/downloads/application/download_format.dart'
 void main() {
   test('extensionless media is sniffed with a bounded range', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     server.listen((request) async {
       expect(request.headers.value('range'), 'bytes=0-511');
       request.response.add(

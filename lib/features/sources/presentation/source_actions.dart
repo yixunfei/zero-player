@@ -34,6 +34,7 @@ Future<void> batchProbeSources(BuildContext context, AppServices services) =>
       final work = probe.run(
         sources,
         concurrency: services.settings.value.probeConcurrency,
+        applyPolicy: true,
       );
       final removeCloseHook = services.addCloseHook(() async {
         probe.cancel();

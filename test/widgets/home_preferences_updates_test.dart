@@ -36,15 +36,18 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        List<String?> labels() => tester
+        List<String?> choices() => tester
             .widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
             .items!
-            .map((entry) => (entry.child as Text).data)
+            .map((entry) => entry.value)
             .toList();
-        expect(labels(), isNot(contains('new-source')));
+        expect(choices(), isNot(contains(id)));
         await tester.runAsync(() => services.sources.setEnabled(id, true));
         await tester.pumpAndSettle();
-        expect(labels(), contains('new-source'));
+        expect(choices(), contains(id));
+        await tester.tap(find.byType(DropdownButton<String>));
+        await tester.pumpAndSettle();
+        expect(find.text('new-source'), findsWidgets);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
       }

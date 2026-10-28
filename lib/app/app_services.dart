@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../core/platform/close_resources.dart';
@@ -47,17 +48,22 @@ final servicesProvider = Provider<AppServices>(
 );
 
 final class AppServices {
-  AppServices.scoped(this.root, this.db, {PlayerEngine Function()? radioEngine})
-    : _radioEngine = radioEngine ?? _createRadioEngine;
-  final PlayerEngine Function() _radioEngine;
+  AppServices.scoped(
+    this.root,
+    this.db, {
+    this.radioEngine,
+    bool allowPrivateNetworks = false,
+  }) : http = MediaHttpClient(allowPrivateNetworks: allowPrivateNetworks);
+  final PlayerEngine Function()? radioEngine;
   RadioController? _radioPlayer;
-  RadioController get radioPlayer =>
-      _radioPlayer ??= RadioController(_radioEngine);
+  RadioController get radioPlayer => _radioPlayer ??= RadioController(
+    radioEngine ?? () => MediaKitEngine(videoOutput: false, gateway: gateway),
+  );
   Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
   final Directory root;
   final AppDatabase db;
   final platform = PlatformServices();
-  final http = MediaHttpClient();
+  final MediaHttpClient http;
   late final network = DocumentClient(http);
   late final posters = PosterRepository(network);
   late final settings = SettingsController(db);
@@ -141,8 +147,8 @@ final class AppServices {
 
   Future<void> _initialize() async {
     final services = this;
-    await services.settings.load();
     await services.builtins.initialize();
+    await services.settings.load();
     await services.builtinLive.initialize();
     await services.store.initialize();
     await services.platform.initialize(
@@ -181,7 +187,7 @@ final class AppServices {
 
   Future<void> closeSafely() async {
     try {
-      await close();
+      await close().timeout(const Duration(seconds: 10));
     } catch (error, stack) {
       FlutterError.reportError(
         FlutterErrorDetails(
@@ -219,5 +225,3 @@ final class AppServices {
     () => db.close(),
   ]);
 }
-
-PlayerEngine _createRadioEngine() => MediaKitEngine(videoOutput: false);

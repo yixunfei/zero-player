@@ -5,6 +5,8 @@ import '../data/source_identity_store.dart';
 import '../domain/source_catalog.dart';
 import '../domain/video_source.dart';
 import 'maccms_sources.dart';
+import '../data/source_preferences.dart';
+import 'source_curation.dart';
 
 final class BuiltinSources {
   const BuiltinSources(this.repository);
@@ -16,6 +18,11 @@ final class BuiltinSources {
   Future<void> initialize({bool restore = false}) async {
     await _initializeOriginal(restore: restore);
     await MaccmsSources(repository).initialize(restore: restore);
+    await SourceCuration(repository).initialize(restore: restore);
+    await SourcePreferences(
+      repository.db,
+    ).seedDefaults(await repository.all(includeSuppressed: true));
+    await repository.deduplicate();
   }
 
   Future<void> _initializeOriginal({bool restore = false}) async {
@@ -27,11 +34,15 @@ final class BuiltinSources {
     final data = jsonDecode(text) as Map;
     final urls = (data['urls'] as List).cast<String>().map(Uri.parse).toSet();
     final precheck =
-        jsonDecode(await rootBundle.loadString('assets/source_precheck.json'))
+        jsonDecode(await rootBundle.loadString('assets/source_audit.json'))
             as Map;
     final defaults = <String, bool>{
       for (final result in precheck['results'] as List)
-        result['url'] as String: result['defaultEnabled'] == true,
+        result['url'] as String: !{
+          'unavailable',
+          'missingDomain',
+          'inconclusive',
+        }.contains(result['state']),
     };
     final candidates = [
       for (final uri in urls)
@@ -61,6 +72,7 @@ final class BuiltinSources {
       candidates,
       enableNew: true,
       initialEnabled: defaults,
+      deduplicateSources: false,
     );
     await repository.pauseSubscription(stableId(origin.toString()), true);
     if (restore) {
@@ -78,6 +90,7 @@ final class BuiltinSources {
           ],
           enabled: enabled,
           suppressed: false,
+          deduplicateSources: false,
         );
       }
     }

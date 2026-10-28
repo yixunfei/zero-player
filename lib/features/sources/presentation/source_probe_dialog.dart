@@ -29,7 +29,7 @@ final class SourceProbeDialog extends StatelessWidget {
               '可用 ${probe.results.values.where((v) => v == SourceProbeState.available).length} · '
               '明确无效 ${probe.unavailable.length}',
             ),
-            const Text('API 可用不代表媒体可播放；超时和网络异常单独保留。'),
+            const Text('接口成功自动启用；失败或超时暂时停用并保留，后台会复检。API 可用不代表媒体可播放。'),
             Expanded(
               child: ListView.builder(
                 itemCount: probe.statuses.length,

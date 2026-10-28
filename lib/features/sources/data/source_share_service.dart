@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import '../../../core/network/network_target_policy.dart';
 
 /// Invoked only by the explicit publish action after preview. No background
 /// publication, account credentials, redirects, or source request headers.
@@ -9,7 +10,11 @@ Future<Uri> publishSourceText(Uri endpoint, String text) async {
       endpoint.userInfo.isNotEmpty) {
     throw const FormatException('发布服务必须使用 HTTPS');
   }
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+  NetworkTargetPolicy.validateUri(endpoint);
+  final client = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 15)
+    ..connectionFactory = const NetworkTargetPolicy().connect
+    ..findProxy = (_) => 'DIRECT';
   try {
     final request = await client
         .postUrl(endpoint)
@@ -39,6 +44,7 @@ Future<Uri> publishSourceText(Uri endpoint, String text) async {
         result.userInfo.isNotEmpty) {
       throw const FormatException('发布服务未返回有效的 HTTPS 链接');
     }
+    NetworkTargetPolicy.validateUri(result);
     return result;
   } finally {
     client.close(force: true);

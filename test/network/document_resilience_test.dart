@@ -21,7 +21,7 @@ void main() {
         request.response.write('ok');
       }
     });
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     try {
       final client = DocumentClient(http);
       expect((await client.get(server.baseUri)).text, 'ok');
@@ -45,7 +45,7 @@ void main() {
       request.response.headers.set('retry-after', '2');
       if (!responseSent.isCompleted) responseSent.complete();
     });
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     final token = CancellationToken();
     try {
       final pending = DocumentClient(

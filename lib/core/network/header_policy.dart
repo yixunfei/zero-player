@@ -4,10 +4,33 @@ final class HeaderPolicy {
   HeaderPolicy(Map<Uri, Map<String, String>> origins)
     : _origins = {
         for (final entry in origins.entries)
-          origin(entry.key): Map<String, String>.unmodifiable(entry.value),
+          origin(entry.key): Map<String, String>.unmodifiable(
+            sanitize(entry.value),
+          ),
       };
 
   final Map<String, Map<String, String>> _origins;
+
+  static Map<String, String> sanitize(Map<String, String> headers) {
+    const reserved = {
+      'host',
+      'connection',
+      'content-length',
+      'transfer-encoding',
+      'upgrade',
+      'proxy-authorization',
+      'proxy-connection',
+      'te',
+      'trailer',
+    };
+    return {
+      for (final entry in headers.entries)
+        if (!reserved.contains(entry.key.toLowerCase()) &&
+            RegExp(r'^[A-Za-z0-9!#$%&*+.^_|~-]+$').hasMatch(entry.key) &&
+            !RegExp(r'[\x00-\x1f\x7f]').hasMatch(entry.value))
+          entry.key: entry.value,
+    };
+  }
 
   static String origin(Uri uri) => '${uri.scheme}://${uri.host}:${uri.port}';
 

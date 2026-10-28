@@ -8,9 +8,21 @@ import '../data/source_repository.dart';
 import '../domain/video_source.dart';
 import '../domain/source_probe_result.dart';
 import 'source_metadata.dart';
+import 'source_connectivity.dart';
+import '../data/source_diagnostics_store.dart';
+import '../domain/source_diagnostics.dart';
+import '../../../core/network/request_trace.dart';
 
 final class SourceProbe extends ChangeNotifier {
-  SourceProbe(this.repository, this.network);
+  SourceProbe(
+    this.repository,
+    this.network, {
+    SourceConnectivity? connectivity,
+    this.apiTimeout = const Duration(seconds: 25),
+  }) : connectivity = connectivity ?? NetworkSourceConnectivity(network);
+  final SourceConnectivity connectivity;
+  final Duration apiTimeout;
+  bool _applyPolicy = false;
   final SourceRepository repository;
   final DocumentClient network;
   CancellationToken? _token;
@@ -28,11 +40,13 @@ final class SourceProbe extends ChangeNotifier {
     List<VideoSource> sources, {
     int concurrency = 3,
     bool preserveStatuses = false,
+    bool applyPolicy = false,
   }) async {
     if (running || _disposed) return;
     final token = CancellationToken();
     _token = token;
     running = true;
+    _applyPolicy = applyPolicy;
     total = sources.length;
     results.clear();
     if (!preserveStatuses) statuses.clear();
@@ -52,14 +66,61 @@ final class SourceProbe extends ChangeNotifier {
         ),
       );
     } finally {
-      running = false;
-      if (!_disposed) notifyListeners();
+      try {
+        if (!_disposed && !token.isCancelled) await repository.deduplicate();
+      } finally {
+        running = false;
+        if (!_disposed) notifyListeners();
+      }
     }
   }
 
   Future<void> _probe(VideoSource source, CancellationToken parent) async {
+    final requests = <Map<String, Object?>>[];
+    statuses[source.id] = '${source.displayName} · 检测 DNS / TCP';
+    if (!_disposed) notifyListeners();
+    try {
+      final connection = await connectivity.inspect(source.endpoint, parent);
+      if (connection.missingDomain) {
+        results[source.id] = SourceProbeState.unavailable;
+        statuses[source.id] = '${source.displayName} · 双 DNS 确认域名不存在';
+        await repository.health(
+          source.id,
+          const RemoteFailure(FailureKind.invalid, '域名不存在（双 DNS 确认）'),
+        );
+      } else {
+        await traceRequests(requests, () => _probeApi(source, parent));
+      }
+      parent.check();
+      final state = results[source.id];
+      if (state == null || state == SourceProbeState.cancelled) return;
+      await SourceDiagnosticsStore(repository.db).save(
+        source.id,
+        SourceDiagnostics(
+          state: connection.missingDomain ? 'missingDomain' : state.name,
+          checkedAt: DateTime.now(),
+          addresses: connection.addresses,
+          dnsMs: connection.dnsMs,
+          tcpMs: connection.tcpMs,
+          port: source.endpoint.port,
+          message: statuses[source.id] ?? '',
+          requests: requests,
+          dnsEvidence: connection.evidence,
+        ),
+        applyPolicy: _applyPolicy,
+      );
+    } on RequestCancelled {
+      results[source.id] = SourceProbeState.cancelled;
+      statuses[source.id] = '${source.displayName} · 已取消';
+    } finally {
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _probeApi(VideoSource source, CancellationToken parent) async {
     final token = CancellationToken();
     final remove = parent.listen(token.cancel);
+    final deadline = Timer(apiTimeout, token.cancel);
     final clock = Stopwatch();
     var apiSucceeded = false;
     statuses[source.id] = '${source.displayName} · 检测中';
@@ -74,6 +135,7 @@ final class SourceProbe extends ChangeNotifier {
       ).browse();
       clock.stop();
       token.check();
+      deadline.cancel();
       apiSucceeded = true;
       await repository.health(
         source.id,
@@ -109,7 +171,7 @@ final class SourceProbe extends ChangeNotifier {
             );
           }
           statuses[source.id] = state == SourceProbeState.inconclusive
-              ? '${source.displayName} · ${failure.message}，未确定，仍可尝试使用'
+              ? '${source.displayName} · ${failure.message}，等待复检'
               : '${source.displayName} · ${failure.message}';
         }
       } else if (!apiSucceeded) {
@@ -117,6 +179,7 @@ final class SourceProbe extends ChangeNotifier {
         statuses[source.id] = '${source.displayName} · 已取消';
       }
     } finally {
+      deadline.cancel();
       remove();
       if (!_disposed) notifyListeners();
     }

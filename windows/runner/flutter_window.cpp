@@ -7,7 +7,12 @@
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() {
+  // Destroy while the derived class and its members are still alive. A posted
+  // WM_QUIT may otherwise reach member destructors before WM_DESTROY, allowing
+  // reentrant window messages to access a partially destroyed controller.
+  Destroy();
+}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -25,6 +30,17 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  // FFmpegKit owns process-wide callback threads without a joined shutdown
+  // API. Its plugin calls FreeLibrary while they can still access static
+  // condition variables. Keep the already-loaded library AND dependencies
+  // mapped until process exit; pinning only winpthreads leaves dangling data.
+  if (::GetModuleHandleW(L"libffmpegkit.dll") != nullptr) {
+    HMODULE runtime = nullptr;
+    if (!::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN,
+                              L"libffmpegkit.dll", &runtime)) {
+      return false;
+    }
+  }
   radio_tray_ = std::make_unique<RadioTray>(GetHandle(), flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
@@ -69,7 +85,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_) {
+        flutter_controller_->engine()->ReloadSystemFonts();
+      }
       break;
   }
 

@@ -21,7 +21,7 @@ void main() {
     'builtin expansion preserves old overrides and restores removed live lists explicitly',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final sources = SourceRepository(db);
         final builtins = BuiltinSources(sources);
@@ -65,7 +65,7 @@ void main() {
     'invalid or empty refresh cannot erase an existing live snapshot',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final live = LiveRepository(db, DocumentClient(http));
         final uri = Uri.parse('https://tv.test/list');
@@ -101,7 +101,7 @@ void _refreshRaceTest() {
       request.response.write('NEW,https://media.test/new.m3u8');
     });
     final db = AppDatabase.memory();
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     try {
       final live = LiveRepository(db, DocumentClient(http));
       await live.importText(
@@ -130,7 +130,7 @@ void _backupHeadersTest() {
     'backup restores subscription headers and rejects unrelated app metadata',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final live = LiveRepository(db, DocumentClient(http));
         await live.importText(

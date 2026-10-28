@@ -5,6 +5,8 @@ import '../../../core/persistence/app_database.dart';
 import '../domain/source_catalog.dart';
 import '../domain/video_source.dart';
 import 'source_identity_store.dart';
+import 'source_preferences.dart';
+import 'source_duplicate_store.dart';
 
 final class SourceRepository {
   const SourceRepository(this.db);
@@ -15,11 +17,50 @@ final class SourceRepository {
     'source_health',
     'source_memberships',
     'subscriptions',
+    'app_meta',
   };
   Stream<void> get changes => db.changesFor(tables);
   static const _select = '''SELECT s.*, COALESCE(o.name,s.name) AS display_name,
-    o.enabled,o.suppressed,h.failures,h.last_error,h.retry_after,h.api_ok,h.latency_ms,h.checked_at FROM sources s
-    JOIN source_overrides o ON s.id=o.source_id LEFT JOIN source_health h ON s.id=h.source_id''';
+    o.enabled,o.suppressed,h.failures,h.last_error,h.retry_after,h.api_ok,h.latency_ms,h.checked_at,
+    f.value AS favorite,d.value AS diagnostics FROM sources s
+    JOIN source_overrides o ON s.id=o.source_id LEFT JOIN source_health h ON s.id=h.source_id
+    LEFT JOIN app_meta f ON f.key='source_favorite:'||s.id
+    LEFT JOIN app_meta d ON d.key='source_diagnostic:'||s.id''';
+
+  Future<void> favorite(String id, bool value) =>
+      SourcePreferences(db).favorite(id, value);
+
+  Future<String> preferredId(String id) =>
+      SourceDuplicateStore(db).preferredId(id);
+
+  Future<Map<String, String>> deduplicate({Set<String> preferred = const {}}) =>
+      db.atomic(
+        () => _deduplicate(preferred: preferred),
+        tables: {...tables, 'settings'},
+      );
+
+  Future<Map<String, String>> _deduplicate({
+    Set<String> preferred = const {},
+  }) async =>
+      SourceDuplicateStore(db).consolidate(await all(), preferred: preferred);
+
+  Future<int> disablePossiblyInvalid(Iterable<String> confirmed) =>
+      db.atomic(() async {
+        final allowed = confirmed.toSet();
+        final targets = (await all())
+            .where(
+              (s) => allowed.contains(s.id) && s.enabled && s.possiblyInvalid,
+            )
+            .map((s) => s.id)
+            .toList();
+        for (final id in targets) {
+          await db.customStatement(
+            'UPDATE source_overrides SET enabled=0 WHERE source_id=?',
+            [id],
+          );
+        }
+        return targets.length;
+      }, tables: tables);
 
   Future<List<VideoSource>> all({bool includeSuppressed = false}) async =>
       (await db.rows(
@@ -70,7 +111,8 @@ final class SourceRepository {
         enabled=excluded.enabled,suppressed=0''',
         [id, name.trim(), enabled ? 1 : 0],
       );
-      return id;
+      final merged = await _deduplicate();
+      return merged[id] ?? id;
     }, tables: tables);
   }
 
@@ -85,10 +127,8 @@ final class SourceRepository {
       ]);
     }
   }, tables: tables);
-  Future<void> suppress(String id, bool suppressed) => db.write(
-    'UPDATE source_overrides SET suppressed=? WHERE source_id=?',
-    [suppressed ? 1 : 0, id],
-  );
+  Future<void> suppress(String id, bool suppressed) =>
+      batch([id], suppressed: suppressed);
   Future<void> resetHealth(String id) =>
       db.write('DELETE FROM source_health WHERE source_id=?', [id]);
 
@@ -127,29 +167,36 @@ final class SourceRepository {
     );
   }
 
-  Future<void> batch(List<String> ids, {bool? enabled, bool? suppressed}) =>
-      db.atomic(() async {
-        for (final id in ids.toSet()) {
-          if (enabled != null) {
-            await db.customStatement(
-              'UPDATE source_overrides SET enabled=? WHERE source_id=?',
-              [enabled ? 1 : 0, id],
-            );
-            if (enabled) {
-              await db.customStatement(
-                'DELETE FROM source_health WHERE source_id=?',
-                [id],
-              );
-            }
-          }
-          if (suppressed != null) {
-            await db.customStatement(
-              'UPDATE source_overrides SET suppressed=? WHERE source_id=?',
-              [suppressed ? 1 : 0, id],
-            );
-          }
+  Future<void> batch(
+    List<String> ids, {
+    bool? enabled,
+    bool? suppressed,
+    bool deduplicateSources = true,
+  }) => db.atomic(() async {
+    for (final id in ids.toSet()) {
+      if (enabled != null) {
+        await db.customStatement(
+          'UPDATE source_overrides SET enabled=? WHERE source_id=?',
+          [enabled ? 1 : 0, id],
+        );
+        if (enabled) {
+          await db.customStatement(
+            'DELETE FROM source_health WHERE source_id=?',
+            [id],
+          );
         }
-      }, tables: tables);
+      }
+      if (suppressed != null) {
+        await db.customStatement(
+          'UPDATE source_overrides SET suppressed=? WHERE source_id=?',
+          [suppressed ? 1 : 0, id],
+        );
+      }
+    }
+    if (suppressed == false && deduplicateSources) {
+      await _deduplicate(preferred: ids.toSet());
+    }
+  }, tables: tables);
 
   Future<void> metadata(String id, {String? title, Uri? homepage}) => db.write(
     'UPDATE sources SET site_title=COALESCE(?,site_title),homepage=COALESCE(?,homepage) WHERE id=?',
@@ -164,6 +211,7 @@ final class SourceRepository {
     bool enableNew = false,
     Map<String, bool> initialEnabled = const {},
     bool replaceSources = true,
+    bool deduplicateSources = true,
   }) => db.atomic(() async {
     final subscriptionId = stableId(url.toString());
     await db.customStatement(
@@ -216,6 +264,7 @@ final class SourceRepository {
         [subscriptionId, id],
       );
     }
+    if (deduplicateSources) await _deduplicate();
   }, tables: tables);
 
   Future<List<Map<String, Object?>>> subscriptions() =>

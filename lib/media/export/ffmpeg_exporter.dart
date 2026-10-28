@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffprobe_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_min/media_information_session.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 
 import '../../core/network/cancellation_token.dart';
@@ -21,6 +22,10 @@ final class FfmpegExporter implements MediaExporter {
       'error',
       '-nostdin',
       '-xerror',
+      '-protocol_whitelist',
+      'file',
+      '-format_whitelist',
+      'mov,mpegts',
       '-i',
       file.path,
       '-map',
@@ -35,7 +40,7 @@ final class FfmpegExporter implements MediaExporter {
     if (!ReturnCode.isSuccess(await session.getReturnCode())) {
       throw const FormatException('文件未通过媒体完整性检查');
     }
-    final probe = await FFprobeKit.getMediaInformation(file.path);
+    final probe = await _inspectLocal(file.path);
     final info = probe.getMediaInformation();
     token.check();
     if ((double.tryParse(info?.getDuration() ?? '') ?? 0) <= 0) {
@@ -70,7 +75,7 @@ final class FfmpegExporter implements MediaExporter {
         '-nostdin',
         '-n',
         '-protocol_whitelist',
-        'file,http,tcp,crypto',
+        input.scheme == 'file' ? 'file' : 'http,tcp,crypto',
         '-allowed_extensions',
         'ALL',
         '-i',
@@ -91,7 +96,7 @@ final class FfmpegExporter implements MediaExporter {
         throw const FormatException('此媒体无法重封装，原始下载已保留');
       }
       cancellation?.check();
-      final probe = await FFprobeKit.getMediaInformation(temporary.path);
+      final probe = await _inspectLocal(temporary.path);
       final info = probe.getMediaInformation();
       final seconds = double.tryParse(info?.getDuration() ?? '') ?? 0;
       if (seconds <= 0 ||
@@ -112,6 +117,23 @@ final class FfmpegExporter implements MediaExporter {
       }
     }
   }
+
+  Future<MediaInformationSession> _inspectLocal(String path) =>
+      FFprobeKit.getMediaInformationFromCommandArguments([
+        '-v',
+        'error',
+        '-hide_banner',
+        '-protocol_whitelist',
+        'file',
+        '-format_whitelist',
+        'mov,mpegts',
+        '-print_format',
+        'json',
+        '-show_format',
+        '-show_streams',
+        '-i',
+        path,
+      ]);
 
   Future<FFmpegSession> _execute(
     List<String> arguments,

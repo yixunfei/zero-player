@@ -48,6 +48,14 @@ final class SourceBatchBar extends StatelessWidget {
           onPressed: () => _apply(context, enabled: false),
           child: Text(selected.isEmpty ? '全部停用' : '停用所选'),
         ),
+        OutlinedButton.icon(
+          onPressed:
+              items.any((s) => s.enabled && !s.suppressed && s.possiblyInvalid)
+              ? () => _disablePossiblyInvalid(context)
+              : null,
+          icon: const Icon(Icons.block),
+          label: const Text('停用可能失效'),
+        ),
         TextButton(
           onPressed: () => _apply(context, suppressed: true),
           child: Text(selected.isEmpty ? '全部移除' : '移除所选'),
@@ -83,4 +91,27 @@ final class SourceBatchBar extends StatelessWidget {
     await services.sources.batch(ids, enabled: enabled, suppressed: suppressed);
     onSelection({});
   });
+
+  Future<void> _disablePossiblyInvalid(BuildContext context) =>
+      perform(context, () async {
+        final targets = (await services.sources.all())
+            .where((s) => s.enabled && s.possiblyInvalid)
+            .map((s) => s.id)
+            .toList();
+        if (!context.mounted || targets.isEmpty) return;
+        if (!await confirm(
+          context,
+          '停用 ${targets.length} 个可能失效渠道',
+          '包括超时、网络异常或接口失败等已标记来源。仅停用，不移除；之后可以手动启用。',
+        )) {
+          return;
+        }
+        final count = await services.sources.disablePossiblyInvalid(targets);
+        onSelection({});
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('已停用 $count 个可能失效渠道')));
+        }
+      });
 }

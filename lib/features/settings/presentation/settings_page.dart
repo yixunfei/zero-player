@@ -32,12 +32,7 @@ final class SettingsPage extends StatelessWidget {
             '发现页推荐',
             'recommendation',
             settings.recommendation,
-            const {
-              'douban': '豆瓣',
-              'bangumi': 'Bangumi',
-              'hot': '影视榜单',
-              'off': '关闭',
-            },
+            const {'douban': '豆瓣', 'off': '关闭'},
           ),
           _toggle(context, '自动播放下一集', 'autoplay', settings.autoplay),
           HomePreferences(services: services),

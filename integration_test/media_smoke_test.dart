@@ -27,9 +27,9 @@ void main() {
       'sample.flv',
     ]) {
       testWidgets(
-        '${useGateway ? 'gateway' : 'direct'} $sample: decode, pause, seek',
+        '${useGateway ? 'cached' : 'uncached'} $sample: decode, pause, seek',
         (tester) async {
-          final controller = LabController();
+          final controller = LabController(allowPrivateNetworks: true);
           await controller.initialize();
           controller.setGateway(useGateway);
           await tester.pumpWidget(ZeroPlayerApp(controller: controller));
@@ -71,13 +71,15 @@ void main() {
             results.add({
               'platform': Platform.operatingSystem,
               'sample': sample,
-              'gateway': useGateway,
+              'gateway': true,
+              'cache': useGateway,
               'firstFrameMs': firstFrameMs,
               'frameBytes': frame.length,
               'gatewayFailures': controller.gateway!.failures,
             });
             expect(controller.gateway!.failures, 0);
             binding.reportData = {'mediaSamples': results};
+            debugPrint('MEDIA_METRIC ${results.last}');
           } finally {
             await tester.pumpWidget(const SizedBox.shrink());
             await controller.shutdown();

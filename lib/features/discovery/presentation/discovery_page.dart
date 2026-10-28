@@ -17,6 +17,8 @@ import 'discovery_toolbar.dart';
 import '../../sources/presentation/block_source_button.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../sources/domain/source_order.dart';
+import '../../sources/presentation/source_details_dialog.dart';
 
 final class DiscoveryPage extends StatefulWidget {
   const DiscoveryPage({super.key, required this.services});
@@ -39,6 +41,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   final _showTop = ValueNotifier(false);
   String? _notice;
   int _sourceGeneration = 0;
+  StreamSubscription<void>? _sourceChanges;
 
   @override
   void initState() {
@@ -52,6 +55,9 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     _feed.addListener(_changed);
     _scroll.addListener(_loadNearEnd);
     widget.services.settings.addListener(_settingsChanged);
+    _sourceChanges = widget.services.sources.changes.listen(
+      (_) => unawaited(_syncSources()),
+    );
     unawaited(_refresh());
   }
 
@@ -72,7 +78,9 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     final generation = ++_sourceGeneration;
     try {
       final sources = await widget.services.sources.all();
+      final preferred = await widget.services.sources.preferredId(_channel);
       if (!mounted || generation != _sourceGeneration) return;
+      _channel = preferred;
       _sources =
           sources
               .where(
@@ -82,12 +90,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
                     (!_filterAdult || s.classification != 'adult'),
               )
               .toList()
-            ..sort((a, b) {
-              final failures = a.failures.compareTo(b.failures);
-              return failures != 0
-                  ? failures
-                  : (a.latencyMs ?? 999999).compareTo(b.latencyMs ?? 999999);
-            });
+            ..sort(compareRecommendedSources);
       _notice = null;
       if (_channel.isNotEmpty && !_sources.any((s) => s.id == _channel)) {
         _channel = '';
@@ -133,6 +136,34 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
       aggregate: _aggregate,
       discoverCategories: source != null && discoverCategories,
     );
+  }
+
+  Future<void> _syncSources() async {
+    final sources = await widget.services.sources.all();
+    final preferred = await widget.services.sources.preferredId(_channel);
+    if (!mounted) return;
+    final visible =
+        sources
+            .where(
+              (s) =>
+                  s.enabled &&
+                  !s.suppressed &&
+                  (!_filterAdult || s.classification != 'adult'),
+            )
+            .toList()
+          ..sort(compareRecommendedSources);
+    setState(() => _sources = visible);
+    if (preferred != _channel) {
+      _channel = preferred;
+      await widget.services.settings.load();
+      if (mounted) await _refresh();
+      return;
+    }
+    if (_ready &&
+        _channel.isNotEmpty &&
+        !visible.any((s) => s.id == _channel)) {
+      await _refresh();
+    }
   }
 
   Future<Recommendations> _loadCatalog(
@@ -216,6 +247,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
 
   @override
   void dispose() {
+    unawaited(_sourceChanges?.cancel());
     widget.services.settings.removeListener(_settingsChanged);
     _feed.removeListener(_changed);
     _feed.dispose();
@@ -333,6 +365,14 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
       Text('你的私人影院', style: Theme.of(context).textTheme.headlineMedium),
       const SizedBox(height: 8),
       Text('发现好故事，继续未完的旅程。', style: Theme.of(context).textTheme.bodyMedium),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => context.push('/calendar'),
+          icon: const Icon(Icons.calendar_month),
+          label: const Text('上映日历'),
+        ),
+      ),
       const SizedBox(height: 8),
       if (_notice != null) Text(_notice!),
     ],
@@ -340,6 +380,9 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Widget _menus() {
     final settings = widget.services.settings.value;
+    final current = _sources
+        .where((source) => source.id == _channel)
+        .firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -348,6 +391,19 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
           sources: _sources,
           channel: _channel,
           providerName: recommendationNames[_provider] ?? '精选推荐',
+          isFavorite: current?.favorite ?? false,
+          onFavorite: current == null
+              ? null
+              : () => perform(
+                  context,
+                  () => widget.services.sources.favorite(
+                    current.id,
+                    !current.favorite,
+                  ),
+                ),
+          onDetails: current == null
+              ? null
+              : () => showSourceDetails(context, widget.services, current),
           aggregate: _aggregate,
           isDefault:
               settings.homeChannel == _channel &&

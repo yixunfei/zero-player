@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'source_diagnostics.dart';
+import 'source_name.dart';
 
 String stableId(String value) => sha256.convert(utf8.encode(value)).toString();
 
@@ -9,6 +11,8 @@ final class VideoSource {
     required this.name,
     required this.endpoint,
     this.enabled = false,
+    this.favorite = false,
+    this.diagnostics,
     this.headers = const {},
     this.classification = 'unknown',
     this.failures = 0,
@@ -27,6 +31,8 @@ final class VideoSource {
   final String name;
   final Uri endpoint;
   final bool enabled;
+  final bool favorite;
+  final SourceDiagnostics? diagnostics;
   final Map<String, String> headers;
   final String classification;
   final int failures;
@@ -38,12 +44,30 @@ final class VideoSource {
   final int? latencyMs;
   final DateTime? checkedAt;
   final bool suppressed;
-  String get displayName =>
-      siteTitle?.trim().isNotEmpty == true && name == endpoint.host
-      ? siteTitle!
-      : name;
+  bool get possiblyInvalid {
+    final diagnostic = diagnostics;
+    if (checkedAt != null &&
+        diagnostic != null &&
+        checkedAt!.isAfter(diagnostic.checkedAt)) {
+      return !apiOk && failures > 0;
+    }
+    return diagnostic?.possiblyInvalid == true || failures > 0;
+  }
+
+  String get displayName {
+    final fallback = isGenericSourceTitle(name) ? endpoint.host : name;
+    return siteTitle?.trim().isNotEmpty == true &&
+            !isGenericSourceTitle(siteTitle!) &&
+            (fallback == endpoint.host || fallback == endpoint.toString())
+        ? siteTitle!
+        : fallback;
+  }
+
   String get description => [
-    if (siteTitle != null && siteTitle != displayName) siteTitle!,
+    if (siteTitle != null &&
+        !isGenericSourceTitle(siteTitle!) &&
+        siteTitle != displayName)
+      siteTitle!,
     homepage?.host ?? endpoint.host,
     if (latencyMs != null) '$latencyMs ms',
   ].join(' · ');
@@ -58,6 +82,8 @@ final class VideoSource {
     name: row['display_name'] as String? ?? row['name'] as String,
     endpoint: Uri.parse(row['endpoint'] as String),
     enabled: row['enabled'] == 1,
+    favorite: row['favorite'] == 'true',
+    diagnostics: SourceDiagnostics.decode(row['diagnostics'] as String?),
     headers: Map<String, String>.from(jsonDecode(row['headers'] as String)),
     classification: row['classification'] as String,
     failures: row['failures'] as int? ?? 0,

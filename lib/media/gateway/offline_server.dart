@@ -25,6 +25,20 @@ final class OfflineServer {
   final _tasks = <String, String>{};
   bool isPlaying(String id) => _tasks.containsValue(id);
 
+  bool isRegisteredPlaylist(Uri uri) {
+    if (_server == null ||
+        uri.scheme != 'http' ||
+        uri.authority != '127.0.0.1:${_server!.port}' ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return false;
+    }
+    final parts = uri.pathSegments;
+    return parts.length == 2 &&
+        parts[1].endsWith('.m3u8') &&
+        _sessions[parts[0]]?.containsKey(parts[1]) == true;
+  }
+
   Future<OfflineSession> open(
     String taskId,
     Directory directory,
@@ -119,7 +133,10 @@ final class OfflineServer {
         request.response.statusCode = 405;
         return;
       }
-      if (file == null || request.headers.value('origin') != null) {
+      if (file == null ||
+          request.headers.value('origin') != null ||
+          request.headers.value('sec-fetch-site') != null ||
+          request.headers.value('host') != '127.0.0.1:${_server!.port}') {
         request.response.statusCode = 404;
         return;
       }
@@ -128,6 +145,11 @@ final class OfflineServer {
           : parts.last.endsWith('.mp4') || parts.last.endsWith('.m4s')
           ? 'video/mp4'
           : 'application/octet-stream';
+      request.response.headers.set('X-Content-Type-Options', 'nosniff');
+      request.response.headers.set(
+        'Content-Security-Policy',
+        "default-src 'none'; sandbox",
+      );
       await serveLocalFile(request, file, contentType: type);
     } catch (_) {
       try {

@@ -5,7 +5,7 @@ void validateSetting(String key, Object? value) {
     'font': appFontLabels.keys.toSet(),
     'theme': {'cinema', 'dark', 'light', 'system'},
     'mode': {'auto', 'television'},
-    'recommendation': {'douban', 'bangumi', 'hot', 'off'},
+    'recommendation': {'douban', 'off'},
     'homeLayout': {'single', 'aggregate'},
   };
   if (choices.containsKey(key)) {

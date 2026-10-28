@@ -27,7 +27,7 @@ void _persistenceTests() {
   setUp(() async {
     root = await Directory.systemTemp.createTemp('radio-snapshot-');
     db = AppDatabase.memory();
-    http = MediaHttpClient();
+    http = MediaHttpClient(allowPrivateNetworks: true);
     payload = _list('原电台');
     server = await HttpTestServer.start(
       (request) => request.response.write(payload),
@@ -127,7 +127,7 @@ void _raceTests() {
         }
       });
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final repo = RadioRepository(
         db,
         DocumentClient(http),

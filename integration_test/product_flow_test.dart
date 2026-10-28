@@ -39,7 +39,11 @@ void main() {
   MediaKit.ensureInitialized();
   setUp(() async {
     root = await Directory.systemTemp.createTemp('zero-product-test-');
-    services = AppServices.scoped(root, AppDatabase.memory());
+    services = AppServices.scoped(
+      root,
+      AppDatabase.memory(),
+      allowPrivateNetworks: true,
+    );
     await services.settings.load();
     await services.settings.update({
       'navigationGuideSeen': true,

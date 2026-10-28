@@ -6,6 +6,7 @@ import '../../../core/persistence/app_database.dart';
 import '../../live/domain/live_channel.dart';
 import '../../live/domain/channel_merge.dart';
 import '../domain/radio_subscription.dart';
+import '../domain/radio_category.dart';
 import 'radio_snapshot.dart';
 import 'radio_snapshot_store.dart';
 import 'radio_subscription_store.dart';
@@ -189,11 +190,17 @@ final class RadioRepository {
           (row) => (row['key'] as String).substring('radio_favorite:'.length),
         )
         .toSet();
-    return mergeChannelAliases([
+    final entries = [
       for (final station in stations)
         for (final entry in station.entries)
           entry.withFavorite(ids.contains(entry.id)),
-    ]);
+    ];
+    return [
+      for (final category in RadioCategory.values)
+        ...mergeChannelAliases(
+          entries.where((s) => radioCategory(s) == category).toList(),
+        ),
+    ]..sort(compareRadioStations);
   }
 
   Future<void> favorite(LiveChannel station, bool value) => db.atomic(() async {

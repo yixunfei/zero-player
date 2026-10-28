@@ -16,7 +16,7 @@ void main() {
       final directory = await Directory.systemTemp.createTemp(
         'gateway-lifecycle',
       );
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final gateway = MediaGateway(SegmentStore(directory), client: http);
       final server = await HttpTestServer.start(
         (request) => request.response.write('alive'),
@@ -47,7 +47,10 @@ void main() {
 
 Future<void> _filterTest(bool externalAudio) async {
   final directory = await Directory.systemTemp.createTemp('gateway-filter');
-  final gateway = MediaGateway(SegmentStore(directory));
+  final gateway = MediaGateway(
+    SegmentStore(directory),
+    allowPrivateNetworks: true,
+  );
   final client = HttpClient();
   final server = await HttpTestServer.start((request) {
     if (request.uri.path == '/master.m3u8') {

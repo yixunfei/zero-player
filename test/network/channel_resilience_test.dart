@@ -26,7 +26,7 @@ void main() {
         );
       });
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final sources = SourceRepository(db);
       final search = SearchController(
         sources,
@@ -71,7 +71,7 @@ void main() {
           request.response.add(List.filled(512 * 1024, 1));
         }
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         for (final path in ['html', 'empty']) {
           await expectLater(

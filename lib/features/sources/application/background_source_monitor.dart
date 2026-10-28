@@ -42,13 +42,20 @@ final class BackgroundSourceMonitor {
     final due = all
         .where(
           (s) =>
-              s.enabled &&
+              !s.suppressed &&
               (s.retryAfter == null || s.retryAfter!.isBefore(now)) &&
               (s.checkedAt == null ||
-                  now.difference(s.checkedAt!) > const Duration(hours: 6)),
+                  now.difference(s.checkedAt!) >
+                      (s.enabled
+                          ? const Duration(hours: 6)
+                          : const Duration(minutes: 30))),
         )
         .toList();
-    await probe.run(due, concurrency: settings.value.probeConcurrency);
+    await probe.run(
+      due,
+      concurrency: settings.value.probeConcurrency,
+      applyPolicy: true,
+    );
   }
 
   Future<void> close() async {

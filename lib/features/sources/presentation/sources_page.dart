@@ -7,6 +7,8 @@ import '../domain/video_source.dart';
 import 'catalog_import.dart';
 import 'source_actions.dart';
 import 'source_batch_bar.dart';
+import 'source_card.dart';
+import 'source_details_dialog.dart';
 
 final class SourcesPage extends StatefulWidget {
   const SourcesPage({super.key, required this.services});
@@ -63,7 +65,7 @@ final class _SourcesPageState extends State<SourcesPage> {
                     if (await confirm(
                       context,
                       '恢复内置默认',
-                      '将按随应用附带的本地预检恢复启停，覆盖内置源的手动选择。超时未确定的源仍可启用；实时状态请使用批量探活。',
+                      '按最近内置核查恢复默认：明确失效停用，双 DNS 确认域名不存在的来源移入已移除；不确定来源标记“可能失效”。会覆盖内置源的手动启停选择，收藏不变。',
                     )) {
                       await widget.services.builtins.initialize(restore: true);
                     }
@@ -160,59 +162,35 @@ final class _SourcesPageState extends State<SourcesPage> {
     }),
   );
 
-  Widget _source(VideoSource source) => Card(
-    child: ListTile(
-      title: Text(source.displayName),
-      subtitle: Text(
-        '${source.endpoint.scheme == 'http' ? 'HTTP 明文 · ' : ''}${source.description} · ${source.classification == 'adult'
-            ? '成人'
-            : source.classification == 'general'
-            ? '普通'
-            : '未分类'}\n'
-        '${source.error ?? (source.apiOk ? '接口查询成功，媒体未验证' : '尚未验证接口和播放')}${source.retryAfter != null && source.retryAfter!.isAfter(DateTime.now()) ? ' · 退避中' : ''}${source.suppressed ? ' · 已移除' : ''}${source.checkedAt != null ? ' · ${source.checkedAt!.toLocal().toString().substring(0, 16)}' : ''}',
-      ),
-      leading: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Checkbox(
-            value: selected.contains(source.id),
-            onChanged: (value) => setState(() {
-              if (value == true) {
-                selected.add(source.id);
-              } else {
-                selected.remove(source.id);
-              }
-            }),
-          ),
-          Switch(
-            value: source.enabled,
-            onChanged: (value) => perform(
-              context,
-              () => widget.services.sources.setEnabled(source.id, value),
-            ),
-          ),
-        ],
-      ),
-      isThreeLine: true,
-      onTap: () => _edit(source),
-      trailing: PopupMenuButton<String>(
-        onSelected: (value) {
-          if (value == 'probe') _probe(source);
-          if (value == 'reset') {
-            perform(
-              context,
-              () => widget.services.sources.resetHealth(source.id),
-            );
-          }
-          if (value == 'delete') _remove(source);
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'probe', child: Text('探测接口')),
-          PopupMenuItem(value: 'reset', child: Text('解除退避')),
-          PopupMenuItem(value: 'delete', child: Text('移除')),
-        ],
-      ),
-    ),
+  Widget _source(VideoSource source) => SourceCard(
+    source: source,
+    repository: widget.services.sources,
+    selected: selected.contains(source.id),
+    onSelected: (value) => setState(() {
+      if (value) {
+        selected.add(source.id);
+      } else {
+        selected.remove(source.id);
+      }
+    }),
+    onDetails: () => showSourceDetails(context, widget.services, source),
+    onAction: (value) {
+      switch (value) {
+        case 'details':
+          showSourceDetails(context, widget.services, source);
+        case 'edit':
+          _edit(source);
+        case 'probe':
+          _probe(source);
+        case 'reset':
+          perform(
+            context,
+            () => widget.services.sources.resetHealth(source.id),
+          );
+        case 'delete':
+          _remove(source);
+      }
+    },
   );
 
   Widget _subscription(Map<String, Object?> row) => ListTile(
@@ -297,7 +275,11 @@ final class _SourcesPageState extends State<SourcesPage> {
   });
   Future<void> _probe(VideoSource source) => perform(
     context,
-    () => widget.services.sourceProbe.run([source], concurrency: 1),
+    () => widget.services.sourceProbe.run(
+      [source],
+      concurrency: 1,
+      applyPolicy: true,
+    ),
   );
   Future<void> _remove(VideoSource source) async {
     await perform(

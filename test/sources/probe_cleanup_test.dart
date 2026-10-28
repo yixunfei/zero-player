@@ -42,7 +42,7 @@ void main() {
   });
   test('batch cleanup excludes healthy, busy and unprobed sources', () async {
     final db = AppDatabase.memory();
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     final repository = SourceRepository(db);
     final probe = SourceProbe(repository, DocumentClient(http));
     final server = await HttpTestServer.start((request) {

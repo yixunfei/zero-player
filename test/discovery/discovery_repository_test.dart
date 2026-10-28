@@ -67,7 +67,7 @@ void _requestTests() {
           }),
         );
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final source = VideoSource(
         id: 'a',
         name: 'A',
@@ -118,7 +118,7 @@ void _cacheTests() {
           }),
         );
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final db = AppDatabase.memory();
       final repo = RecommendationRepository(
         DocumentClient(http),
@@ -158,7 +158,7 @@ void _cacheTests() {
         started.complete();
         await finish.future;
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final db = AppDatabase.memory();
       final repo = RecommendationRepository(
         DocumentClient(http),
@@ -183,7 +183,7 @@ void _cacheTests() {
   test(
     'non-paginated providers return end without any page-two network call',
     () async {
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final db = AppDatabase.memory();
       final repo = RecommendationRepository(
         DocumentClient(http),

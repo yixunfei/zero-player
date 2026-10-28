@@ -4,18 +4,20 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.1 基础版本** · [下载发布包](https://github.com/yixunfei/zero-player/releases/tag/v0.0.1) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本记录](docs/implementation/RELEASE-0.0.1.md)
+**v0.0.2 Windows 改进构建** · [上一个公开版本 v0.0.1](https://github.com/yixunfei/zero-player/releases/tag/v0.0.1) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [本轮改进](docs/implementation/HARDENING-2026-10-28.md)
 
 ## 功能
 
 - 影院与明亮主题，首页频道和搜索同栏展示，支持单类浏览、分类聚合、分页与继续观看。
 - 可配置视频源与聚合搜索，标题纯文本清理、来源检查和失败提示。
 - 点播、直播、播放快捷键、Windows 沉浸全屏和窗口恢复。
-- **在线广播（实验阶段）**：电台分组/搜索、播放/暂停/停止、音量与线路选择；离开页面停止播放。
+- **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
+- 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
+- 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
 - 下载、续传、离线播放与 TS/MP4 导出；设置、历史记录及用户数据保存在本机。
 - 一次性导航引导、版权说明与开源许可证入口。
 
-广播内置源：[popocoding/awesome-m3u 的中国广播列表](https://raw.githubusercontent.com/popocoding/awesome-m3u/refs/heads/main/radio/cn.m3u)。首次进入联网获取，成功列表缓存 24 小时；手动刷新失败时保留旧列表。源站可能变更，列表收录不保证可播放性或授权。
+广播内置源：[popocoding/awesome-m3u 的中国广播列表](https://raw.githubusercontent.com/popocoding/awesome-m3u/refs/heads/main/radio/cn.m3u)。首次离线可使用随包成功快照，超过 24 小时后台更新；刷新失败保留旧列表。源站可能变更，列表收录不保证可播放性或授权。
 
 ## 下载与安装
 
@@ -28,7 +30,7 @@
 | Android 分发工具输入 | android.aab（不能直接安装） |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-发布文件以 zero-player-0.0.1 开头，SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
+上一个公开版本文件以 zero-player-0.0.1 开头；本轮 Windows 本地验收包以 zero-player-0.0.2 开头，未发布至 GitHub Releases。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
 
 ## 开发
 

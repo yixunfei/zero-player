@@ -35,6 +35,7 @@ final class MaccmsSources {
       text,
       catalog.sources,
       enableNew: !adult,
+      deduplicateSources: false,
     );
     await repository.pauseSubscription(stableId(origin.toString()), true);
     if (!restore) return;
@@ -46,6 +47,7 @@ final class MaccmsSources {
       ids.map((row) => row['source_id'] as String).toList(),
       enabled: !adult,
       suppressed: false,
+      deduplicateSources: false,
     );
   }
 }

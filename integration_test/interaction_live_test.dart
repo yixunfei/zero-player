@@ -61,7 +61,11 @@ void main() {
 
 Future<void> _setUp() async {
   root = await Directory.systemTemp.createTemp('zero-interaction-test-');
-  services = AppServices.scoped(root, AppDatabase.memory());
+  services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
   await services.settings.load();
   await services.settings.update({
     'recommendation': 'off',
@@ -102,7 +106,7 @@ Future<void> _mount(WidgetTester tester) async {
   await _until(tester, () => find.byType(LiveBrowser).evaluate().isNotEmpty);
   await tester.pumpAndSettle();
   expect(tester.widget<LiveBrowser>(find.byType(LiveBrowser)).group, '央视');
-  expect(find.text('CCTV-1'), findsNWidgets(2));
+  expect(find.text('CCTV-1 综合'), findsNWidgets(2));
   expect(find.byType(PlayerPage), findsNothing);
   expect(
     fixture.calls['/sample.mp4'],
@@ -118,7 +122,8 @@ Future<void> _liveManagement(WidgetTester tester) async {
     tester,
     () => find.textContaining('有媒体响应').evaluate().isNotEmpty,
   );
-  await tester.tap(find.text('停止 / 关闭'));
+  await _until(tester, () => find.text('关闭').evaluate().isNotEmpty);
+  await tester.tap(find.text('关闭'));
   await tester.pumpAndSettle();
   final channel = (await services.live.channels()).first;
   expect(channel.health.latencyMs, isNotNull);
@@ -131,7 +136,7 @@ Future<void> _liveManagement(WidgetTester tester) async {
   expect((await services.live.channels()).first.health.enabled, isFalse);
   await tester.tap(find.widgetWithText(ListTile, '已停用'));
   await tester.pumpAndSettle();
-  expect(find.text('CCTV-1'), findsNWidgets(2));
+  expect(find.text('CCTV-1 综合'), findsNWidgets(2));
   expect(find.text('播放频道'), findsOneWidget);
   expect(
     tester
@@ -165,7 +170,7 @@ Future<void> _liveKeysAndLayouts(WidgetTester tester) async {
   await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
   await tester.pumpAndSettle();
   final cctv2 = (await services.live.channels()).firstWhere(
-    (c) => c.name == 'CCTV-2',
+    (c) => c.name == 'CCTV-2 财经',
   );
   expect(
     tester.widget<LiveBrowser>(find.byType(LiveBrowser)).selectedId,
@@ -251,7 +256,7 @@ Future<void> _explicitPlayback(WidgetTester tester) async {
   await _until(tester, () => find.byType(PlayerPage).evaluate().isNotEmpty);
   final player = tester.widget<PlayerPage>(find.byType(PlayerPage));
   expect(player.request.live, isTrue);
-  expect(player.request.item.lines[player.request.line].name, 'CCTV-1');
+  expect(player.request.item.lines[player.request.line].name, 'CCTV-1 综合');
   await _until(tester, () => (fixture.calls['/sample.mp4'] ?? 0) > before);
   GoRouter.of(tester.element(find.byType(PlayerPage))).pop();
   await tester.pumpAndSettle();

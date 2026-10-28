@@ -9,6 +9,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:zero_player/core/network/file_response.dart';
 import 'package:zero_player/core/platform/desktop_lifecycle.dart';
 import 'package:zero_player/core/platform/desktop_radio_tray.dart';
+import 'package:zero_player/core/platform/platform_services.dart';
 import 'package:zero_player/features/live/domain/live_channel.dart';
 import 'package:zero_player/features/radio/application/radio_controller.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
@@ -29,6 +30,12 @@ void main() {
       final radio = RadioController(() => engine);
       final desktop = DesktopLifecycle(File('${root.path}/window.json'));
       final tray = DesktopRadioTray(radio, desktop);
+      final platform = PlatformServices()..desktop = desktop;
+      final exitListener = AppLifecycleListener(
+        onExitRequested: () => platform.requestAppExit(() async {
+          fail('Radio must remain alive when the window closes');
+        }),
+      );
       const channel = MethodChannel('zero_player/radio_tray');
       try {
         await windowManager.ensureInitialized();
@@ -57,7 +64,8 @@ void main() {
           ))!['registered'],
           isTrue,
         );
-        await desktop.closeWindow();
+        await windowManager.close();
+        await _waitForHiddenWindow();
         expect(
           (await channel.invokeMapMethod<String, Object?>('status'))!['hidden'],
           isTrue,
@@ -84,6 +92,7 @@ void main() {
           isFalse,
         );
       } finally {
+        exitListener.dispose();
         await tray.show();
         await tray.dispose();
         await radio.close();
@@ -94,6 +103,16 @@ void main() {
     },
     skip: !Platform.isWindows,
   );
+}
+
+Future<void> _waitForHiddenWindow() async {
+  final watch = Stopwatch()..start();
+  while (await windowManager.isVisible()) {
+    if (watch.elapsed > const Duration(seconds: 5)) {
+      fail('Native window close did not reach the tray lifecycle');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
 }
 
 Future<File> _silentAudio(Directory root) async {

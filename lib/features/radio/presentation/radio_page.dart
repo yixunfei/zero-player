@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/app_services.dart';
 import '../../../app/list_keyboard_navigation.dart';
 import '../../../core/network/cancellation_token.dart';
@@ -9,6 +10,8 @@ import '../data/radio_repository.dart';
 import 'radio_player_controls.dart';
 import 'radio_subscriptions_dialog.dart';
 import 'radio_toolbar.dart';
+import 'radio_mini_player.dart';
+import '../domain/radio_category.dart';
 
 final class RadioPage extends StatefulWidget {
   const RadioPage({super.key, required this.services});
@@ -27,6 +30,8 @@ final class _RadioPageState extends State<RadioPage> {
   String? _error;
   String _group = '';
   bool _favoritesOnly = false;
+  RadioCategory? _category;
+  bool _playerExpanded = true;
   late final void Function() _removeCloseHook;
 
   @override
@@ -90,7 +95,7 @@ final class _RadioPageState extends State<RadioPage> {
           child: Text(error),
         ),
       Expanded(child: _stations()),
-      RadioPlayerControls(controller: _controller),
+      _player(),
     ],
   );
 
@@ -98,7 +103,9 @@ final class _RadioPageState extends State<RadioPage> {
     query: _query,
     groups: {
       for (final station in _catalog?.stations ?? [])
-        if (station.group.isNotEmpty) station.group,
+        if (station.group.isNotEmpty &&
+            (_category == null || radioCategory(station) == _category))
+          station.group,
     },
     group: _group,
     favoritesOnly: _favoritesOnly,
@@ -110,6 +117,34 @@ final class _RadioPageState extends State<RadioPage> {
     onSubscriptions: _subscriptions,
     onInfo: _sourceInfo,
     onRefresh: () => _load(refresh: true),
+    category: _category,
+    onCategory: (value) => setState(() {
+      _category = value;
+      _group = '';
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    }),
+    onCollapse: () {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/');
+      }
+    },
+  );
+
+  Widget _player() => ListenableBuilder(
+    listenable: _controller,
+    builder: (context, _) => _playerExpanded || !_controller.active
+        ? RadioPlayerControls(
+            controller: _controller,
+            onCollapse: _controller.active
+                ? () => setState(() => _playerExpanded = false)
+                : null,
+          )
+        : RadioMiniPlayer(
+            controller: _controller,
+            onExpand: () => setState(() => _playerExpanded = true),
+          ),
   );
 
   Widget _stations() {
@@ -118,6 +153,7 @@ final class _RadioPageState extends State<RadioPage> {
         .where(
           (station) =>
               (!_favoritesOnly || station.favorite) &&
+              (_category == null || radioCategory(station) == _category) &&
               (_group.isEmpty || station.group == _group) &&
               (query.isEmpty || station.name.toLowerCase().contains(query)),
         )
@@ -149,6 +185,8 @@ final class _RadioPageState extends State<RadioPage> {
               leading: Icon(
                 selected && _controller.playing
                     ? Icons.graphic_eq
+                    : radioCategory(station) == RadioCategory.television
+                    ? Icons.tv_outlined
                     : Icons.radio_outlined,
               ),
               title: Text(
@@ -156,7 +194,12 @@ final class _RadioPageState extends State<RadioPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(station.group.isEmpty ? '网络广播' : station.group),
+              subtitle: Text(
+                [
+                  radioCategory(station).label,
+                  if (station.group.isNotEmpty) station.group,
+                ].join(' · '),
+              ),
               trailing: IconButton(
                 tooltip: station.favorite ? '取消收藏电台' : '收藏电台',
                 icon: Icon(station.favorite ? Icons.star : Icons.star_outline),
@@ -182,7 +225,10 @@ final class _RadioPageState extends State<RadioPage> {
                   }
                 }),
               ),
-              onTap: () => _controller.select(station),
+              onTap: () {
+                setState(() => _playerExpanded = true);
+                unawaited(_controller.select(station));
+              },
             );
           },
         ),

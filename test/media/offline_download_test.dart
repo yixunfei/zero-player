@@ -58,6 +58,11 @@ void main() {
       try {
         final session = await server.open('task', directory, entry);
         expect(server.isPlaying('task'), isTrue);
+        expect(server.isRegisteredPlaylist(session.uri), isTrue);
+        expect(
+          server.isRegisteredPlaylist(session.uri.replace(port: 1)),
+          isFalse,
+        );
         final response = await (await client.getUrl(session.uri)).close();
         final text = await utf8.decoder.bind(response).join();
         final parts = text.split('\n').where((l) => l.endsWith('.ts')).toList();
@@ -67,6 +72,7 @@ void main() {
         expect(await data.expand((chunk) => chunk).toList(), [3, 4]);
         session.close();
         expect(server.isPlaying('task'), isFalse);
+        expect(server.isRegisteredPlaylist(session.uri), isFalse);
         await File(p.join(directory.path, entry)).writeAsString('corrupt');
         await expectLater(
           server.open('task', directory, entry),
@@ -231,7 +237,7 @@ void _quotaTests() {
 Future<void> _initializeFixture() async {
   directory = await Directory.systemTemp.createTemp('zero-offline-');
   db = AppDatabase.memory();
-  http = MediaHttpClient();
+  http = MediaHttpClient(allowPrivateNetworks: true);
   store = SegmentStore(
     Directory(p.join(directory.path, 'cache')),
     metadata: SegmentIndex(db),

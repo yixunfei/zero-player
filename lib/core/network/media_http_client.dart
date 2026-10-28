@@ -4,6 +4,8 @@ import 'dart:io';
 import 'cancellation_token.dart';
 import 'header_policy.dart';
 import 'request_scheduler.dart';
+import 'request_trace.dart';
+import 'network_target_policy.dart';
 
 final class HttpPayload {
   const HttpPayload(this.uri, this.response, this.body);
@@ -18,16 +20,23 @@ final class MediaHttpClient {
   MediaHttpClient({
     this.timeout = const Duration(seconds: 15),
     RequestScheduler? scheduler,
+    bool allowPrivateNetworks = false,
   }) : _scheduler =
            scheduler ?? RequestScheduler(globalLimit: 20, playbackReserve: 2),
-       _ownsScheduler = scheduler == null {
+       _ownsScheduler = scheduler == null,
+       targetPolicy = NetworkTargetPolicy(
+         allowPrivateNetworks: allowPrivateNetworks,
+       ) {
     _client.connectionTimeout = timeout;
+    _client.connectionFactory = targetPolicy.connect;
+    _client.findProxy = (_) => 'DIRECT';
     _client.autoUncompress = false;
     _client.maxConnectionsPerHost = 4;
     _client.idleTimeout = const Duration(seconds: 20);
     _client.userAgent = 'ZeroPlayer/0.1';
   }
   final Duration timeout;
+  final NetworkTargetPolicy targetPolicy;
   final RequestScheduler _scheduler;
   final bool _ownsScheduler;
   final HttpClient _client = HttpClient();
@@ -44,11 +53,7 @@ final class MediaHttpClient {
     final initialOrigin = HeaderPolicy.origin(uri);
     for (var redirects = 0; redirects <= 5; redirects++) {
       cancellation?.check();
-      if (!{'http', 'https'}.contains(uri.scheme) || uri.userInfo.isNotEmpty) {
-        throw const FormatException(
-          'Only HTTP(S) URLs without userinfo allowed',
-        );
-      }
+      NetworkTargetPolicy.validateUri(uri);
       onActivity?.call(false);
       final permit = await _scheduler.acquire(
         uri,
@@ -57,8 +62,11 @@ final class MediaHttpClient {
       );
       HttpClientRequest? request;
       void Function()? remove;
+      final watch = Stopwatch();
+      var recorded = false;
       try {
         onActivity?.call(true);
+        watch.start();
         cancellation?.check();
         request = await _createRequest(uri, cancellation);
         request.followRedirects = false;
@@ -73,6 +81,22 @@ final class MediaHttpClient {
         );
         cancellation?.check();
         final response = await request.close().timeout(timeout);
+        recordRequestTrace(
+          uri: uri,
+          elapsedMs: watch.elapsedMilliseconds,
+          requestHeaders: diagnosticHttpHeaders(request.headers),
+          status: response.statusCode,
+          responseHeaders: {
+            for (final name in [
+              'content-type',
+              'content-length',
+              'server',
+              'location',
+            ])
+              name: ?response.headers.value(name),
+          },
+        );
+        recorded = true;
         if ({301, 302, 303, 307, 308}.contains(response.statusCode)) {
           final location = response.headers.value(HttpHeaders.locationHeader);
           await _body(
@@ -91,7 +115,15 @@ final class MediaHttpClient {
           response,
           _body(response, request, remove, cancellation, permit),
         );
-      } catch (_) {
+      } catch (error) {
+        if (!recorded) {
+          recordRequestTrace(
+            uri: uri,
+            elapsedMs: watch.elapsedMilliseconds,
+            requestHeaders: policy.forUri(uri),
+            error: error.runtimeType.toString(),
+          );
+        }
         request?.abort();
         remove?.call();
         permit.release();

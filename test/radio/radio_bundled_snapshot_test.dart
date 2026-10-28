@@ -10,7 +10,7 @@ void main() {
     'bundled successful snapshot supports first-launch offline browsing',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final repo = RadioRepository(db, DocumentClient(http));
       addTearDown(() async {
         await repo.close();

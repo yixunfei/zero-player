@@ -113,7 +113,11 @@ void main() {
 
 Future<void> _initializeFixture() async {
   root = await Directory.systemTemp.createTemp('zero-player-session-');
-  services = AppServices.scoped(root, AppDatabase.memory());
+  services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
   await services.settings.load();
   await services.gateway.start();
   engine = FakePlayerEngine();

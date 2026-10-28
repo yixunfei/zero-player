@@ -268,7 +268,7 @@ void _closeTest() {
         request.response.write(_catalog('new'));
       });
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final sources = SourceRepository(db);
       final service = SubscriptionService(DocumentClient(http), sources);
       addTearDown(() async {
@@ -311,7 +311,7 @@ final class _Fixture {
   final HttpTestServer server;
   final Map<String, String> responses;
   final db = AppDatabase.memory();
-  final http = MediaHttpClient();
+  final http = MediaHttpClient(allowPrivateNetworks: true);
   late final sources = SourceRepository(db);
   late final live = LiveRepository(db, DocumentClient(http));
   late final service = SubscriptionService(DocumentClient(http), sources);

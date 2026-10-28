@@ -6,6 +6,15 @@ import '../../radio/data/radio_backup_validation.dart';
 /// SQL string alone must not turn malformed JSON into a persistent startup fault.
 void validateBackupRecord(String table, Map row) {
   if (table == 'app_meta') {
+    if ((row['key'] as String).startsWith('source_favorite:')) {
+      if (!RegExp(
+            r'^source_favorite:[a-f0-9]{64}$',
+          ).hasMatch(row['key'] as String) ||
+          !{'true', 'false'}.contains(row['value'])) {
+        throw const FormatException('渠道收藏字段无效');
+      }
+      return;
+    }
     if (validateRadioMetadata(row['key'] as String, row['value'] as String)) {
       return;
     }

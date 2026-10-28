@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../sources/domain/video_source.dart';
+import '../../sources/presentation/source_menu_label.dart';
 import 'home_search.dart';
 
 final class DiscoveryToolbar extends StatelessWidget {
@@ -15,6 +16,9 @@ final class DiscoveryToolbar extends StatelessWidget {
     required this.onSaveDefault,
     required this.onRefresh,
     required this.onSearch,
+    this.isFavorite = false,
+    this.onFavorite,
+    this.onDetails,
   });
   final List<VideoSource> sources;
   final String channel;
@@ -26,6 +30,8 @@ final class DiscoveryToolbar extends StatelessWidget {
   final VoidCallback onSaveDefault;
   final VoidCallback onRefresh;
   final VoidCallback onSearch;
+  final bool isFavorite;
+  final VoidCallback? onFavorite, onDetails;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -39,6 +45,18 @@ final class DiscoveryToolbar extends StatelessWidget {
           Expanded(child: HomeSearch(onSearch: onSearch)),
           const SizedBox(width: 8),
           if (wide) ...[
+            if (onFavorite != null)
+              IconButton(
+                tooltip: isFavorite ? '取消收藏渠道' : '收藏渠道',
+                onPressed: onFavorite,
+                icon: Icon(isFavorite ? Icons.star : Icons.star_outline),
+              ),
+            if (onDetails != null)
+              IconButton(
+                tooltip: '渠道详情',
+                onPressed: onDetails,
+                icon: const Icon(Icons.info_outline),
+              ),
             SegmentedButton<bool>(
               segments: const [
                 ButtonSegment(value: false, label: Text('单类浏览')),
@@ -68,6 +86,8 @@ final class DiscoveryToolbar extends StatelessWidget {
     key: ValueKey('home-channel:$channel'),
     initialValue: sources.any((s) => s.id == channel) ? channel : '',
     isExpanded: true,
+    itemHeight: 48,
+    menuMaxHeight: 420,
     decoration: const InputDecoration(labelText: '推荐频道', isDense: true),
     items: [
       DropdownMenuItem(
@@ -77,7 +97,16 @@ final class DiscoveryToolbar extends StatelessWidget {
       for (final source in sources)
         DropdownMenuItem(
           value: source.id,
-          child: Text(source.displayName, overflow: TextOverflow.ellipsis),
+          child: Row(
+            children: [
+              if (source.favorite)
+                const Padding(
+                  padding: EdgeInsets.only(right: 6),
+                  child: Icon(Icons.star, size: 16),
+                ),
+              Expanded(child: SourceMenuLabel(source)),
+            ],
+          ),
         ),
     ],
     onChanged: (value) {
@@ -97,9 +126,20 @@ final class DiscoveryToolbar extends StatelessWidget {
           onSaveDefault();
         case 'refresh':
           onRefresh();
+        case 'favorite':
+          onFavorite?.call();
+        case 'details':
+          onDetails?.call();
       }
     },
     itemBuilder: (_) => [
+      if (onFavorite != null)
+        PopupMenuItem(
+          value: 'favorite',
+          child: Text(isFavorite ? '★ 取消收藏渠道' : '☆ 收藏渠道'),
+        ),
+      if (onDetails != null)
+        const PopupMenuItem(value: 'details', child: Text('渠道详情')),
       CheckedPopupMenuItem(
         value: 'single',
         checked: !aggregate,

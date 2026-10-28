@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../domain/radio_category.dart';
 
 final class RadioToolbar extends StatelessWidget {
   const RadioToolbar({
@@ -14,6 +15,9 @@ final class RadioToolbar extends StatelessWidget {
     required this.onSubscriptions,
     required this.onInfo,
     required this.onRefresh,
+    required this.onCollapse,
+    required this.onCategory,
+    this.category,
     this.updatedAt,
   });
   final TextEditingController query;
@@ -23,6 +27,9 @@ final class RadioToolbar extends StatelessWidget {
   final DateTime? updatedAt;
   final ValueChanged<String> onGroup;
   final ValueChanged<bool> onFavorites;
+  final RadioCategory? category;
+  final ValueChanged<RadioCategory?> onCategory;
+  final VoidCallback onCollapse;
   final VoidCallback onSearch, onSubscriptions, onInfo, onRefresh;
 
   @override
@@ -42,6 +49,11 @@ final class RadioToolbar extends StatelessWidget {
 
   Widget _heading() => Row(
     children: [
+      IconButton(
+        tooltip: '收起广播页面',
+        onPressed: onCollapse,
+        icon: const Icon(Icons.keyboard_arrow_down),
+      ),
       const Expanded(
         child: Text(
           '在线广播 · 实验阶段',
@@ -70,6 +82,17 @@ final class RadioToolbar extends StatelessWidget {
     spacing: 8,
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
+      ChoiceChip(
+        label: const Text('全部（广播优先）'),
+        selected: category == null,
+        onSelected: (_) => onCategory(null),
+      ),
+      for (final type in RadioCategory.values)
+        ChoiceChip(
+          label: Text(type.label),
+          selected: category == type,
+          onSelected: (_) => onCategory(type),
+        ),
       FilterChip(
         label: const Text('收藏电台'),
         selected: favoritesOnly,

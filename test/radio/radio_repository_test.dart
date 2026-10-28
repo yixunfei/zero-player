@@ -24,7 +24,7 @@ void main() {
     'radio caches independently, preserves old list after a failed refresh',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       var requests = 0;
       var broken = false;
       final server = await HttpTestServer.start((request) async {
@@ -73,7 +73,7 @@ void main() {
     'a corrupt radio snapshot is replaced with a valid network response',
     () async {
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final server = await HttpTestServer.start((request) async {
         request.response.write(
           '#EXTM3U\n#EXTINF:-1,电台\nhttps://example.com/live.mp3\n',

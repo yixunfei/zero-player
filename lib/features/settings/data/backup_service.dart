@@ -31,7 +31,8 @@ final class BackupService {
   ];
   static const _liveMetadata =
       " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*'"
-      " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'";
+      " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'"
+      " OR key GLOB 'source_favorite:*'";
 
   Future<String> export() async => db.transaction(() async {
     final data = <String, Object>{};

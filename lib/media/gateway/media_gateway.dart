@@ -6,6 +6,7 @@ import 'dart:math';
 import '../../core/network/cancellation_token.dart';
 import '../../core/network/header_policy.dart';
 import '../../core/network/media_http_client.dart';
+import '../../core/network/network_target_policy.dart';
 import '../cache/resource_identity.dart';
 import '../cache/segment_store.dart';
 import '../cache/segment_fetcher.dart';
@@ -14,6 +15,7 @@ import '../hls/hls_manifest.dart';
 import '../hls/hls_quality.dart';
 import '../hls/ad_filter.dart';
 import '../hls/timeline.dart';
+import '../network/media_response_policy.dart';
 
 final class GatewaySession {
   GatewaySession._(this._gateway, this.token, this.policy);
@@ -38,11 +40,34 @@ final class GatewaySession {
   final cancellation = CancellationToken();
   bool _closed = false;
 
+  Future<Uri> openMedia(Uri uri) async {
+    NetworkTargetPolicy.validateUri(uri);
+    var hls = uri.path.toLowerCase().endsWith('.m3u8');
+    if (!hls &&
+        !RegExp(
+          r'\.(mp3|aac|mp4|flv|mkv|webm|ts|ogg|wav|flac)$',
+          caseSensitive: false,
+        ).hasMatch(uri.path)) {
+      final payload = await _gateway._client.open(
+        uri,
+        policy: policy,
+        cancellation: cancellation,
+      );
+      final first = await payload.body.take(1).toList();
+      hls =
+          first.isNotEmpty &&
+          utf8
+              .decode(first.first.take(512).toList(), allowMalformed: true)
+              .trimLeft()
+              .startsWith('#EXTM3U');
+    }
+    cancellation.check();
+    return register(uri, playlist: hls, streaming: !hls);
+  }
+
   Uri register(Uri uri, {bool playlist = false, bool streaming = false}) {
     if (_closed) throw StateError('Session is closed');
-    if (!{'http', 'https'}.contains(uri.scheme) || uri.userInfo.isNotEmpty) {
-      throw const FormatException('Unsupported media URL');
-    }
+    NetworkTargetPolicy.validateUri(uri);
     if (_resources.length >= 20000 && !_ids.containsKey(uri)) {
       throw const FormatException('Playlist resource limit exceeded');
     }
@@ -62,6 +87,9 @@ final class GatewaySession {
     cancellation.cancel();
     _resources.clear();
     _ids.clear();
+    _playlists.clear();
+    _streaming.clear();
+    _variables.clear();
     _gateway._sessions.remove(token);
   }
 }
@@ -69,9 +97,14 @@ final class GatewaySession {
 /// Capability URLs map to registered resources; there is no arbitrary URL
 /// query parameter and the socket is bound exclusively to IPv4 loopback.
 final class MediaGateway {
-  MediaGateway(this.store, {MediaHttpClient? client})
-    : _client = client ?? MediaHttpClient(),
-      _ownsClient = client == null;
+  MediaGateway(
+    this.store, {
+    MediaHttpClient? client,
+    bool allowPrivateNetworks = false,
+  }) : _client =
+           client ??
+           MediaHttpClient(allowPrivateNetworks: allowPrivateNetworks),
+       _ownsClient = client == null;
   final SegmentStore store;
   final MediaHttpClient _client;
   final bool _ownsClient;
@@ -84,6 +117,22 @@ final class MediaGateway {
   int requests = 0;
   int failures = 0;
   Uri get baseUri => Uri.parse('http://127.0.0.1:${_server!.port}/');
+
+  bool isRegisteredPlaylist(Uri uri) {
+    if (_server == null ||
+        uri.scheme != 'http' ||
+        uri.origin != baseUri.origin ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return false;
+    }
+    final parts = uri.pathSegments;
+    if (parts.length != 2) return false;
+    final session = _sessions[parts[0]];
+    final resource = session?._resources[parts[1]];
+    return resource != null && session!._playlists.contains(resource);
+  }
 
   Future<void> start() {
     if (_closed) return Future.error(StateError('Gateway is closed'));
@@ -121,7 +170,9 @@ final class MediaGateway {
       }
       // Browsers must not turn the native player's capability URL into a
       // cross-origin fetch endpoint. Native engines do not send Origin.
-      if (request.headers.value('origin') != null) {
+      if (request.headers.value('origin') != null ||
+          request.headers.value('sec-fetch-site') != null ||
+          request.headers.value('host') != baseUri.authority) {
         request.response.statusCode = HttpStatus.forbidden;
         return;
       }
@@ -133,6 +184,11 @@ final class MediaGateway {
         return;
       }
       requests++;
+      request.response.headers.set('X-Content-Type-Options', 'nosniff');
+      request.response.headers.set(
+        'Content-Security-Policy',
+        "default-src 'none'; sandbox",
+      );
       final range = request.headers.value(HttpHeaders.rangeHeader);
       if (range != null && !RegExp(r'^bytes=(\d+-\d*|-\d+)$').hasMatch(range)) {
         request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
@@ -161,12 +217,20 @@ final class MediaGateway {
           return;
         }
         final resource = lease.resource;
+        validateMediaType(resource.headers[HttpHeaders.contentTypeHeader]);
         session.prefetch.observe(uri, resource.length, range: range);
         request.response.statusCode = resource.statusCode;
         resource.headers.forEach(request.response.headers.set);
         request.response.contentLength = resource.length;
         if (request.method != 'HEAD') {
-          await request.response.addStream(resource.file.openRead());
+          await request.response.addStream(
+            guardMediaBody(
+              resource.file.openRead(),
+              inspectPrefix: startsMediaEntity(
+                resource.headers[HttpHeaders.contentRangeHeader],
+              ),
+            ),
+          );
         }
       }
     } catch (_) {
@@ -174,6 +238,8 @@ final class MediaGateway {
       // Never expose signed upstream URLs, headers, tokens or raw exceptions.
       try {
         request.response.statusCode = HttpStatus.badGateway;
+        request.response.contentLength = -1;
+        request.response.headers.contentType = ContentType.text;
         request.response.write('Media request failed');
       } catch (_) {
         // Client disconnected or response headers already sent.
@@ -200,14 +266,29 @@ final class MediaGateway {
       range: range,
       cancellation: session.cancellation,
     );
-    final body = StreamIterator(payload.body);
+    final body = StreamIterator(
+      guardMediaBody(
+        payload.body,
+        inspectPrefix: startsMediaEntity(
+          payload.response.headers.value(HttpHeaders.contentRangeHeader),
+        ),
+      ),
+    );
+    var hasFirst = false;
     Stream<List<int>> chunks() async* {
+      if (hasFirst) yield body.current;
       while (await body.moveNext()) {
         yield body.current;
       }
     }
 
     try {
+      validateMediaType(
+        payload.response.headers.value(HttpHeaders.contentTypeHeader),
+      );
+      // addStream commits headers even if its first event is an error. Inspect
+      // the first guarded chunk before committing any upstream response state.
+      if (request.method != 'HEAD') hasFirst = await body.moveNext();
       request.response.statusCode = payload.response.statusCode;
       for (final name in [
         HttpHeaders.contentTypeHeader,
@@ -236,7 +317,7 @@ final class MediaGateway {
       cancellation: session.cancellation,
     );
     if (payload.response.statusCode != 200) {
-      await payload.body.drain<void>();
+      await payload.body.take(0).drain<void>();
       throw const HttpException('Manifest unavailable');
     }
     final bytes = <int>[];
@@ -302,7 +383,7 @@ final class MediaGateway {
     );
     final response = payload.response;
     if (response.statusCode != 200 && response.statusCode != 206) {
-      await payload.body.drain<void>();
+      await payload.body.take(0).drain<void>();
       throw const HttpException('Media unavailable');
     }
     // A Range request is never relabelled 206 if the server ignores it.
@@ -315,9 +396,20 @@ final class MediaGateway {
       final value = response.headers.value(name);
       if (value != null) headers[name] = value;
     }
+    try {
+      validateMediaType(response.headers.value(HttpHeaders.contentTypeHeader));
+    } catch (_) {
+      await payload.body.take(0).drain<void>();
+      rethrow;
+    }
     return store.write(
       key,
-      payload.body,
+      guardMediaBody(
+        payload.body,
+        inspectPrefix: startsMediaEntity(
+          response.headers.value(HttpHeaders.contentRangeHeader),
+        ),
+      ),
       statusCode: response.statusCode,
       headers: headers,
       expectedLength: response.contentLength < 0

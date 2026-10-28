@@ -1,5 +1,9 @@
 # 构建与打包
 
+v0.0.2 本轮只验收 Windows x64。先执行 `flutter build windows --release --no-pub`，再执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。产物在 `artifacts/release/0.0.2/`；该模式不会把旧 Android 构建混入新版本。必须保留便携目录的 DLL、data 和第三方声明。
+
+渠道核查使用 `flutter test tool/audit_sources.dart`；可用 `--dart-define=SOURCE_DATABASE=<路径>` 纳入本机渠道。对实际用户数据库应用快照前先用 `tool/backup_database.py` 创建一致性备份，再运行 `tool/apply_source_audit.dart`，显式提供 SOURCE_DATABASE 与 SOURCE_BACKUP。测试使用显式 `allowPrivateNetworks: true` 访问合成回环服务，生产入口不开放该权限。
+
 工具链：Flutter 3.44.1 / Dart 3.12.1、JDK 21、Android SDK、Visual Studio 2022 C++ 桌面组件。pubspec.lock 锁定依赖。Android minSdk 26，支持 arm64-v8a 和 x86_64。
 
 ## 检查与开发

@@ -7,6 +7,9 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Exclude an attacker-controlled working directory from DLL search. Keep
+  // Dart native asset loading flags intact (sqlite3 uses altered search paths).
+  ::SetDllDirectoryW(L"");
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
@@ -38,6 +41,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  // Plugins and the view may use COM during shutdown and dispatch window
+  // messages. Release them explicitly before COM and C++ member teardown.
+  window.Destroy();
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

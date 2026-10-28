@@ -11,7 +11,11 @@ import 'package:zero_player/features/playback/domain/player_engine.dart';
 void main() {
   test('shutdown can dispose an engine whose open never completes', () async {
     final root = await Directory.systemTemp.createTemp('playback-shutdown');
-    final services = AppServices.scoped(root, AppDatabase.memory());
+    final services = AppServices.scoped(
+      root,
+      AppDatabase.memory(),
+      allowPrivateNetworks: true,
+    );
     await services.gateway.start();
     final engine = _BlockedEngine();
     final player = PlaybackController(services, engine);

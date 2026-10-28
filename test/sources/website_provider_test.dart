@@ -67,7 +67,7 @@ void main() {
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode(data));
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final provider = createVodProvider(
           VideoSource(

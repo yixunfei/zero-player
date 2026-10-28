@@ -62,7 +62,7 @@ void main() {
         request.response.headers.set('content-type', 'text/plain; charset=GBK');
         request.response.add(zlib.encode(gzip.encode(chinese)));
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(http.close);
       addTearDown(server.close);
       expect((await DocumentClient(http).get(server.baseUri)).text, '中文');
@@ -79,7 +79,10 @@ void main() {
         request.response.write('ok');
       });
       final scheduler = RequestScheduler(globalLimit: 1);
-      final http = MediaHttpClient(scheduler: scheduler);
+      final http = MediaHttpClient(
+        allowPrivateNetworks: true,
+        scheduler: scheduler,
+      );
       addTearDown(http.close);
       addTearDown(scheduler.close);
       addTearDown(server.close);

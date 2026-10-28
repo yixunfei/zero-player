@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import '../application/radio_controller.dart';
 
 final class RadioPlayerControls extends StatelessWidget {
-  const RadioPlayerControls({super.key, required this.controller});
+  const RadioPlayerControls({
+    super.key,
+    required this.controller,
+    this.onCollapse,
+  });
   final RadioController controller;
+  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -18,12 +23,7 @@ final class RadioPlayerControls extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                station?.name ?? '选择电台，开始收听',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              _heading(context, station?.name),
               if (controller.error case final error?) Text(error),
               if (controller.loading || controller.buffering)
                 const LinearProgressIndicator(minHeight: 2),
@@ -89,5 +89,24 @@ final class RadioPlayerControls extends StatelessWidget {
         ),
       );
     },
+  );
+
+  Widget _heading(BuildContext context, String? name) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          name ?? '选择电台，开始收听',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ),
+      if (onCollapse != null)
+        IconButton(
+          tooltip: '收起广播播放器',
+          onPressed: onCollapse,
+          icon: const Icon(Icons.keyboard_arrow_down),
+        ),
+    ],
   );
 }

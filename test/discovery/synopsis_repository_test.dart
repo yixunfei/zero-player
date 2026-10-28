@@ -35,7 +35,7 @@ void main() {
         );
       });
       final db = AppDatabase.memory();
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       SynopsisRepository repository() => SynopsisRepository(
         DocumentClient(http),
         db,

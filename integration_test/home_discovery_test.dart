@@ -13,6 +13,10 @@ import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/app/product_app.dart';
 import 'package:zero_player/app/shell.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/features/discovery/presentation/discovery_toolbar.dart';
+import 'package:zero_player/features/sources/data/source_diagnostics_store.dart';
+import 'package:zero_player/features/sources/domain/source_diagnostics.dart';
+import 'package:zero_player/features/sources/domain/source_catalog.dart';
 import '../test_support/http_test_server.dart';
 
 const configuredProject = String.fromEnvironment('PROJECT_ROOT');
@@ -53,6 +57,15 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+  testWidgets(
+    'source favorites details and cached release calendar on Windows',
+    _curationExperience,
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+  testWidgets(
+    'long channel menu opens at the current native item',
+    _channelPosition,
+  );
   if (const bool.fromEnvironment('PUBLIC_HOME_SMOKE')) {
     testWidgets(
       'public Douban covers decode and render on Windows',
@@ -65,7 +78,11 @@ void main() {
 Future<void> _setUp() async {
   requests.clear();
   root = await Directory.systemTemp.createTemp('zero-home-test-');
-  services = AppServices.scoped(root, AppDatabase.memory());
+  services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
   await services.settings.load();
   await services.settings.update({
     'recommendation': 'off',
@@ -82,6 +99,131 @@ Future<void> _setUp() async {
     fixture.baseUri.resolve('api'),
   );
   await services.settings.update({'homeChannel': sourceId});
+}
+
+Future<void> _curationExperience(WidgetTester tester) async {
+  await SourceDiagnosticsStore(services.db).save(
+    sourceId,
+    SourceDiagnostics(
+      state: 'available',
+      checkedAt: DateTime.now(),
+      addresses: const ['127.0.0.1'],
+      tcpMs: 2,
+      dnsMs: 1,
+      port: fixture.baseUri.port,
+    ),
+  );
+  await _mount(tester);
+  await tester.tap(find.byTooltip('收藏渠道'));
+  await tester.pumpAndSettle();
+  expect((await services.sources.find(sourceId))!.favorite, isTrue);
+  expect(find.byTooltip('取消收藏渠道'), findsOneWidget);
+  final other = await services.sources.saveManual(
+    '收藏优先测试',
+    fixture.baseUri.resolve('other'),
+  );
+  await services.sources.favorite(other, true);
+  await tester.tap(find.byTooltip('取消收藏渠道'));
+  await tester.pumpAndSettle();
+  final toolbar = tester.widget<DiscoveryToolbar>(
+    find.byType(DiscoveryToolbar),
+  );
+  expect(toolbar.sources.first.id, other);
+  expect(toolbar.sources.first.favorite, isTrue);
+  await tester.tap(find.byTooltip('渠道详情'));
+  await tester.pumpAndSettle();
+  expect(find.text('127.0.0.1'), findsOneWidget);
+  expect(find.text('TCP Ping'), findsOneWidget);
+  expect(
+    find.descendant(of: find.byType(AlertDialog), matching: find.text('2 ms')),
+    findsOneWidget,
+  );
+  await _screenshot('source-curation-details.png');
+  await tester.tap(find.text('关闭'));
+  await tester.pumpAndSettle();
+  final router = GoRouter.of(tester.element(find.byType(AppShell)));
+  router.go('/sources');
+  await tester.pumpAndSettle();
+  expect(find.text('收藏优先测试'), findsOneWidget);
+  await binding.setSurfaceSize(const Size(390, 844));
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
+  await _screenshot('source-curation-phone.png');
+  router.go('/');
+  await binding.setSurfaceSize(const Size(1280, 900));
+  await tester.pumpAndSettle();
+  await _cachedCalendar(tester);
+  expect(find.textContaining('Bangumi'), findsNothing);
+  expect(find.text('影视榜单'), findsNothing);
+  expect(tester.takeException(), isNull);
+  await tester.pumpWidget(const SizedBox());
+  await binding.setSurfaceSize(null);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _cachedCalendar(WidgetTester tester) async {
+  await services.db.write(
+    'INSERT OR REPLACE INTO recommendation_cache VALUES(?,?,?)',
+    [
+      'release-calendar:douban',
+      jsonEncode([
+        {
+          'title': '日历交互测试影片',
+          'date': '2027年02月',
+          'genres': '剧情',
+          'region': '中国大陆',
+          'url': 'https://movie.douban.com/subject/1234567/',
+        },
+      ]),
+      DateTime.now().millisecondsSinceEpoch,
+    ],
+  );
+  await tester.tap(find.text('上映日历'));
+  await tester.pumpAndSettle();
+  expect(find.text('日历交互测试影片'), findsOneWidget);
+  expect(find.textContaining('本地成功缓存'), findsOneWidget);
+  await _screenshot('source-release-calendar.png');
+  await tester.tap(find.text('日历交互测试影片'));
+  await tester.pumpAndSettle();
+  expect(find.text('上映：2027年02月'), findsOneWidget);
+  expect(find.text('复制来源链接'), findsOneWidget);
+  await tester.tap(find.text('关闭'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _channelPosition(WidgetTester tester) async {
+  await services.sources.applySubscription(
+    Uri.parse('https://fixture.test/menu'),
+    'menu',
+    'fixture',
+    List.generate(
+      70,
+      (i) => SourceCandidate(
+        name: '频道 ${i.toString().padLeft(2, '0')}',
+        endpoint: fixture.baseUri.resolve('api$i'),
+        kind: SourceKind.cms,
+        requestedEnabled: true,
+      ),
+    ),
+    enableNew: true,
+  );
+  await _mount(tester);
+  await tester.tap(find.byType(DropdownButtonFormField<String>));
+  await tester.pumpAndSettle();
+  final menu = find.byType(ListView);
+  final current = find.descendant(of: menu, matching: find.text('首页测试频道'));
+  expect(current.hitTestable(), findsOneWidget);
+  final scroll = tester.state<ScrollableState>(
+    find.descendant(of: menu, matching: find.byType(Scrollable)).first,
+  );
+  expect(scroll.position.pixels, greaterThan(0));
+  await _screenshot('channel-current-menu.png');
+  await tester.tap(current);
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
+  await tester.pumpWidget(const SizedBox());
+  await binding.setSurfaceSize(null);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _serve(HttpRequest request) async {

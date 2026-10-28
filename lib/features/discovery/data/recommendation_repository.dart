@@ -43,12 +43,7 @@ final class Recommendations {
   final bool hasMore;
 }
 
-const recommendationNames = {
-  'douban': '豆瓣精选',
-  'bangumi': 'Bangumi 新番',
-  'hot': '影视榜单',
-  'off': '推荐已关闭',
-};
+const recommendationNames = {'douban': '豆瓣精选', 'off': '推荐已关闭'};
 const recommendationPageSize = 24;
 
 final class RecommendationRepository {
@@ -67,7 +62,7 @@ final class RecommendationRepository {
     int page = 1,
     CancellationToken? cancellation,
   }) async {
-    if (provider == 'off' || (page > 1 && provider != 'douban')) {
+    if (provider != 'douban') {
       return const Recommendations([]);
     }
     if (page < 1) throw ArgumentError.value(page, 'page');
@@ -156,36 +151,16 @@ final class RecommendationRepository {
   }
 }
 
-Uri recommendationUri(
-  String provider,
-  String type,
-  int page,
-) => switch (provider) {
-  'bangumi' => Uri.parse('https://api.bgm.tv/calendar'),
-  'hot' => Uri.https(
-    '60s.viki.moe',
-    type == 'baidu'
-        ? '/v2/baidu/teleplay'
-        : '/v2/douban/weekly/${hotCategories.containsKey(type) ? type : 'movie'}',
-  ),
-  _ => Uri.https('movie.douban.com', '/j/search_subjects', {
-    'type': movieCategories.contains(type) ? 'movie' : 'tv',
-    'tag': {'movie', 'tv'}.contains(type)
-        ? '热门'
-        : doubanCategories[type] ?? '热门',
-    'page_limit': '$recommendationPageSize',
-    'page_start': '${(page - 1) * recommendationPageSize}',
-  }),
-};
+Uri recommendationUri(String provider, String type, int page) =>
+    Uri.https('movie.douban.com', '/j/search_subjects', {
+      'type': movieCategories.contains(type) ? 'movie' : 'tv',
+      'tag': {'movie', 'tv'}.contains(type)
+          ? '热门'
+          : doubanCategories[type] ?? '热门',
+      'page_limit': '$recommendationPageSize',
+      'page_start': '${(page - 1) * recommendationPageSize}',
+    });
 
-const hotCategories = {
-  'movie': '豆瓣电影',
-  'tv_chinese': '华语剧集',
-  'tv_global': '全球剧集',
-  'show_chinese': '国内综艺',
-  'show_global': '全球综艺',
-  'baidu': '百度热播剧',
-};
 const doubanCategories = {
   'movie': '热门电影',
   'tv': '热门剧集',
@@ -216,44 +191,14 @@ const movieCategories = {
 };
 
 Map<String, String> recommendationCategories(String provider) =>
-    switch (provider) {
-      'hot' => hotCategories,
-      'bangumi' => const {
-        'all': '整周新番',
-        '1': '周一',
-        '2': '周二',
-        '3': '周三',
-        '4': '周四',
-        '5': '周五',
-        '6': '周六',
-        '7': '周日',
-      },
-      'off' => const {'movie': '推荐已关闭'},
-      _ => doubanCategories,
-    };
+    provider == 'douban' ? doubanCategories : const {'movie': '推荐已关闭'};
 
 List<Recommendation> parseRecommendations(
   String provider,
   Object? raw, {
   String type = 'movie',
 }) {
-  if (provider == 'bangumi' && raw is List) {
-    return [
-      for (final day in raw.whereType<Map>())
-        if (int.tryParse(type) == null ||
-            (day['weekday'] as Map?)?['id'] == int.parse(type))
-          for (final item in (day['items'] as List? ?? []).whereType<Map>())
-            Recommendation(
-              displayText(
-                '${item['name_cn'] == '' ? item['name'] : item['name_cn'] ?? item['name'] ?? ''}',
-              ),
-              '${(item['images'] as Map?)?['large'] ?? ''}',
-              displayText('${(day['weekday'] as Map?)?['cn'] ?? ''}'),
-              id: '${item['id'] ?? ''}',
-            ),
-    ].where((item) => item.title.trim().isNotEmpty).toList();
-  }
-  if (raw is! Map) return [];
+  if (provider != 'douban' || raw is! Map) return [];
   final list = raw['subjects'] ?? raw['data'];
   if (list is! List) return [];
   return [

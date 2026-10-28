@@ -12,11 +12,11 @@ void main() {
     addTearDown(db.close);
     final repository = SourceRepository(db);
     final report =
-        jsonDecode(await rootBundle.loadString('assets/source_precheck.json'))
+        jsonDecode(await rootBundle.loadString('assets/source_audit.json'))
             as Map;
     final uri = Uri.parse(
       (report['results'] as List).firstWhere(
-            (item) => item['defaultEnabled'] == true,
+            (item) => item['state'] == 'available' && item['kind'] == 'cms',
           )['url']
           as String,
     );
@@ -42,19 +42,25 @@ void main() {
         final all = await repository.all();
         expect(all, isNotEmpty);
         final report =
-            jsonDecode(
-                  await rootBundle.loadString('assets/source_precheck.json'),
-                )
+            jsonDecode(await rootBundle.loadString('assets/source_audit.json'))
                 as Map;
         final defaults = {
           for (final result in report['results'] as List)
-            result['url']: result['defaultEnabled'],
+            result['url']: !{
+              'unavailable',
+              'missingDomain',
+              'inconclusive',
+            }.contains(result['state']),
         };
-        expect(all.length, greaterThan(defaults.length));
+        expect(all.length, lessThanOrEqualTo(defaults.length));
         expect(all.any((s) => !s.enabled), isTrue);
         for (final source in all) {
           if (defaults.containsKey(source.endpoint.toString())) {
-            expect(source.enabled, defaults[source.endpoint.toString()]);
+            if (defaults[source.endpoint.toString()] == false) {
+              expect(source.enabled, isFalse);
+            } else if (source.classification != 'adult') {
+              expect(source.enabled, isTrue);
+            }
           } else {
             expect(source.enabled, source.classification != 'adult');
           }

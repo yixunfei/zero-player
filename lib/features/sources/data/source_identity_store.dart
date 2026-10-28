@@ -42,6 +42,16 @@ final class SourceIdentityStore {
   });
 
   Future<void> _merge(String keep, String duplicate) async {
+    for (final prefix in ['source_favorite:', 'source_diagnostic:']) {
+      await db.customStatement(
+        'INSERT OR IGNORE INTO app_meta(key,value) '
+        'SELECT ?,value FROM app_meta WHERE key=?',
+        ['$prefix$keep', '$prefix$duplicate'],
+      );
+      await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+        '$prefix$duplicate',
+      ]);
+    }
     await db.customStatement(
       '''INSERT OR IGNORE INTO source_memberships(subscription_id,source_id)
       SELECT subscription_id,? FROM source_memberships WHERE source_id=?''',

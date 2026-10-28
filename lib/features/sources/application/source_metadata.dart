@@ -2,8 +2,10 @@ import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../../../core/network/request_scheduler.dart';
 import '../../../core/text/display_text.dart';
+import 'package:html/parser.dart' as html;
 import '../data/source_repository.dart';
 import '../domain/video_source.dart';
+import '../domain/source_name.dart';
 
 Future<void> updateSourceMetadata(
   VideoSource source,
@@ -29,17 +31,10 @@ Future<void> updateSourceMetadata(
         maxBytes: 256 * 1024,
         cancellation: token,
         priority: RequestPriority.background,
+        networkTimeout: const Duration(seconds: 5),
       );
-      final match = RegExp(
-        r'<title[^>]*>([\s\S]*?)</title>',
-        caseSensitive: false,
-      ).firstMatch(document.text);
-      title = _text(match == null ? null : displayText(match[1]!));
-      if (title != null &&
-          !RegExp(
-            r'404|403|502|error|access denied|just a moment',
-            caseSensitive: false,
-          ).hasMatch(title)) {
+      title = sourceTitleFromHtml(document.text);
+      if (title != null) {
         homepage ??= document.uri;
       } else {
         title = null;
@@ -55,5 +50,31 @@ Future<void> updateSourceMetadata(
 
 String? _text(Object? value) {
   if (value is! String || value.trim().isEmpty) return null;
-  return value.trim().substring(0, value.trim().length.clamp(0, 120));
+  final text = displayText(value).trim();
+  if (text.isEmpty ||
+      isGenericSourceTitle(text) ||
+      RegExp(
+        r'404|403|502|error|access denied|just a moment|页面不存在|访问拒绝|安全验证|域名出售|domain.*sale|parking',
+        caseSensitive: false,
+      ).hasMatch(text)) {
+    return null;
+  }
+  return text.substring(0, text.length.clamp(0, 120));
+}
+
+String? sourceTitleFromHtml(String input) {
+  final document = html.parse(input);
+  for (final selector in [
+    'meta[property="og:site_name"]',
+    'meta[name="application-name"]',
+  ]) {
+    final value = _text(
+      document.querySelector(selector)?.attributes['content'],
+    );
+    if (value != null) return value;
+  }
+  final title = _text(document.querySelector('title')?.text);
+  if (title == null) return null;
+  final first = title.split(RegExp(r'\s*[-_|｜]\s*')).first.trim();
+  return first.length >= 2 ? first : title;
 }

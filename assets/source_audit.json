@@ -1,0 +1,5607 @@
+{
+  "checkedAt": "2026-10-28T06:10:56.684881Z",
+  "scope": "Local machine API/DNS/TCP only; not media playback",
+  "results": [
+    {
+      "id": "25ee38b56da976cc29de411283088622cccd27fcbd42181d0afbcbeef0a5bb3e",
+      "url": "https://360zy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "360资源站【360zy.com】",
+      "siteTitle": "360资源站【360zy.com】",
+      "homepage": "https://360zy.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165719991,
+      "addresses": [
+        "23.145.136.48"
+      ],
+      "dnsMs": 7,
+      "tcpMs": 84,
+      "port": 443,
+      "message": "360资源站【360zy.com】 · 797 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://360zy.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 695,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "360zy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "903338072a3adf1e1bddf32dbe1ab9a194fd58dfb038cbf76bcee827ddba2646",
+      "url": "http://39kan.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "39kan.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165720770,
+      "addresses": [
+        "2606:4700:3034::6815:52f5",
+        "2606:4700:3036::ac43:a634",
+        "185.53.179.128"
+      ],
+      "dnsMs": 8,
+      "tcpMs": 243,
+      "port": 80,
+      "message": "39kan.com · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://39kan.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1448,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "39kan.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "Caddy"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "e3ad3a04915aa327c850b966fd4cf4876f6717264bda6530db42dc06da64860a",
+      "url": "https://www.39kan.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "39影视",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167594236,
+      "addresses": [
+        "2606:4700:3036::ac43:a634",
+        "2606:4700:3034::6815:52f5",
+        "104.21.82.245",
+        "172.67.166.52"
+      ],
+      "dnsMs": 7,
+      "tcpMs": 234,
+      "port": 443,
+      "message": "39影视 · 服务返回错误 523，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.39kan.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 5210,
+          "status": 523,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.39kan.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/plain; charset=UTF-8",
+            "content-length": "16",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "4a2a378393513118a75ee49f4ab022928cf3b1566017887ff2e49f3a63ef81ea",
+      "url": "https://49zyw.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "49zyw.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167597492,
+      "addresses": [
+        "182.16.68.115"
+      ],
+      "dnsMs": 13,
+      "tcpMs": null,
+      "port": 443,
+      "message": "49zyw.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://49zyw.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 3023,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://49zyw.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 2964,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "c090d9b6432362267318c28e46804f343660efcd3a607b41d84da060b28b14d6",
+      "url": "https://caiji.523zyw.com/inc/seacmsapi.php",
+      "kind": "cms",
+      "name": "523资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167606133,
+      "addresses": [
+        "23.225.6.27"
+      ],
+      "dnsMs": 12,
+      "tcpMs": null,
+      "port": 443,
+      "message": "523资源 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.523zyw.com/inc/seacmsapi.php?ac=detail&pg=1",
+          "elapsedMs": 10340,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.523zyw.com/inc/seacmsapi.php?ac=detail&pg=1",
+          "elapsedMs": 3062,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "d0b3045619e12dfd36a8eabd1026a21f998e98c3fbcb57ed44ec89c61a8ca830",
+      "url": "https://wu5mv.com/",
+      "kind": "macCmsHtml",
+      "name": "555电影",
+      "siteTitle": "555电影",
+      "homepage": "https://wu5mv.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165720132,
+      "addresses": [
+        "91.110.157.251",
+        "23.179.248.130",
+        "91.110.146.123",
+        "23.225.139.37",
+        "103.156.24.200",
+        "206.161.216.135",
+        "172.247.175.106",
+        "192.151.192.14",
+        "162.209.175.252",
+        "91.110.167.29",
+        "154.201.82.117",
+        "23.225.187.173",
+        "23.224.132.221",
+        "137.220.194.44"
+      ],
+      "dnsMs": 13,
+      "tcpMs": 83,
+      "port": 443,
+      "message": "555电影 · 898 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://wu5mv.com/index/home.html",
+          "elapsedMs": 383,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "wu5mv.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "e04400f0f2fb64c862fe13c7f1d35014f2ed1d5ba9a7240f47fd9dcf81bb07a5",
+      "url": "https://91md.me/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "91麻豆",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167590063,
+      "addresses": [
+        "2606:4700:3034::ac43:862c",
+        "2606:4700:3034::6815:613",
+        "172.67.134.44",
+        "104.21.6.19"
+      ],
+      "dnsMs": 8,
+      "tcpMs": 237,
+      "port": 443,
+      "message": "91麻豆 · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://91md.me/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 349,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://91md.me/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 288,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "47f2f993be4958fc03e84e3e758468ff2d45e78bbfe47c8c5d1113fdf7ce8b1d",
+      "url": "https://ckzy.me/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "CK",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167606906,
+      "addresses": [
+        "2606:4700:3036::6815:cee",
+        "2606:4700:3031::ac43:99ed",
+        "172.67.153.237",
+        "104.21.12.238"
+      ],
+      "dnsMs": 7,
+      "tcpMs": 237,
+      "port": 443,
+      "message": "CK · 7882 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://ckzy.me/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 7879,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "ckzy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://ckzy.me/?",
+          "elapsedMs": 2599,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "ckzy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "84732ad1da0defccd27f863de5dd766f6a7b01a14eedf0b7ba2a4a599fecee8b",
+      "url": "https://kkzy.me/api.php/provide/vod/at/xmlsea",
+      "kind": "cms",
+      "name": "KK资源网",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167617895,
+      "addresses": [],
+      "dnsMs": 3001,
+      "tcpMs": null,
+      "port": 443,
+      "message": "KK资源网 · 服务返回错误 429，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://kkzy.me/api.php/provide/vod/at/xmlsea?ac=detail&pg=1",
+          "elapsedMs": 5000,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://kkzy.me/api.php/provide/vod/at/xmlsea?ac=detail&pg=1",
+          "elapsedMs": 1759,
+          "status": 429,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "kkzy.me"
+          },
+          "responseHeaders": {
+            "content-length": "0"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "b27579de2b4d62130bdc7011445916f47fcefd2c37b645dccdf4a3fbdee0e7f6",
+      "url": "http://api.1080zyku.com/inc/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.1080zyku.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167594049,
+      "addresses": [
+        "23.224.195.234",
+        "23.224.60.254",
+        "23.226.180.19",
+        "23.226.180.18",
+        "23.224.60.253",
+        "23.224.195.235"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 187,
+      "port": 80,
+      "message": "api.1080zyku.com · 来源连接中断或响应不完整，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.1080zyku.com/inc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 257,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.1080zyku.com/inc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 232,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "8819a4a7337c5896b5b8931641bcfba4a8ff7842a2049267df895ea59f8f3192",
+      "url": "http://api.apibdzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.apibdzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167619300,
+      "addresses": [
+        "2606:4700:3036::ac43:d9c6",
+        "2606:4700:3035::6815:184a",
+        "104.21.24.74",
+        "172.67.217.198"
+      ],
+      "dnsMs": 2,
+      "tcpMs": 245,
+      "port": 80,
+      "message": "api.apibdzy.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.apibdzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1063,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.apibdzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://api.apibdzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1049,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.apibdzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "14d6465be491a096031e6e2cf2630c5217e24807df23fdfd0cd97b03a5fb83e9",
+      "url": "http://api.apilyzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.apilyzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167611915,
+      "addresses": [],
+      "dnsMs": 16,
+      "tcpMs": null,
+      "port": 80,
+      "message": "api.apilyzy.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.apilyzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.apilyzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "79b0379cf3e82b4303ac08f2876d0e5ad40587d99faad617b5db3ff92f2ec7b8",
+      "url": "http://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8",
+      "kind": "cms",
+      "name": "api.guangsuapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167622744,
+      "addresses": [
+        "2606:4700:3033::6815:2966",
+        "2606:4700:3034::ac43:a42f",
+        "172.67.164.47",
+        "104.21.41.102"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 246,
+      "port": 80,
+      "message": "api.guangsuapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8?ac=detail&pg=1",
+          "elapsedMs": 576,
+          "status": 301,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.guangsuapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "cloudflare",
+            "location": "https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8?ac=detail&pg=1",
+          "elapsedMs": 15002,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "12c53bab8306a970fdc140b03940bf906657d6853c524e6b9460bdf92ebde75e",
+      "url": "http://api.kuapi.cc/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.kuapi.cc",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167618515,
+      "addresses": [],
+      "dnsMs": 14,
+      "tcpMs": null,
+      "port": 80,
+      "message": "api.kuapi.cc · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.kuapi.cc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.kuapi.cc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "5d9059bb924e30f68a5363b065237ec33036e8b0fa9a1f6bff4247f7bc0ff17e",
+      "url": "https://api.niuniuzy.me/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "api.niuniuzy.me",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167634159,
+      "addresses": [
+        "2606:4700:3037::6815:5eb4",
+        "2606:4700:3030::ac43:8b16",
+        "104.21.94.180",
+        "172.67.139.22"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 254,
+      "port": 443,
+      "message": "api.niuniuzy.me · 16665 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.niuniuzy.me/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 4079,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.niuniuzy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.niuniuzy.me/?",
+          "elapsedMs": 1476,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.niuniuzy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6e0abd812fc8a343f13d7cff1fb419346dedca13444e1fbf86dbf1d464860e52",
+      "url": "http://api.ukuapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.ukuapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167618509,
+      "addresses": [
+        "2606:4700:3035::6815:1596",
+        "2606:4700:3035::ac43:c74f",
+        "104.21.21.150",
+        "172.67.199.79"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 242,
+      "port": 80,
+      "message": "api.ukuapi.com · 来源连接中断或响应不完整，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.ukuapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 339,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.ukuapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 70,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "9f7a8847ccac913787d4fa36e6cbcdf9b45ffd5b93eedfa45186b1244705491d",
+      "url": "https://api.ukuapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "api.ukuapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167623818,
+      "addresses": [
+        "2606:4700:3035::6815:1596",
+        "2606:4700:3035::ac43:c74f",
+        "104.21.21.150",
+        "172.67.199.79"
+      ],
+      "dnsMs": 4,
+      "tcpMs": 252,
+      "port": 443,
+      "message": "api.ukuapi.com · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.ukuapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 286,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.ukuapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 73,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "a6854283589be954b9acf0d254b8948d0f90d57abea8165c47f4cb367dc93fbf",
+      "url": "https://api.wujinapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "api.wujinapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167629216,
+      "addresses": [
+        "104.21.40.208",
+        "172.67.157.10"
+      ],
+      "dnsMs": 10,
+      "tcpMs": 247,
+      "port": 443,
+      "message": "api.wujinapi.com · 6403 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.wujinapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 1817,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.wujinapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.wujinapi.com/?",
+          "elapsedMs": 389,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.wujinapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "64feb61d841d538d7c3f1624cb0c6994aee90e00cb547d15f04f5d0f6ad974c4",
+      "url": "http://api.ykapi.net/api.php/provide/vod",
+      "kind": "cms",
+      "name": "api.ykapi.net",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167629234,
+      "addresses": [],
+      "dnsMs": 227,
+      "tcpMs": null,
+      "port": 80,
+      "message": "api.ykapi.net · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.ykapi.net/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.ykapi.net/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "9e2da44c327eb167f50e091b94da0bc296badf2c5b89d64ceeeaa36c4dd9ae6f",
+      "url": "http://apittzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "apittzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167630694,
+      "addresses": [],
+      "dnsMs": 277,
+      "tcpMs": null,
+      "port": 80,
+      "message": "apittzy.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://apittzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://apittzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "b62aa2188f7bf393f5fc4f0ca7f40074b443ed5a48b640a15e23d21ecdb39e77",
+      "url": "https://bfzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "bfzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167647986,
+      "addresses": [
+        "2606:4700:3035::6815:5c58",
+        "2606:4700:3030::ac43:bedc",
+        "104.21.92.88",
+        "172.67.190.220"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 235,
+      "port": 443,
+      "message": "bfzyapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://bfzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 15000,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "fbc916ea3f3ebad08fde3a0008c1ed6d254707b6f8a007cff9be84368adab9e3",
+      "url": "http://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8",
+      "kind": "cms",
+      "name": "caiji.kczyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167630685,
+      "addresses": [
+        "172.237.146.25",
+        "172.237.146.8",
+        "172.233.219.78",
+        "172.233.219.123",
+        "172.237.146.38",
+        "172.233.219.49"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 293,
+      "port": 80,
+      "message": "caiji.kczyapi.com · 来源连接中断或响应不完整，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8?ac=detail&pg=1",
+          "elapsedMs": 577,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        },
+        {
+          "method": "GET",
+          "url": "http://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8?ac=detail&pg=1",
+          "elapsedMs": 569,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "e2346bcf5ce7a056aa55e70ad42d99234249c34754d69e56ecf5f1db6dcfd73e",
+      "url": "https://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8/",
+      "kind": "cms",
+      "name": "caiji.kczyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167631244,
+      "addresses": [
+        "172.237.146.25",
+        "172.237.146.8",
+        "172.233.219.78",
+        "172.233.219.123",
+        "172.237.146.38",
+        "172.233.219.49"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 301,
+      "port": 443,
+      "message": "caiji.kczyapi.com · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8/?ac=detail&pg=1",
+          "elapsedMs": 592,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.kczyapi.com/api.php/provide/vod/from/kcm3u8/?ac=detail&pg=1",
+          "elapsedMs": 550,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "ccc8fd040811cd955afdf24f5f04bee01f2b947e32abd72db88173b8326a4bbe",
+      "url": "https://caiji.moduapi.cc/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "caiji.moduapi.cc",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167654481,
+      "addresses": [
+        "2606:4700:3035::6815:1a32",
+        "2606:4700:3032::ac43:8765",
+        "172.67.135.101",
+        "104.21.26.50"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 240,
+      "port": 443,
+      "message": "caiji.moduapi.cc · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.moduapi.cc/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 3395,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "caiji.moduapi.cc"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "9848341e35f42a6b5a244a98da8ece535a082a6aac10428f25a6ac2bc0d646a6",
+      "url": "https://caiji.qhzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "caiji.qhzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167649578,
+      "addresses": [],
+      "dnsMs": 48,
+      "tcpMs": null,
+      "port": 443,
+      "message": "caiji.qhzyapi.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.qhzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.qhzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "27c9758948932ae7450b218c0de39d8c15874f0e4b84ca4c98d2967b0a646903",
+      "url": "http://cj.lziapi.com/api.php/provide/vod/from/lzm3u8",
+      "kind": "cms",
+      "name": "cj.lziapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165765680,
+      "addresses": [
+        "2606:4700:20::681a:bab",
+        "2606:4700:20::ac43:47bc",
+        "2606:4700:20::681a:aab",
+        "172.67.71.188",
+        "104.26.10.171",
+        "104.26.11.171"
+      ],
+      "dnsMs": 5,
+      "tcpMs": 212,
+      "port": 80,
+      "message": "cj.lziapi.com · 980 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://cj.lziapi.com/api.php/provide/vod/from/lzm3u8?ac=detail&pg=1",
+          "elapsedMs": 885,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.lziapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "application/json; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://cj.lziapi.com/?",
+          "elapsedMs": 97,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.lziapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "0425741824874aff6cd2fc1806e2df63e0d87971640476ed57be2e76acef5798",
+      "url": "https://cj.lziapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "cj.lziapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165765780,
+      "addresses": [
+        "2606:4700:20::681a:bab",
+        "2606:4700:20::ac43:47bc",
+        "2606:4700:20::681a:aab",
+        "172.67.71.188",
+        "104.26.10.171",
+        "104.26.11.171"
+      ],
+      "dnsMs": 0,
+      "tcpMs": 237,
+      "port": 443,
+      "message": "cj.lziapi.com · 522 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://cj.lziapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 400,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.lziapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "application/json; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://cj.lziapi.com/?",
+          "elapsedMs": 99,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.lziapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6dbc957a6fa4c7afc49e4ceeb8adfc04fae861b7b6ac78c1779887aa80484c4e",
+      "url": "https://cj.yayazy.net/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "cj.yayazy.net",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167655947,
+      "addresses": [
+        "2606:4700:3032::ac43:8a91",
+        "2606:4700:3033::6815:28c9",
+        "172.67.138.145",
+        "104.21.40.201"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 248,
+      "port": 443,
+      "message": "cj.yayazy.net · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://cj.yayazy.net/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 3218,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.yayazy.net"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "c53395458a39452f1fa0a78672171dbd753a21c0a74ac1b192ab5d424bd5154d",
+      "url": "http://collect.wolongzyw.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "collect.wolongzyw.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165772731,
+      "addresses": [
+        "157.90.33.74",
+        "157.90.33.73"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 215,
+      "port": 80,
+      "message": "collect.wolongzyw.com · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://collect.wolongzyw.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1084,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "collect.wolongzyw.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "6990",
+            "server": "Angie"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "05c8c373c31e3519daa536c6540810ef7b212cafc384c075f7902fc09e60b85d",
+      "url": "http://feisuzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "feisuzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167649591,
+      "addresses": [],
+      "dnsMs": 247,
+      "tcpMs": null,
+      "port": 80,
+      "message": "feisuzy.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://feisuzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://feisuzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 10,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "35e411aae395191ddbc138d4b2d5f04baca433374776ac10ec81991161cbbd52",
+      "url": "http://gwcms.cttv.vip/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "gwcms.cttv.vip",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167654173,
+      "addresses": [],
+      "dnsMs": 14,
+      "tcpMs": null,
+      "port": 80,
+      "message": "gwcms.cttv.vip · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://gwcms.cttv.vip/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://gwcms.cttv.vip/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "c01341c5fb215038189bb4b304babc0423a3cde0e8b4d574137ecb36b867d190",
+      "url": "http://haiwaikan.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "haiwaikan.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167652935,
+      "addresses": [
+        "172.233.219.78",
+        "172.233.219.123",
+        "172.237.146.38",
+        "172.237.146.25",
+        "172.233.219.49",
+        "172.237.146.8"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 290,
+      "port": 80,
+      "message": "haiwaikan.com · 来源连接中断或响应不完整，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://haiwaikan.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 315,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        },
+        {
+          "method": "GET",
+          "url": "http://haiwaikan.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 346,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "d477d65880204ecffba7ce9d4f4725fc8900f064d7b719eaf1cccad5bffb0206",
+      "url": "https://haiwaikan.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "haiwaikan.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167653075,
+      "addresses": [
+        "172.233.219.78",
+        "172.233.219.123",
+        "172.237.146.38",
+        "172.237.146.25",
+        "172.233.219.49",
+        "172.237.146.8"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 295,
+      "port": 443,
+      "message": "haiwaikan.com · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://haiwaikan.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 330,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://haiwaikan.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 84,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "401d8d39d12de6e31aa310eee8ee92d78436de36cddf9b0c7227fb44d90658a6",
+      "url": "https://hhzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "hhzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167658556,
+      "addresses": [
+        "2606:4700:3031::6815:5ed6",
+        "2606:4700:3030::ac43:8c53",
+        "104.21.94.214",
+        "172.67.140.83"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 276,
+      "port": 443,
+      "message": "hhzyapi.com · 6829 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://hhzyapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1160,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "hhzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://hhzyapi.com/?",
+          "elapsedMs": 1178,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "hhzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "5327",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "536a3b3a697883e24824d4b99d6cc0dd1b883e6d4d073c624990896481c8a1bd",
+      "url": "https://hw8.live/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "hw8.live",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167660300,
+      "addresses": [
+        "103.224.212.212"
+      ],
+      "dnsMs": 10,
+      "tcpMs": 220,
+      "port": 443,
+      "message": "hw8.live · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://hw8.live/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 728,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "hw8.live"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "0",
+            "server": "Apache",
+            "location": "https://ww38.hw8.live/api.php/provide/vod/?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://ww38.hw8.live/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 847,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://hw8.live/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 676,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "hw8.live"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "0",
+            "server": "Apache",
+            "location": "https://ww38.hw8.live/api.php/provide/vod/?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://ww38.hw8.live/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 818,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "d815217228571244732973e8f8ce8d912ad6c63602c8b5edbfad9fa971980455",
+      "url": "https://ikunzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "ikunzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167656237,
+      "addresses": [
+        "2606:4700:3034::6815:427c",
+        "2606:4700:3035::ac43:9fe8",
+        "172.67.159.232",
+        "104.21.66.124"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 238,
+      "port": 443,
+      "message": "ikunzyapi.com · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://ikunzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 271,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://ikunzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 290,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "9af8632c8dd86df08aee3be8cde26ed3b68064cd70089ae00a00196d5334ace7",
+      "url": "https://iqyi.xiaohuangrentv.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "iqyi.xiaohuangrentv.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167674651,
+      "addresses": [],
+      "dnsMs": 233,
+      "tcpMs": null,
+      "port": 443,
+      "message": "iqyi.xiaohuangrentv.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://iqyi.xiaohuangrentv.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://iqyi.xiaohuangrentv.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "2edadf5d0355aaf5c165b247a40711293d52aedfb5178a5e7472b329b4b49b27",
+      "url": "https://jszyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "jszyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167679732,
+      "addresses": [
+        "2606:4700:3034::6815:1f69",
+        "2606:4700:3037::ac43:b037",
+        "104.21.31.105",
+        "172.67.176.55"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 246,
+      "port": 443,
+      "message": "jszyapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://jszyapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1018,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "jszyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "ca33da924b72458dfb8c0dd7807e87d389f3118babf5b40a43f89b8ab1bf900b",
+      "url": "http://jyzyapi.com/provide/vod/from/jinyingm3u8",
+      "kind": "cms",
+      "name": "jyzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167660277,
+      "addresses": [
+        "2606:4700:3030::6815:5bd3",
+        "2606:4700:3037::ac43:b474",
+        "172.67.180.116",
+        "104.21.91.211"
+      ],
+      "dnsMs": 4,
+      "tcpMs": 1249,
+      "port": 80,
+      "message": "jyzyapi.com · 1329 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://jyzyapi.com/provide/vod/from/jinyingm3u8?ac=detail&pg=1",
+          "elapsedMs": 1269,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "jyzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://jyzyapi.com/?",
+          "elapsedMs": 253,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "jyzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "5263",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6a7a7b28be4d3337b8288053c3d1da304e00cc6fd680cdb808573d151037551b",
+      "url": "http://kudian10.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "kudian10.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165784310,
+      "addresses": [
+        "154.12.62.96"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 43,
+      "port": 80,
+      "message": "kudian10.com · 服务返回错误 404",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://kudian10.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 91,
+          "status": 404,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "kudian10.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "146",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "94772521e29df3dafad42cf965b60f2416928ee3a19a6f013e74d4539bc52338",
+      "url": "http://lehootv.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "lehootv.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167685248,
+      "addresses": [
+        "2a03:2880:f10d:83:face:b00c:0:25de",
+        "154.83.15.20"
+      ],
+      "dnsMs": 3,
+      "tcpMs": null,
+      "port": 80,
+      "message": "lehootv.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://lehootv.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "http://lehootv.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 4958,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "e89190579d4ba4556dbe1d05dd14e3d2af184e1f81371a044c897fce8fd97948",
+      "url": "http://lovedan.net/api.php/provide/vod",
+      "kind": "cms",
+      "name": "lovedan.net",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167680289,
+      "addresses": [
+        "2606:4700:3030::ac43:cedd",
+        "2606:4700:3031::6815:2561",
+        "104.21.37.97",
+        "172.67.206.221"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 233,
+      "port": 80,
+      "message": "lovedan.net · 14759 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://lovedan.net/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1250,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "lovedan.net"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://lovedan.net/?",
+          "elapsedMs": 1580,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "lovedan.net"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "07f693d984f9acc31698397fd765bb05bdbfa6d36e918544cc11c5995098b39a",
+      "url": "http://m3u8.apiyhzy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "m3u8.apiyhzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167676596,
+      "addresses": [
+        "2606:4700:3036::6815:4668",
+        "2606:4700:3036::ac43:deda",
+        "172.67.222.218",
+        "104.21.70.104"
+      ],
+      "dnsMs": 5,
+      "tcpMs": 232,
+      "port": 80,
+      "message": "m3u8.apiyhzy.com · 11938 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://m3u8.apiyhzy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 2567,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "m3u8.apiyhzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://m3u8.apiyhzy.com/?",
+          "elapsedMs": 1943,
+          "status": 500,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "m3u8.apiyhzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "bcb91cdfaec9d06819e4e9df7a42e72cff83474565da846ab134130130602d25",
+      "url": "https://m3u8.apiyhzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "m3u8.apiyhzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167685569,
+      "addresses": [
+        "2606:4700:3036::6815:4668",
+        "2606:4700:3036::ac43:deda",
+        "172.67.222.218",
+        "104.21.70.104"
+      ],
+      "dnsMs": 0,
+      "tcpMs": 267,
+      "port": 443,
+      "message": "m3u8.apiyhzy.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://m3u8.apiyhzy.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 1102,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "m3u8.apiyhzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "bfb57b1ef5615e5ac86b530d38ced52899037e9784e4896b1e19289ddd279569",
+      "url": "http://m3u8.bdxzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "m3u8.bdxzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167701128,
+      "addresses": [],
+      "dnsMs": 227,
+      "tcpMs": null,
+      "port": 80,
+      "message": "m3u8.bdxzyapi.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://m3u8.bdxzyapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://m3u8.bdxzyapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "dbf869abb4099dca20afeafad1885229e17a609ee7b572a0df7a3ac1c2ba009f",
+      "url": "https://p2100.net/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "p2100.net",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167701849,
+      "addresses": [
+        "2606:4700:3034::6815:5341",
+        "2606:4700:3034::ac43:d7a1",
+        "172.67.215.161",
+        "104.21.83.65"
+      ],
+      "dnsMs": 2,
+      "tcpMs": 246,
+      "port": 443,
+      "message": "p2100.net · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://p2100.net/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 2209,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "p2100.net"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6771488c203a61992d3821ce09a2f0c4716bd59467e47c22eb74b67f1d52a633",
+      "url": "http://prinevillesda.org/api.php/provide/vod",
+      "kind": "cms",
+      "name": "prinevillesda.org",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165805330,
+      "addresses": [
+        "208.31.254.33",
+        "2001::1f0d:4c41"
+      ],
+      "dnsMs": 6,
+      "tcpMs": null,
+      "port": 80,
+      "message": "prinevillesda.org · 来源数据格式不正确",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://prinevillesda.org/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 3,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "FormatException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "531f03dd554e2ff56d031dbdb345bd1d8028e7683bbd01006a5658436ea7b6ce",
+      "url": "http://sdzyapi.com/api.php/provide/vod/from/sdm3u8",
+      "kind": "cms",
+      "name": "sdzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167704991,
+      "addresses": [
+        "172.67.206.75",
+        "104.21.69.78"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 244,
+      "port": 80,
+      "message": "sdzyapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://sdzyapi.com/api.php/provide/vod/from/sdm3u8?ac=detail&pg=1",
+          "elapsedMs": 3077,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "sdzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "fba395afd659923c2fa6ebc486b6ae6c87aac529bcf32f885541b93d1a26dd44",
+      "url": "http://sdzyapi.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "sdzyapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167705546,
+      "addresses": [
+        "172.67.206.75",
+        "104.21.69.78"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 251,
+      "port": 80,
+      "message": "sdzyapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://sdzyapi.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1539,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "sdzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "40cf3213f5e49dc19c51148c436d55c8c640ebf29145834fbf8687cbec4fc2f2",
+      "url": "http://siwazyw.cc/api.php/provide/vod",
+      "kind": "cms",
+      "name": "siwazyw.cc",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167701712,
+      "addresses": [
+        "172.237.146.8",
+        "172.233.219.123",
+        "172.233.219.78",
+        "172.237.146.25",
+        "172.233.219.49",
+        "172.237.146.38"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 268,
+      "port": 80,
+      "message": "siwazyw.cc · 来源连接中断或响应不完整，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://siwazyw.cc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 540,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        },
+        {
+          "method": "GET",
+          "url": "http://siwazyw.cc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 583,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HttpException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "8c08d2b4a6f705bd7a965c1fd69b16baef2dbdf4094b86ed477764ef0159b07a",
+      "url": "http://slapibf.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "slapibf.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165813684,
+      "addresses": [
+        "2606:4700:3037::6815:3afd",
+        "2606:4700:3032::ac43:a707",
+        "104.21.58.253",
+        "172.67.167.7"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 260,
+      "port": 80,
+      "message": "slapibf.com · 2218 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://slapibf.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 828,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "slapibf.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://slapibf.com/?",
+          "elapsedMs": 1024,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "slapibf.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "70125b97cd93fce2ad78394e385006b415a0812c1ea792dc59f098f7ab7f3494",
+      "url": "https://subocaiji.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "subocaiji.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165823402,
+      "addresses": [
+        "2606:4700:3033::6815:2b31",
+        "2606:4700:3031::ac43:dc0b",
+        "104.21.43.49",
+        "172.67.220.11"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 266,
+      "port": 443,
+      "message": "subocaiji.com · 10355 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://subocaiji.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 1284,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "subocaiji.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://subocaiji.com/?",
+          "elapsedMs": 839,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "subocaiji.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "5329",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "17b98091d733d158211d974f9e9e5a8b1f019d4cd7961b335ad88d6afd25c2cb",
+      "url": "https://suoniapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "suoniapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167710834,
+      "addresses": [
+        "172.67.215.44",
+        "104.21.45.137"
+      ],
+      "dnsMs": 12,
+      "tcpMs": 249,
+      "port": 443,
+      "message": "suoniapi.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://suoniapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 15002,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://suoniapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 9121,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "f75a0d5c956e07ef8f7d4dfd2f318d2fce78d23de217cd85b007a796534b3306",
+      "url": "http://tangrenjie.tv/api.php/provide/vod",
+      "kind": "cms",
+      "name": "tangrenjie.tv",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165815990,
+      "addresses": [
+        "154.26.176.253"
+      ],
+      "dnsMs": 4,
+      "tcpMs": 168,
+      "port": 80,
+      "message": "tangrenjie.tv · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://tangrenjie.tv/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 355,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "tangrenjie.tv"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "2244"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "83152c32edb31dfcb17647a5cf964627f8ff6d79546f3bec9d428fee5f50bee4",
+      "url": "http://tangrenjie.tv/api.php/provide/vod/at/xm",
+      "kind": "cms",
+      "name": "tangrenjie.tv",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165816362,
+      "addresses": [
+        "154.26.176.253"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 174,
+      "port": 80,
+      "message": "tangrenjie.tv · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://tangrenjie.tv/api.php/provide/vod/at/xm?ac=detail&pg=1",
+          "elapsedMs": 399,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "tangrenjie.tv"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "2244"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "d2490968331eefaebc05374d878948558fa5a374eee7cf35811da005ae8bb86f",
+      "url": "http://vipmv.cc/api.php/provide/vod",
+      "kind": "cms",
+      "name": "vipmv.cc",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165820614,
+      "addresses": [
+        "2606:4700:3035::6815:2522",
+        "2606:4700:3037::ac43:cb70",
+        "172.67.203.112",
+        "104.21.37.34"
+      ],
+      "dnsMs": 5,
+      "tcpMs": 279,
+      "port": 80,
+      "message": "vipmv.cc · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://vipmv.cc/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1717,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "vipmv.cc"
+          },
+          "responseHeaders": {
+            "content-type": "text/plain; charset=utf-8",
+            "content-length": "0",
+            "server": "cloudflare",
+            "location": "http://yetwlkuifnu.wokbphh.cn/vYKIeL&db9yda=fvnsxbqcv846227090"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://yetwlkuifnu.wokbphh.cn/vYKIeL&db9yda=fvnsxbqcv846227090",
+          "elapsedMs": 990,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "yetwlkuifnu.wokbphh.cn"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "44f16db6223ae3591beb2091ac31300c69fbeaf0a0988c2bdb7532b2d225a9dd",
+      "url": "http://vod-demo.onrender.com/pubdovod.php",
+      "kind": "cms",
+      "name": "vod-demo.onrender.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165821562,
+      "addresses": [
+        "216.24.57.18",
+        "216.24.57.16"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 306,
+      "port": 80,
+      "message": "vod-demo.onrender.com · 服务返回错误 404",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://vod-demo.onrender.com/pubdovod.php?ac=detail&pg=1",
+          "elapsedMs": 703,
+          "status": 301,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "vod-demo.onrender.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "96",
+            "server": "cloudflare",
+            "location": "https://vod-demo.onrender.com/pubdovod.php?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://vod-demo.onrender.com/pubdovod.php?ac=detail&pg=1",
+          "elapsedMs": 949,
+          "status": 404,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "vod-demo.onrender.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/plain; charset=utf-8",
+            "content-length": "10",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "1421216bb81b6f6ce1dea133540a5ac9834984c8136d98ce60905c3cbd62c4da",
+      "url": "http://m3u8.tiankongapi.com/api.php/provide/vod/from/tkm3u8",
+      "kind": "cms",
+      "name": "m3u8.tiankongapi.com",
+      "siteTitle": "welcome",
+      "homepage": "https://2026-10-09.urldance.com/8d/?tiankongapi.com",
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793167711349,
+      "addresses": [
+        "2606:4700:3031::ac43:d55d",
+        "2606:4700:3037::6815:45d4",
+        "104.21.69.212",
+        "172.67.213.93"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 1248,
+      "port": 80,
+      "message": "m3u8.tiankongapi.com · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://m3u8.tiankongapi.com/api.php/provide/vod/from/tkm3u8?ac=detail&pg=1",
+          "elapsedMs": 620,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "m3u8.tiankongapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "cloudflare",
+            "location": "https://2026-10-09.urldance.com/8d/?tiankongapi.com"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://2026-10-09.urldance.com/8d/?tiankongapi.com",
+          "elapsedMs": 89,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "2026-10-09.urldance.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "11876",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "7cd9496052b00a4d19463bdcb67210d06836d5dcf0bafb9eb9ed77f92f0195eb",
+      "url": "https://www.911ysw.top/tianyi.php/provide/vod/",
+      "kind": "cms",
+      "name": "www.911ysw.top",
+      "siteTitle": "welcome",
+      "homepage": "https://2026-10-09.urldance.com/8d/?911ysw.top",
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165826658,
+      "addresses": [
+        "2606:4700:3032::ac43:9996",
+        "2606:4700:3037::6815:3b2",
+        "172.67.153.150",
+        "104.21.3.178"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 281,
+      "port": 443,
+      "message": "www.911ysw.top · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.911ysw.top/tianyi.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 4790,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.911ysw.top"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "cloudflare",
+            "location": "https://2026-10-09.urldance.com/8d/?911ysw.top"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://2026-10-09.urldance.com/8d/?911ysw.top",
+          "elapsedMs": 83,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "2026-10-09.urldance.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "11876",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "2a197e1bccfdb7b77f61cf732ef7af7c2b805dee7ebfabe4449130df42f8bdae",
+      "url": "http://www.ahjiuman.com/api.php/provide/vod/at/json",
+      "kind": "cms",
+      "name": "www.ahjiuman.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165822562,
+      "addresses": [
+        "154.194.148.181"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 87,
+      "port": 80,
+      "message": "www.ahjiuman.com · 服务返回错误 404",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://www.ahjiuman.com/api.php/provide/vod/at/json?ac=detail&pg=1",
+          "elapsedMs": 999,
+          "status": 404,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.ahjiuman.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "150",
+            "server": "openresty"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "97281be2d6c88bf6c71f622613984cc83276d0d5b70d98793d812cad37c5ce76",
+      "url": "https://www.heimuer.tv/api.php/provide/vod",
+      "kind": "cms",
+      "name": "www.heimuer.tv",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167721528,
+      "addresses": [
+        "162.4.84.234"
+      ],
+      "dnsMs": 7,
+      "tcpMs": 305,
+      "port": 443,
+      "message": "www.heimuer.tv · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.heimuer.tv/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 15002,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://www.heimuer.tv/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 642,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "48c02182626e08e1309a6e5a9e896beee225ac1d4dbc25ab566d48071d6a9071",
+      "url": "https://www.hongniuzy2.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "www.hongniuzy2.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167727108,
+      "addresses": [
+        "2606:4700:3032::6815:3c82",
+        "2606:4700:3037::ac43:c4d7",
+        "104.21.60.130",
+        "172.67.196.215"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 253,
+      "port": 443,
+      "message": "www.hongniuzy2.com · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.hongniuzy2.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 2182,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.hongniuzy2.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "85b80dde002cedd615dd4fa8dbf1986cd77cb352fa8a91be6fbf07cc9060805f",
+      "url": "https://www.huyaapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "www.huyaapi.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165841844,
+      "addresses": [
+        "2606:4700:3033::6815:4519",
+        "2606:4700:3035::ac43:cb2d",
+        "104.21.69.25",
+        "172.67.203.45"
+      ],
+      "dnsMs": 5,
+      "tcpMs": 266,
+      "port": 443,
+      "message": "www.huyaapi.com · 7861 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.huyaapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 5818,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.huyaapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://www.huyaapi.com/?",
+          "elapsedMs": 5000,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "31042ebc4b67e5de0974bd17eb6085c271ebb9f71eb4afe2420ea617632ef526",
+      "url": "https://www.kuaikan-api.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "www.kuaikan-api.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167711439,
+      "addresses": [
+        "193.200.130.61"
+      ],
+      "dnsMs": 7,
+      "tcpMs": 36,
+      "port": 443,
+      "message": "www.kuaikan-api.com · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.kuaikan-api.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 89,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://www.kuaikan-api.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 91,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "ddd4d35696c9364db3d4c8cecdeee7c3739c85b3c0d349d1fff7d56647068d68",
+      "url": "https://www.kuaiyunzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "www.kuaiyunzy.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167721496,
+      "addresses": [],
+      "dnsMs": 253,
+      "tcpMs": null,
+      "port": 443,
+      "message": "www.kuaiyunzy.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.kuaiyunzy.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://www.kuaiyunzy.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "f4dfe14ca8c57b619e04429ce9c129f54591d1f1cb6a8184c604271c8ed0db96",
+      "url": "http://www.zzrhgg.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "www.zzrhgg.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165832738,
+      "addresses": [
+        "182.16.68.115"
+      ],
+      "dnsMs": 10,
+      "tcpMs": 170,
+      "port": 80,
+      "message": "www.zzrhgg.com · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://www.zzrhgg.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 403,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.zzrhgg.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "2116"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "3f08b5cfc5a19e6eb4253afe49e3c0fe81e138ac3c48cc447d82229b6c0c5e7b",
+      "url": "https://xzcjz.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "xzcjz.com",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167727115,
+      "addresses": [],
+      "dnsMs": 13,
+      "tcpMs": null,
+      "port": 443,
+      "message": "xzcjz.com · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://xzcjz.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 10,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://xzcjz.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "3ee4b57d1045fe101783898b6c0f54bcbf8a1c3e7425451a6242557eefa070ab",
+      "url": "http://ys9.cttv.vip/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "ys9.cttv.vip",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167732038,
+      "addresses": [],
+      "dnsMs": 13,
+      "tcpMs": null,
+      "port": 80,
+      "message": "ys9.cttv.vip · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://ys9.cttv.vip/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://ys9.cttv.vip/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "9c247c62e5eaa8c1851c25ab8e2c2c12ff1793d15708acee43ff0fc356fbb3da",
+      "url": "https://yyff.540734621.xyz/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "yyff.540734621.xyz",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167721488,
+      "addresses": [
+        "47.108.190.141"
+      ],
+      "dnsMs": 8,
+      "tcpMs": 10,
+      "port": 443,
+      "message": "yyff.540734621.xyz · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://yyff.540734621.xyz/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 42,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://yyff.540734621.xyz/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 37,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "cd6748869fc9185dccb50ffecef120a9fa740f99b2a88d22e2da692d4fd2807f",
+      "url": "http://zuidazy.me/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "zuidazy.me",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167746728,
+      "addresses": [
+        "2606:4700:3035::ac43:81f6",
+        "2606:4700:3037::6815:302",
+        "172.67.129.246",
+        "104.21.3.2"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 233,
+      "port": 80,
+      "message": "zuidazy.me · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://zuidazy.me/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 2071,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "zuidazy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "http://zuidazy.me/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 660,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "zuidazy.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "46d84877aee6bf74fc5c5c7e21b626f1016644bea055652547a6dda3a375f7b7",
+      "url": "https://siwazyw.cc/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "丝袜",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167742367,
+      "addresses": [
+        "172.237.146.8",
+        "172.233.219.123",
+        "172.233.219.78",
+        "172.237.146.25",
+        "172.233.219.49",
+        "172.237.146.38"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 288,
+      "port": 443,
+      "message": "丝袜 · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://siwazyw.cc/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://siwazyw.cc/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 566,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "b0a3c800b68a00d594c65a57f14833f6cacec623fc6e45147bd8169449cd3238",
+      "url": "http://99zy.pw/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "久久",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167742376,
+      "addresses": [],
+      "dnsMs": 295,
+      "tcpMs": null,
+      "port": 80,
+      "message": "久久 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://99zy.pw/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://99zy.pw/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "87d9249c58cd0e2d458dd2773cd96086d70daefbc5cd234a4a87af6a466ccaf2",
+      "url": "https://lbapi9.com/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "乐播",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167752412,
+      "addresses": [
+        "2606:4700:3037::6815:1725",
+        "2606:4700:3035::ac43:d0cb",
+        "104.21.23.37",
+        "172.67.208.203"
+      ],
+      "dnsMs": 2,
+      "tcpMs": 298,
+      "port": 443,
+      "message": "乐播 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://lbapi9.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 3750,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "lbapi9.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/xml; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://lbapi9.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 1675,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "lbapi9.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/xml; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "74708a3214a5a68611e6ba747385fa113018ab57a0de743577c915fb6eb88f5a",
+      "url": "https://lehootv.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "乐活影视",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167756124,
+      "addresses": [
+        "2a03:2880:f10d:83:face:b00c:0:25de",
+        "154.83.15.20"
+      ],
+      "dnsMs": 3,
+      "tcpMs": null,
+      "port": 443,
+      "message": "乐活影视 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://lehootv.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 15002,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://lehootv.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 3711,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "55b8e9eed9c9d19b84ff026ed0035fee460d2e0af213e84b7c7cf9ec83a21a97",
+      "url": "https://leyuzy.cc/inc/zyapimac.php",
+      "kind": "cms",
+      "name": "乐鱼",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167753809,
+      "addresses": [],
+      "dnsMs": 14,
+      "tcpMs": null,
+      "port": 443,
+      "message": "乐鱼 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://leyuzy.cc/inc/zyapimac.php?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://leyuzy.cc/inc/zyapimac.php?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "6075d00f394778721c848d6a44bacbaf72ae4565f89307468a52c57016c64212",
+      "url": "https://api.guangsuapi.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "光速资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167767626,
+      "addresses": [
+        "2606:4700:3033::6815:2966",
+        "2606:4700:3034::ac43:a42f",
+        "172.67.164.47",
+        "104.21.41.102"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 251,
+      "port": 443,
+      "message": "光速资源 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.guangsuapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 1060,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.guangsuapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.guangsuapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 1804,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.guangsuapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "c525229e4a6bab61f166d6af74dab5f3458e5adeb1274112ca1e590984c5f65c",
+      "url": "http://cj.bajiecaiji.com/inc/bjm3u8.php",
+      "kind": "cms",
+      "name": "八戒采集",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167754227,
+      "addresses": [],
+      "dnsMs": 208,
+      "tcpMs": null,
+      "port": 80,
+      "message": "八戒采集 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://cj.bajiecaiji.com/inc/bjm3u8.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://cj.bajiecaiji.com/inc/bjm3u8.php?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "eefed786b1b7163382f18aa0cdea39d70fa5c279f65df35f228fed0c4b47210a",
+      "url": "http://llzxcj.com/inc/api.php?ac=videolist",
+      "kind": "cms",
+      "name": "利来资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167764438,
+      "addresses": [],
+      "dnsMs": 212,
+      "tcpMs": null,
+      "port": 80,
+      "message": "利来资源 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://llzxcj.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://llzxcj.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "e20bfc4f31284f16c6ccfab6b34b33f0d76277440f9e4c94a284650ac6a8f767",
+      "url": "http://bttcj.com/inc/sapi.php",
+      "kind": "cms",
+      "name": "博天堂资源站",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165861362,
+      "addresses": [
+        "206.119.77.151"
+      ],
+      "dnsMs": 25,
+      "tcpMs": 199,
+      "port": 80,
+      "message": "博天堂资源站 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://bttcj.com/inc/sapi.php?ac=detail&pg=1",
+          "elapsedMs": 507,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "bttcj.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "X"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "91d0c2f9d4b7dcc43f2f82be50e302828c88053b51ab5e3b3029231bc83f4fa2",
+      "url": "https://collect.wolongzyw.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "卧龙资源站综合资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165866458,
+      "addresses": [
+        "157.90.33.74",
+        "157.90.33.73"
+      ],
+      "dnsMs": 18,
+      "tcpMs": 181,
+      "port": 443,
+      "message": "卧龙资源站综合资源 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://collect.wolongzyw.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 6221,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "collect.wolongzyw.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "6990",
+            "server": "Angie"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "a8576079c1384b3688c33931a39c207fe249a6870162cfbaa871087c340beaee",
+      "url": "http://mygzycj.com/sapi.php?ac=videolist",
+      "kind": "cms",
+      "name": "名优馆资源",
+      "siteTitle": "Loading...",
+      "homepage": "http://mygzycj.com/?#",
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165861855,
+      "addresses": [
+        "64.31.3.237"
+      ],
+      "dnsMs": 23,
+      "tcpMs": 218,
+      "port": 80,
+      "message": "名优馆资源 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://mygzycj.com/sapi.php?ac=detail&pg=1",
+          "elapsedMs": 453,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "mygzycj.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "495",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "db110f8c6c28f278dafb44dcb05d94cd5390774dfb5c643c13723e42acc6ef1f",
+      "url": "https://52zyapi.com/home/cjapi/asda/mc10/vod/xml",
+      "kind": "cms",
+      "name": "吾爱",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167779428,
+      "addresses": [
+        "162.218.55.135"
+      ],
+      "dnsMs": 11,
+      "tcpMs": null,
+      "port": 443,
+      "message": "吾爱 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://52zyapi.com/home/cjapi/asda/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://52zyapi.com/home/cjapi/asda/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 1498,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "47d7617a7fb385cc7b149013fdd1c26b1db6d540d4e2f9310ae0eb06730bf315",
+      "url": "http://www.ggmmzy.com:9999/inc/xml",
+      "kind": "cms",
+      "name": "哥哥妹妹",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167769742,
+      "addresses": [
+        "172.80.123.12"
+      ],
+      "dnsMs": 10,
+      "tcpMs": null,
+      "port": 9999,
+      "message": "哥哥妹妹 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://www.ggmmzy.com:9999/inc/xml?ac=detail&pg=1",
+          "elapsedMs": 3294,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://www.ggmmzy.com:9999/inc/xml?ac=detail&pg=1",
+          "elapsedMs": 3555,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "1ce8940566620bf915291cb49344c17e04d450b66f06a8b25b2c8b3b3a187114",
+      "url": "https://www.dmmapi.com/home/cjapi/asd2c7/mc10/vod/xml",
+      "kind": "cms",
+      "name": "大MM",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167767635,
+      "addresses": [],
+      "dnsMs": 236,
+      "tcpMs": null,
+      "port": 443,
+      "message": "大MM · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.dmmapi.com/home/cjapi/asd2c7/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://www.dmmapi.com/home/cjapi/asd2c7/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 8,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "07e5cb501fa51688b369387572aac48d0b83c3dec1e52275572492e3c88545fb",
+      "url": "https://dadiapi.com/api.php",
+      "kind": "cms",
+      "name": "大地",
+      "siteTitle": "大地资源",
+      "homepage": "https://dadiapi.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165862662,
+      "addresses": [
+        "85.149.233.187"
+      ],
+      "dnsMs": 12,
+      "tcpMs": 77,
+      "port": 443,
+      "message": "大地 · 701 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://dadiapi.com/api.php?ac=detail&pg=1",
+          "elapsedMs": 561,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "dadiapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/xml; charset=utf-8",
+            "server": "openresty"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6efec3950e39681a323c37f1fe66ee77506a255b0d22e4c578bef61ae7cc0c24",
+      "url": "http://www.987caiji.com/api/max.php",
+      "kind": "cms",
+      "name": "天噜啦",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167779052,
+      "addresses": [],
+      "dnsMs": 216,
+      "tcpMs": null,
+      "port": 80,
+      "message": "天噜啦 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://www.987caiji.com/api/max.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "http://www.987caiji.com/api/max.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "f068ddb71bbd98cfc737df17669ac7789761d0a906f1e1a6f1b0d584dc544cc9",
+      "url": "https://api.tiankongapi.com/api.php/provide/vod/at/xml/from/tkm3u8",
+      "kind": "cms",
+      "name": "天空资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167793445,
+      "addresses": [
+        "2a03:2880:f12d:83:face:b00c:0:25de",
+        "157.240.20.18"
+      ],
+      "dnsMs": 2,
+      "tcpMs": null,
+      "port": 443,
+      "message": "天空资源 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.tiankongapi.com/api.php/provide/vod/at/xml/from/tkm3u8?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.tiankongapi.com/api.php/provide/vod/at/xml/from/tkm3u8?ac=detail&pg=1",
+          "elapsedMs": 8612,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "54317e5715e8727529ab4612e66d1022a33b36737687bfb4667c63a202ccfbac",
+      "url": "http://aosikazy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "奥斯卡资源网",
+      "siteTitle": "奥斯卡资源网",
+      "homepage": "https://aosikazy.com/?",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165879826,
+      "addresses": [
+        "104.253.124.24",
+        "104.253.124.21",
+        "104.253.124.23",
+        "104.253.124.10",
+        "104.253.124.9",
+        "104.253.124.22",
+        "104.253.124.8",
+        "104.253.124.20"
+      ],
+      "dnsMs": 2,
+      "tcpMs": 1063,
+      "port": 80,
+      "message": "奥斯卡资源网 · 1846 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://aosikazy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 245,
+          "status": 301,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "aosikazy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "166",
+            "server": "Nginx",
+            "location": "https://aosikazy.com/api.php/provide/vod?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://aosikazy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 1131,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "aosikazy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "Nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "6cfbb643061724ffebec62b6ce8db8a65c2ae600be5751b1a42737f4c0c39fb3",
+      "url": "https://caiji.naichaapi.com/inc/api.php",
+      "kind": "cms",
+      "name": "奶茶",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167784444,
+      "addresses": [],
+      "dnsMs": 300,
+      "tcpMs": null,
+      "port": 443,
+      "message": "奶茶 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.naichaapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.naichaapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 13,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "0522b25a5c7498287939aa16c6024467a58856af6b0ae3ee00856f5ce0d9df87",
+      "url": "http://zmcj88.com/sapi/?ac=videolist",
+      "kind": "cms",
+      "name": "字幕组资源",
+      "siteTitle": "Loading...",
+      "homepage": "http://zmcj88.com/?#",
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165878871,
+      "addresses": [
+        "212.92.104.7"
+      ],
+      "dnsMs": 12,
+      "tcpMs": 297,
+      "port": 80,
+      "message": "字幕组资源 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://zmcj88.com/sapi/?ac=detail&pg=1",
+          "elapsedMs": 486,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "zmcj88.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "491",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "c36a93bf9da547a427ac1b2dd7d8d01d43bd0ac1bd1d862ff652457e3b62ee03",
+      "url": "http://f2dcj6.com/sapi/?ac=videolist",
+      "kind": "cms",
+      "name": "富二代资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165878223,
+      "addresses": [
+        "154.12.62.96"
+      ],
+      "dnsMs": 9,
+      "tcpMs": 39,
+      "port": 80,
+      "message": "富二代资源 · 服务返回错误 404",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://f2dcj6.com/sapi/?ac=detail&pg=1",
+          "elapsedMs": 86,
+          "status": 404,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "f2dcj6.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "146",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "90dc1a9ad7c0f39004c03413a33081d1c8aa3b6d949fcac672ddc9aa37667bf6",
+      "url": "https://xjjzyapi.com/home/cjapi/askl/mc10/vod/xml",
+      "kind": "cms",
+      "name": "小姐姐",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167794648,
+      "addresses": [
+        "162.218.55.135"
+      ],
+      "dnsMs": 10,
+      "tcpMs": null,
+      "port": 443,
+      "message": "小姐姐 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://xjjzyapi.com/home/cjapi/askl/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "https://xjjzyapi.com/home/cjapi/askl/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 4760,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "8e7c0ecf2f3860f6f5d027eb263359a8a98cbe284e2af7464d4052fb4d115f46",
+      "url": "https://api.ykapi.net/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "影库",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167784440,
+      "addresses": [],
+      "dnsMs": 6,
+      "tcpMs": null,
+      "port": 443,
+      "message": "影库 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.ykapi.net/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 5,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.ykapi.net/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 5,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "8d1296e8dab19ee50f6ad268a3cc32cc2c5c62e56d88b81b0156ad17f9b07665",
+      "url": "http://www.kuaibozy.com/api.php/provide/vod",
+      "kind": "cms",
+      "name": "快播资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167808061,
+      "addresses": [
+        "2a03:2880:f117:83:face:b00c:0:25de",
+        "103.214.168.106"
+      ],
+      "dnsMs": 3,
+      "tcpMs": null,
+      "port": 80,
+      "message": "快播资源 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://www.kuaibozy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        },
+        {
+          "method": "GET",
+          "url": "http://www.kuaibozy.com/api.php/provide/vod?ac=detail&pg=1",
+          "elapsedMs": 2440,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "5af8afee4ec26f21b602eebf5fca59e1bc3e4b66bf963bdb0cc02d58274153ea",
+      "url": "https://apittzy.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "探探",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167789887,
+      "addresses": [],
+      "dnsMs": 6,
+      "tcpMs": null,
+      "port": 443,
+      "message": "探探 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://apittzy.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://apittzy.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "b8846e6ac1d97757cbfb16a89c6d791ab1e3694877a9b9e386d892e92a6c662c",
+      "url": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/",
+      "kind": "cms",
+      "name": "新浪资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167793641,
+      "addresses": [
+        "2606:4700:3033::ac43:d157",
+        "2606:4700:3037::6815:42e9",
+        "172.67.209.87",
+        "104.21.66.233"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 238,
+      "port": 443,
+      "message": "新浪资源 · 6127 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 4727,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.xinlangapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.xinlangapi.com/?",
+          "elapsedMs": 723,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.xinlangapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "5355",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "de6e989214b5a86c196b72017a12b2bd149a13e3675850e80a8f263db5dcde42",
+      "url": "https://api.wujinapi.me/api.php/provide/vod/from/wjm3u8/",
+      "kind": "cms",
+      "name": "无尽资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167792114,
+      "addresses": [
+        "172.67.204.160",
+        "104.21.85.107"
+      ],
+      "dnsMs": 9,
+      "tcpMs": 255,
+      "port": 443,
+      "message": "无尽资源 · 5171 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.wujinapi.me/api.php/provide/vod/from/wjm3u8/?ac=detail&pg=1",
+          "elapsedMs": 1798,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.wujinapi.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.wujinapi.me/?",
+          "elapsedMs": 1303,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.wujinapi.me"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "48aa6d8ded502519a3ef0ffa0c69aeb0d4ce45eaa835e6e33d0bf5f3420dd873",
+      "url": "http://51smt4.xyz/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "水蜜桃",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793167792918,
+      "addresses": [
+        "103.224.182.248"
+      ],
+      "dnsMs": 9,
+      "tcpMs": 201,
+      "port": 80,
+      "message": "水蜜桃 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://51smt4.xyz/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 597,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "51smt4.xyz"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "Apache"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "e50a1c3a6afc0904a17db3349defdf9d6152ea94229edd0b3f3f728feb450867",
+      "url": "https://taopianapi.com/home/cjapi/as/mc/vod/xml",
+      "kind": "cms",
+      "name": "淘片资源采集",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167796171,
+      "addresses": [
+        "154.53.74.238"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 184,
+      "port": 443,
+      "message": "淘片资源采集 · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://taopianapi.com/home/cjapi/as/mc/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 383,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://taopianapi.com/home/cjapi/as/mc/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 1522,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "307bbc9e129080ca8780de0a99ddc4d1b29aa79f39a6ded792b66f905821901b",
+      "url": "https://xx55zyapi.com/home/cjapi/ascf/mc10/vod/xml",
+      "kind": "cms",
+      "name": "点点",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167819932,
+      "addresses": [
+        "162.218.55.135"
+      ],
+      "dnsMs": 9,
+      "tcpMs": null,
+      "port": 443,
+      "message": "点点 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://xx55zyapi.com/home/cjapi/ascf/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 15001,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "39d965d7a7f63b89e88495d20267bfa16b1e10de21e336fbf226bb18442519f1",
+      "url": "http://fhapi9.com/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "番号",
+      "siteTitle": "番号资源站",
+      "homepage": "http://fhapi9.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165898780,
+      "addresses": [
+        "85.149.233.12"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 83,
+      "port": 80,
+      "message": "番号 · 438 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://fhapi9.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 338,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "fhapi9.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "openresty"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "7885ef83bf3d357c418fa284af44ef6a2f7f31e7bfd14e46642bc2c5a3be249c",
+      "url": "http://api.fqzy.cc/api.php",
+      "kind": "cms",
+      "name": "番茄影院",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167814030,
+      "addresses": [
+        "103.224.182.251"
+      ],
+      "dnsMs": 10,
+      "tcpMs": 194,
+      "port": 80,
+      "message": "番茄影院 · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://api.fqzy.cc/api.php?ac=detail&pg=1",
+          "elapsedMs": 430,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.fqzy.cc"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "0",
+            "server": "Apache",
+            "location": "https://ww17.fqzy.cc/api.php?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://ww17.fqzy.cc/api.php?ac=detail&pg=1",
+          "elapsedMs": 11537,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "http://api.fqzy.cc/api.php?ac=detail&pg=1",
+          "elapsedMs": 398,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.fqzy.cc"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "0",
+            "server": "Apache",
+            "location": "https://ww17.fqzy.cc/api.php?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://ww17.fqzy.cc/api.php?ac=detail&pg=1",
+          "elapsedMs": 3649,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "57a31c068a10e3402c1c5d03f6579c682f79c05bf4e1c032f09cf7960681d1bb",
+      "url": "https://api.apibdzy.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "百度资源",
+      "siteTitle": "百度资源",
+      "homepage": "https://api.apibdzy.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167816679,
+      "addresses": [
+        "2606:4700:3036::ac43:d9c6",
+        "2606:4700:3035::6815:184a",
+        "104.21.24.74",
+        "172.67.217.198"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 242,
+      "port": 443,
+      "message": "百度资源 · 16492 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.apibdzy.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 1324,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.apibdzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://api.apibdzy.com/?",
+          "elapsedMs": 2617,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.apibdzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "b1489464be615708e00f7f0d3911f5f7c394cd1f8e11bc0d5bb32deed1bdb59b",
+      "url": "https://kanju3.com/",
+      "kind": "kanju",
+      "name": "看剧AI",
+      "siteTitle": "看剧AI",
+      "homepage": "https://kanju3.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165902927,
+      "addresses": [
+        "13.35.14.155",
+        "3.164.126.92",
+        "3.164.127.109"
+      ],
+      "dnsMs": 12,
+      "tcpMs": 136,
+      "port": 443,
+      "message": "看剧AI · 1003 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://kanju3.com/v1/browse/catalog?page=1&limit=20&intent=latest_catalog",
+          "elapsedMs": 742,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "x-ai-movie-signature": "[已隐藏]",
+            "accept": "application/json",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "kanju3.com",
+            "x-ai-movie-timestamp": "1793165900160",
+            "x-ai-movie-nonce": "81e7b7caced3e70d9af4e1af4e5ed29a"
+          },
+          "responseHeaders": {
+            "content-type": "application/json; charset=utf-8",
+            "content-length": "28571",
+            "server": "openresty"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "8c8948f69575cc0e6be2987a7c6acadbcc40d0009e737f666875fc6acde784b5",
+      "url": "https://api.xiuseapi.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "秀色",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167814040,
+      "addresses": [],
+      "dnsMs": 267,
+      "tcpMs": null,
+      "port": 443,
+      "message": "秀色 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.xiuseapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.xiuseapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "599d264349288e48adca967127542ea5616a43beb4dcc983aa84317d916d730e",
+      "url": "https://jgczyapi.com/home/cjapi/kld2/mc10/vod/xml",
+      "kind": "cms",
+      "name": "精工厂",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167823184,
+      "addresses": [
+        "162.218.55.135"
+      ],
+      "dnsMs": 10,
+      "tcpMs": null,
+      "port": 443,
+      "message": "精工厂 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://jgczyapi.com/home/cjapi/kld2/mc10/vod/xml?ac=detail&pg=1",
+          "elapsedMs": 15000,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "TimeoutException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "589e46e991163c8bffa2804d7101f73efc5d9c4d85572da12ae897ba4f6e53c6",
+      "url": "http://hongniuzy2.com/api.php/provide/vod/from/hnm3u8",
+      "kind": "cms",
+      "name": "红牛资源",
+      "siteTitle": "红牛资源",
+      "homepage": "https://hongniuzy2.com/?",
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167833306,
+      "addresses": [
+        "2606:4700:3032::6815:3c82",
+        "2606:4700:3037::ac43:c4d7",
+        "104.21.60.130",
+        "172.67.196.215"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 240,
+      "port": 80,
+      "message": "红牛资源 · 接口检测超时，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://hongniuzy2.com/api.php/provide/vod/from/hnm3u8?ac=detail&pg=1",
+          "elapsedMs": 6985,
+          "status": 301,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "hongniuzy2.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "server": "cloudflare",
+            "location": "https://hongniuzy2.com/api.php/provide/vod/from/hnm3u8?ac=detail&pg=1"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://hongniuzy2.com/api.php/provide/vod/from/hnm3u8?ac=detail&pg=1",
+          "elapsedMs": 13866,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "RequestCancelled"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "ed7ee7afe90bb97399737377090f720e5984032820c34148887a85af0cff7187",
+      "url": "https://api.apilyzy.com/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "老鸭",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167831187,
+      "addresses": [],
+      "dnsMs": 19,
+      "tcpMs": null,
+      "port": 443,
+      "message": "老鸭 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.apilyzy.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 20,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.apilyzy.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "c44b2ecfc9bafb8910929f61974cabc871c22a81c4a0080743030c76caa6c87c",
+      "url": "https://api.maozyapi.com/inc/api.php",
+      "kind": "cms",
+      "name": "色猫",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167830287,
+      "addresses": [
+        "2606:4700:3035::ac43:d768",
+        "2606:4700:3034::6815:3dd7",
+        "104.21.61.215",
+        "172.67.215.104"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 236,
+      "port": 443,
+      "message": "色猫 · 服务返回错误 523，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.maozyapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 13626,
+          "status": 523,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.maozyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/plain; charset=UTF-8",
+            "content-length": "16",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "924e654700f52778214485ed22a6672b4475267112735eea5de0de52970d1d49",
+      "url": "https://sewozyapi.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "色窝",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167835315,
+      "addresses": [],
+      "dnsMs": 272,
+      "tcpMs": null,
+      "port": 443,
+      "message": "色窝 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://sewozyapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://sewozyapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "7d13cadd507c29ee77a3961154accb93729f5eb63d1ceea643f9e6bb9ea9ed81",
+      "url": "https://mgzyz1.com/api.php",
+      "kind": "cms",
+      "name": "芒果资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165925771,
+      "addresses": [
+        "157.240.13.8",
+        "2001::80f2:f59d"
+      ],
+      "dnsMs": 3,
+      "tcpMs": null,
+      "port": 443,
+      "message": "芒果资源 · 来源数据格式不正确",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://mgzyz1.com/api.php?ac=detail&pg=1",
+          "elapsedMs": 0,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "FormatException"
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "9e161e0096c719b398ae414bb6e66bf66ba4d165f2d3092ede256ba5c6bfcaeb",
+      "url": "https://caiji.huakuiapi.com/inc/api.php",
+      "kind": "cms",
+      "name": "花魁",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167835321,
+      "addresses": [],
+      "dnsMs": 220,
+      "tcpMs": null,
+      "port": 443,
+      "message": "花魁 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.huakuiapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.huakuiapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "7e06539c0bb6137476ca48d062a6ddc24134ed6ea1b89a3f58cef757d83ac186",
+      "url": "https://caiji.caomeiapi.com/inc/api.php",
+      "kind": "cms",
+      "name": "草莓",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167841501,
+      "addresses": [],
+      "dnsMs": 18,
+      "tcpMs": null,
+      "port": 443,
+      "message": "草莓 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.caomeiapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.caomeiapi.com/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "c6632811b3b54a27262d3efa6abbdfdc63eff7b1e32fd39385cdfb876c812642",
+      "url": "https://caiji.putaozy.net/inc/api.php",
+      "kind": "cms",
+      "name": "葡萄",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167841927,
+      "addresses": [],
+      "dnsMs": 1420,
+      "tcpMs": null,
+      "port": 443,
+      "message": "葡萄 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://caiji.putaozy.net/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://caiji.putaozy.net/inc/api.php?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "692624bad1639c47b46431c4bc815912fcaa42dbeac639482f44ccea3a2c41f0",
+      "url": "https://kudouzy.com/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "裤兜",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165931424,
+      "addresses": [
+        "13.248.213.45",
+        "76.223.67.189"
+      ],
+      "dnsMs": 15,
+      "tcpMs": 84,
+      "port": 443,
+      "message": "裤兜 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://kudouzy.com/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 628,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "kudouzy.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "129"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "2f89e14d8d8bd935bd29371c23e235fd04c1be51a7c971057297233bf42802ac",
+      "url": "https://kudian8.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "酷点资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167841921,
+      "addresses": [],
+      "dnsMs": 288,
+      "tcpMs": null,
+      "port": 443,
+      "message": "酷点资源 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://kudian8.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 7,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://kudian8.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 5,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "ec68bf1916db1228682f385d7bb556d808b57d463c8e58e60950a921850ea3ea",
+      "url": "https://api.kdapi.info/api.php/provide/vod/at/xml/",
+      "kind": "cms",
+      "name": "酷豆",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167843727,
+      "addresses": [],
+      "dnsMs": 17,
+      "tcpMs": null,
+      "port": 443,
+      "message": "酷豆 · 无法连接，请检查网络和来源地址，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.kdapi.info/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 6,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.kdapi.info/api.php/provide/vod/at/xml/?ac=detail&pg=1",
+          "elapsedMs": 9,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "SocketException"
+        }
+      ],
+      "dnsEvidence": [
+        "本机 DNS 无结果",
+        "dns.google: 未确认域名不存在",
+        "cloudflare-dns.com: 未确认域名不存在"
+      ]
+    },
+    {
+      "id": "3a337f0a9ad5103c4d27a774beeaca5df6f2768e4b8ca55dfa9fcf6671dfd792",
+      "url": "https://jyzyapi.com/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "金鹰资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167850174,
+      "addresses": [
+        "2606:4700:3030::6815:5bd3",
+        "2606:4700:3037::ac43:b474",
+        "172.67.180.116",
+        "104.21.91.211"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 240,
+      "port": 443,
+      "message": "金鹰资源 · 9153 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://jyzyapi.com/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 2331,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "jyzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://jyzyapi.com/?",
+          "elapsedMs": 680,
+          "status": 403,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "jyzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=UTF-8",
+            "content-length": "5327",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "5b89a0bc80503f504ada17b392cab6d9be2e514048e8ebcea558800827fd7fea",
+      "url": "https://sdzyapi.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "闪电资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793167856678,
+      "addresses": [
+        "172.67.206.75",
+        "104.21.69.78"
+      ],
+      "dnsMs": 2,
+      "tcpMs": 246,
+      "port": 443,
+      "message": "闪电资源 · 15793 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://sdzyapi.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 2542,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "sdzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://sdzyapi.com/?",
+          "elapsedMs": 419,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "sdzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "aa6899dc41df2829754709f2c8ed1ef782763f7284370ee9c1bbe426fab47d2a",
+      "url": "http://cj.ffzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "非凡资源网",
+      "siteTitle": "非凡资源网",
+      "homepage": "http://cj.ffzyapi.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165941874,
+      "addresses": [
+        "23.225.148.118",
+        "23.225.147.246",
+        "23.225.145.237",
+        "23.225.145.238",
+        "23.225.148.117"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 218,
+      "port": 80,
+      "message": "非凡资源网 · 1920 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "http://cj.ffzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 500,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "cj.ffzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html;charset=utf-8",
+            "server": "nginx"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "94ca76b9c9b51675d4236d1fb569d7991db0d01e42dca70dda053c6ecd6edee8",
+      "url": "https://www.feisuzyapi.com/api.php/provide/vod/",
+      "kind": "cms",
+      "name": "飞速综合资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165940067,
+      "addresses": [
+        "13.248.213.45",
+        "76.223.67.189"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 80,
+      "port": 443,
+      "message": "飞速综合资源 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://www.feisuzyapi.com/api.php/provide/vod/?ac=detail&pg=1",
+          "elapsedMs": 414,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.feisuzyapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html",
+            "content-length": "129"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "9fa1ddad2ec8c9a1f34a7326208d6be5a0fa637615e899ad14a119871bbd16c3",
+      "url": "https://api.yulecj.com/api.php/provide/vod/at/xml",
+      "kind": "cms",
+      "name": "鱼乐资源",
+      "siteTitle": "HugeDomains",
+      "homepage": "https://www.hugedomains.com/domain_profile.cfm?d=yulecj.com",
+      "builtin": true,
+      "state": "unavailable",
+      "checkedAt": 1793165942178,
+      "addresses": [
+        "2600:1f18:4ae:c606:78d4:4260:db4e:aeee",
+        "2600:1f18:4ae:c605:dd5d:b838:5816:d7fb",
+        "13.223.25.84",
+        "54.243.117.197"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 265,
+      "port": 443,
+      "message": "鱼乐资源 · 接口没有返回有效的影片列表",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.yulecj.com/api.php/provide/vod/at/xml?ac=detail&pg=1",
+          "elapsedMs": 789,
+          "status": 302,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "api.yulecj.com"
+          },
+          "responseHeaders": {
+            "content-length": "0",
+            "server": "Kestrel",
+            "location": "https://www.hugedomains.com/domain_profile.cfm?d=yulecj.com"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://www.hugedomains.com/domain_profile.cfm?d=yulecj.com",
+          "elapsedMs": 987,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "www.hugedomains.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "cloudflare"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "d9e1027720af08cac005c67cc77e49e5941a5dcdb464b543ab09043b8a1c38a5",
+      "url": "https://shayuapi.com/api.php/Seacms/vod/",
+      "kind": "cms",
+      "name": "鲨鱼",
+      "siteTitle": "鲨鱼资源",
+      "homepage": "https://shayuapi.com/?#",
+      "builtin": true,
+      "state": "available",
+      "checkedAt": 1793165942771,
+      "addresses": [
+        "85.149.233.187"
+      ],
+      "dnsMs": 11,
+      "tcpMs": 103,
+      "port": 443,
+      "message": "鲨鱼 · 815 ms · API 可用",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://shayuapi.com/api.php/Seacms/vod/?ac=detail&pg=1",
+          "elapsedMs": 123,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://shayuapi.com/api.php/Seacms/vod/?ac=detail&pg=1",
+          "elapsedMs": 529,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "shayuapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/xml; charset=utf-8",
+            "server": "openresty"
+          },
+          "error": null
+        },
+        {
+          "method": "GET",
+          "url": "https://shayuapi.com/?",
+          "elapsedMs": 193,
+          "status": 200,
+          "requestHeaders": {
+            "user-agent": "ZeroPlayer/0.1",
+            "accept-encoding": "identity",
+            "content-length": "0",
+            "host": "shayuapi.com"
+          },
+          "responseHeaders": {
+            "content-type": "text/html; charset=utf-8",
+            "server": "openresty"
+          },
+          "error": null
+        }
+      ],
+      "dnsEvidence": []
+    },
+    {
+      "id": "c2088042a487dfe7b22550b348ff8ef9bf6297a012592d610b79e7e4faf38340",
+      "url": "https://api.1080zyku.com/inc/api_mac10.php",
+      "kind": "cms",
+      "name": "麻花资源",
+      "siteTitle": null,
+      "homepage": null,
+      "builtin": true,
+      "state": "inconclusive",
+      "checkedAt": 1793167842536,
+      "addresses": [
+        "23.224.195.234",
+        "23.224.60.254",
+        "23.226.180.19",
+        "23.226.180.18",
+        "23.224.60.253",
+        "23.224.195.235"
+      ],
+      "dnsMs": 3,
+      "tcpMs": 185,
+      "port": 443,
+      "message": "麻花资源 · 来源的安全连接验证失败，等待复检",
+      "requests": [
+        {
+          "method": "GET",
+          "url": "https://api.1080zyku.com/inc/api_mac10.php?ac=detail&pg=1",
+          "elapsedMs": 223,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        },
+        {
+          "method": "GET",
+          "url": "https://api.1080zyku.com/inc/api_mac10.php?ac=detail&pg=1",
+          "elapsedMs": 221,
+          "status": null,
+          "requestHeaders": {},
+          "responseHeaders": {},
+          "error": "HandshakeException"
+        }
+      ],
+      "dnsEvidence": []
+    }
+  ]
+}

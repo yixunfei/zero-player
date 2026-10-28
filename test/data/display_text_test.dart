@@ -35,7 +35,7 @@ void main() {
     },
   );
   test('CMS normalizes display fields without changing IDs or media URLs', () {
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     addTearDown(http.close);
     final provider = CmsProvider(
       VideoSource(

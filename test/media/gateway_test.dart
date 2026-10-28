@@ -25,7 +25,7 @@ void gatewayTests() {
 
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('zero-gateway-test-');
-    gateway = MediaGateway(SegmentStore(directory));
+    gateway = MediaGateway(SegmentStore(directory), allowPrivateNetworks: true);
     await gateway.start();
     client = HttpClient();
     upstream = await HttpTestServer.start(handleFixture);
@@ -146,7 +146,7 @@ void transportTests() {
         request.response.statusCode = 302;
         request.response.headers.set('location', target.baseUri.toString());
       });
-      final client = MediaHttpClient();
+      final client = MediaHttpClient(allowPrivateNetworks: true);
       try {
         final payload = await client.open(
           source.baseUri,
@@ -176,7 +176,7 @@ void transportTests() {
       received.complete();
       await release.future;
     });
-    final client = MediaHttpClient();
+    final client = MediaHttpClient(allowPrivateNetworks: true);
     final token = CancellationToken();
     try {
       final pending = client.open(

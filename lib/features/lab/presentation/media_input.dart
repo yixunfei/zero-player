@@ -45,8 +45,8 @@ final class _MediaInputState extends State<MediaInput> {
           const SizedBox(height: 12),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('启用本机网关'),
-            subtitle: const Text('HLS 改写与共享分片缓存'),
+            title: const Text('启用分片缓存'),
+            subtitle: const Text('所有媒体均经受控网关；关闭时不保存分片'),
             value: widget.controller.useGateway,
             onChanged: widget.controller.setGateway,
           ),

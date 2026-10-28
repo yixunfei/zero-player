@@ -9,7 +9,7 @@ import '../../test_support/http_test_server.dart';
 
 void main() {
   test('CMS credentials are bound to the endpoint origin', () async {
-    final http = MediaHttpClient();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
     addTearDown(http.close);
     final endpoint = Uri.parse('https://source.test/api');
     final provider = CmsProvider(
@@ -59,7 +59,7 @@ void main() {
         request.response.statusCode = 302;
         request.response.headers.set('location', target.baseUri.toString());
       });
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       addTearDown(http.close);
       addTearDown(source.close);
       addTearDown(target.close);

@@ -51,7 +51,10 @@ final class _SlowDownload {
   final HttpServer server;
   final AppDatabase db;
   final permits = RequestScheduler(globalLimit: 1, originLimit: 1);
-  late final http = MediaHttpClient(scheduler: permits);
+  late final http = MediaHttpClient(
+    allowPrivateNetworks: true,
+    scheduler: permits,
+  );
   late final settings = SettingsController(db);
   late final store = SegmentStore(Directory('${root.path}/cache'));
   late final repository = DownloadRepository(

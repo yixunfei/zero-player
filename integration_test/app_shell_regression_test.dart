@@ -80,7 +80,11 @@ void main() {
 
 Future<void> _setUp() async {
   root = await Directory.systemTemp.createTemp('zero-shell-regression-');
-  services = AppServices.scoped(root, AppDatabase.memory());
+  services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
   await services.settings.load();
   await services.settings.update({
     'recommendation': 'off',

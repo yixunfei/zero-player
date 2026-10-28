@@ -13,7 +13,7 @@ void main() {
     () async {
       final db = AppDatabase.memory();
       final repository = SourceRepository(db);
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final probe = SourceProbe(repository, DocumentClient(http));
       final server = await HttpTestServer.start((request) async {
         request.response.write(

@@ -130,7 +130,11 @@ Future<DownloadTask> _finished(String id) async {
 Future<void> _setup() async {
   broken = true;
   root = await Directory.systemTemp.createTemp('zero-failover-');
-  services = AppServices.scoped(root, AppDatabase.memory());
+  services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
   await services.settings.load();
   await services.store.initialize();
   server = await HttpTestServer.start(_respond);

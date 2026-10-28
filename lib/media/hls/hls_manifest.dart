@@ -53,6 +53,10 @@ final class HlsManifest {
     '#EXT-X-RENDITION-REPORT',
   };
   static final _uriAttribute = RegExp(r'([:,]\s*)URI="([^"]*)"');
+  static final _anyUriAttribute = RegExp(
+    r'[:,]\s*(?:[A-Z-]+-)?URI\s*=',
+    caseSensitive: false,
+  );
 
   factory HlsManifest.parse(
     String text,
@@ -123,7 +127,16 @@ final class HlsManifest {
           return map(_resolve(baseUri, line)).toString();
         }
         final tag = line.split(':').first;
-        if (!_uriTags.contains(tag)) return raw;
+        final referenceCount = _anyUriAttribute.allMatches(line).length;
+        if (!_uriTags.contains(tag)) {
+          if (tag.startsWith('#EXT-X-') && referenceCount > 0) {
+            throw const FormatException('Unsupported HLS resource attribute');
+          }
+          return raw;
+        }
+        if (referenceCount != _uriAttribute.allMatches(line).length) {
+          throw const FormatException('Malformed HLS resource attribute');
+        }
         return raw.replaceAllMapped(_uriAttribute, (match) {
           final key = tag == '#EXT-X-KEY' || tag == '#EXT-X-SESSION-KEY';
           final uri = resolveResource(match.group(2)!, key: key);

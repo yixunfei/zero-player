@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
@@ -25,6 +26,21 @@ final class PlatformServices {
 
   DesktopLifecycle? desktop;
   DesktopRadioTray? radioTray;
+
+  Future<AppExitResponse> requestAppExit(
+    Future<void> Function() shutdown,
+  ) async {
+    final lifecycle = desktop;
+    if (lifecycle != null) {
+      // Flutter can receive WM_CLOSE before window_manager. Let the same
+      // lifecycle own both cleanup and destruction: closing services here
+      // first removes the listener while preventClose is still enabled.
+      await lifecycle.closeWindow();
+      return AppExitResponse.cancel;
+    }
+    await shutdown();
+    return AppExitResponse.exit;
+  }
 
   Future<void> enableRadioTray(BackgroundAudioSession session) async {
     if (!Platform.isWindows || desktop == null || radioTray != null) return;

@@ -128,8 +128,7 @@ final class UserSettings {
     skip: map['skip'] != false,
     adFilter: map['adFilter'] == true,
     filterAdult: map['filterAdult'] != false,
-    recommendation:
-        {'douban', 'bangumi', 'hot', 'off'}.contains(map['recommendation'])
+    recommendation: {'douban', 'off'}.contains(map['recommendation'])
         ? map['recommendation'] as String
         : 'douban',
     allowMetered: map['allowMetered'] == true,
@@ -170,7 +169,14 @@ final class SettingsController extends ChangeNotifier {
     for (final row in rows) {
       final key = row['key'] as String;
       try {
-        final decoded = jsonDecode(row['value'] as String);
+        var decoded = jsonDecode(row['value'] as String);
+        if (key == 'recommendation' && {'bangumi', 'hot'}.contains(decoded)) {
+          decoded = 'douban';
+          await db.write('UPDATE settings SET value=? WHERE key=?', [
+            jsonEncode(decoded),
+            key,
+          ]);
+        }
         validateSetting(key, decoded);
         values[key] = decoded;
       } on FormatException {

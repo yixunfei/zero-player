@@ -4,6 +4,8 @@ import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
 import '../../discovery/data/recommendation_repository.dart';
 import '../../sources/domain/video_source.dart';
+import '../../sources/domain/source_order.dart';
+import '../../sources/presentation/source_menu_label.dart';
 
 final class HomePreferences extends StatefulWidget {
   const HomePreferences({super.key, required this.services});
@@ -23,14 +25,23 @@ final class _HomePreferencesState extends State<HomePreferences> {
   }
 
   void _listen() {
-    _sources = widget.services.sources.all();
+    _sources = _loadSources();
     _changes = widget.services.sources.changes.listen((_) {
       if (mounted) {
         setState(() {
-          _sources = widget.services.sources.all();
+          _sources = _loadSources();
         });
       }
     });
+  }
+
+  Future<List<VideoSource>> _loadSources() async {
+    final services = widget.services;
+    final id = services.settings.value.homeChannel;
+    if (await services.sources.preferredId(id) != id) {
+      await services.settings.load();
+    }
+    return services.sources.all();
   }
 
   @override
@@ -53,16 +64,21 @@ final class _HomePreferencesState extends State<HomePreferences> {
     future: _sources,
     builder: (context, snapshot) {
       final settings = widget.services.settings.value;
-      final sources = (snapshot.data ?? []).where(
-        (s) =>
-            s.enabled &&
-            !s.suppressed &&
-            (!settings.filterAdult || s.classification != 'adult'),
-      );
+      final sources =
+          (snapshot.data ?? [])
+              .where(
+                (s) =>
+                    s.enabled &&
+                    !s.suppressed &&
+                    (!settings.filterAdult || s.classification != 'adult'),
+              )
+              .toList()
+            ..sort(compareRecommendedSources);
       final choices = <String, String>{
         '': recommendationNames[settings.recommendation] ?? '精选推荐',
         for (final source in sources) source.id: source.displayName,
       };
+      final sourceById = {for (final source in sources) source.id: source};
       if (!choices.containsKey(settings.homeChannel)) {
         choices[settings.homeChannel] = '已失效的默认频道（启动时回退）';
       }
@@ -79,7 +95,9 @@ final class _HomePreferencesState extends State<HomePreferences> {
                   .map(
                     (e) => DropdownMenuItem(
                       value: e.key,
-                      child: Text(e.value, overflow: TextOverflow.ellipsis),
+                      child: sourceById[e.key] == null
+                          ? Text(e.value, overflow: TextOverflow.ellipsis)
+                          : SourceMenuLabel(sourceById[e.key]!),
                     ),
                   )
                   .toList(),

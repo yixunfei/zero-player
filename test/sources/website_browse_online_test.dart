@@ -12,7 +12,7 @@ void main() {
   test(
     'website categories and pagination return distinct pages',
     () async {
-      final http = MediaHttpClient();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
       final report = <Map<String, Object>>[];
       try {
         for (final site in [
