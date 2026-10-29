@@ -15,6 +15,7 @@ import '../hls/hls_manifest.dart';
 import '../hls/hls_quality.dart';
 import '../hls/ad_filter.dart';
 import '../hls/timeline.dart';
+import 'timestamp_segments.dart';
 import '../network/media_response_policy.dart';
 
 final class GatewaySession {
@@ -29,6 +30,13 @@ final class GatewaySession {
   Uri? selectedQuality;
   List<HlsQuality> qualities = [];
   bool filterAds = false;
+  bool normalizeTimestamps = false;
+  final _timestamps = TimestampSegments();
+  String get timestampStatus => !normalizeTimestamps
+      ? '时间轴修正未启用'
+      : !_canFilterAds
+      ? '多路音视频清单，未改写时钟'
+      : '${_timestamps.status}；本次生成修正 ${_timestamps.corrected} 段，未改动 ${_timestamps.unchanged} 段';
   bool cacheEnabled = true;
   bool _canFilterAds = true;
   final _variables = <Uri, Map<String, String>>{};
@@ -90,6 +98,7 @@ final class GatewaySession {
     _playlists.clear();
     _streaming.clear();
     _variables.clear();
+    _timestamps.clear();
     _gateway._sessions.remove(token);
   }
 }
@@ -117,6 +126,20 @@ final class MediaGateway {
   int requests = 0;
   int failures = 0;
   Uri get baseUri => Uri.parse('http://127.0.0.1:${_server!.port}/');
+
+  bool isRegisteredResource(Uri uri) {
+    if (_server == null ||
+        uri.scheme != 'http' ||
+        uri.origin != baseUri.origin ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return false;
+    }
+    final parts = uri.pathSegments;
+    return parts.length == 2 &&
+        _sessions[parts[0]]?._resources.containsKey(parts[1]) == true;
+  }
 
   bool isRegisteredPlaylist(Uri uri) {
     if (_server == null ||
@@ -170,9 +193,7 @@ final class MediaGateway {
       }
       // Browsers must not turn the native player's capability URL into a
       // cross-origin fetch endpoint. Native engines do not send Origin.
-      if (request.headers.value('origin') != null ||
-          request.headers.value('sec-fetch-site') != null ||
-          request.headers.value('host') != baseUri.authority) {
+      if (!_nativeRequest(request)) {
         request.response.statusCode = HttpStatus.forbidden;
         return;
       }
@@ -196,6 +217,15 @@ final class MediaGateway {
       }
       if (session._playlists.contains(uri)) {
         await _manifest(request, session, uri);
+      } else if (session.normalizeTimestamps &&
+          await session._timestamps.serve(
+            request,
+            uri,
+            store,
+            session.policy,
+            (key) => _fetch(session, uri, null, key),
+          )) {
+        return;
       } else if (!session.cacheEnabled ||
           !(await session.prefetch.prepare()) ||
           session._streaming.contains(uri) ||
@@ -253,6 +283,11 @@ final class MediaGateway {
       }
     }
   }
+
+  bool _nativeRequest(HttpRequest request) =>
+      request.headers.value('origin') == null &&
+      request.headers.value('sec-fetch-site') == null &&
+      request.headers.value('host') == baseUri.authority;
 
   Future<void> _passthrough(
     HttpRequest request,
@@ -351,6 +386,9 @@ final class MediaGateway {
       session.timeline = filtered.timeline;
     }
     final playlists = manifest.playlistUris;
+    if (session.normalizeTimestamps && session._canFilterAds) {
+      session._timestamps.register(manifest);
+    }
     for (final child in playlists) {
       session._variables[child] = manifest.variables;
     }

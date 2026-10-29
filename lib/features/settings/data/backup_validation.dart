@@ -1,3 +1,4 @@
+import '../../../media/content_filter/fingerprints/feature_rule.dart';
 import 'dart:convert';
 import '../domain/settings_validation.dart';
 import '../../radio/data/radio_backup_validation.dart';
@@ -133,6 +134,19 @@ void _url(Object? value) {
 }
 
 void _appMetadata(Map row) {
+  if ((row['key'] as String).startsWith('content_label:')) {
+    _contentLabel(row);
+    return;
+  }
+  if ((row['key'] as String).startsWith('filter_feature:')) {
+    final value = row['value'] as String;
+    if (value.length > 100000) throw const FormatException('特征数据过大');
+    final rule = FeatureRule.fromJson(jsonDecode(value));
+    if (row['key'] != 'filter_feature:${rule.id}') {
+      throw const FormatException('特征标识不一致');
+    }
+    return;
+  }
   if ((row['key'] as String).startsWith('source_favorite:')) {
     if (!RegExp(
           r'^source_favorite:[a-f0-9]{64}$',
@@ -178,4 +192,43 @@ void _appMetadata(Map row) {
   }
   validateBackupRecord('live_headers', {'headers': row['value']});
   return;
+}
+
+void _contentLabel(Map row) {
+  final identity = (row['key'] as String).substring('content_label:'.length);
+  final separator = identity.indexOf(':');
+  final data = jsonDecode(row['value'] as String);
+  const fields = {
+    'title',
+    'year',
+    'category',
+    'categoryId',
+    'tags',
+    'description',
+    'director',
+    'remarks',
+  };
+  if (separator <= 0 ||
+      separator == identity.length - 1 ||
+      data is! Map ||
+      data['title'] is! String ||
+      data.entries.any(
+        (entry) => !fields.contains(entry.key) || entry.value is! String,
+      )) {
+    throw const FormatException('历史内容分类元数据无效');
+  }
+}
+
+void validateFeatureCollection(List<Map<String, Object?>> rows) {
+  final counts = <String, int>{};
+  var total = 0;
+  for (final row in rows.where(
+    (r) => (r['key'] as String).startsWith('filter_feature:'),
+  )) {
+    final rule = FeatureRule.fromJson(jsonDecode(row['value'] as String));
+    counts[rule.sourceId] = (counts[rule.sourceId] ?? 0) + 1;
+    if (++total > 500 || counts[rule.sourceId]! > 100) {
+      throw const FormatException('特征数量超限：总计 500 条、每渠道 100 条');
+    }
+  }
 }

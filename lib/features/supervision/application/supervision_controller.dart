@@ -132,6 +132,15 @@ final class SupervisionController extends ChangeNotifier {
     return operation;
   }
 
+  /// A capability owned by one management route; no password is retained.
+  SensitiveSession createSession(SensitiveOperation operation) {
+    require(operation);
+    return SensitiveSession._(
+      this,
+      _OperationGrant(operation, _revision, false),
+    );
+  }
+
   Future<int> _verify(String input, {required bool recovery}) async {
     if (corrupted) throw const FormatException('监管配置损坏，已保持锁定');
     final now = _clock();
@@ -261,6 +270,25 @@ final class SupervisionController extends ChangeNotifier {
     await _stateQueue;
     dispose();
   }
+}
+
+final class SensitiveSession {
+  SensitiveSession._(this._owner, this._grant);
+  final SupervisionController _owner;
+  final _OperationGrant _grant;
+
+  Future<T> run<T>(Future<T> Function() action) async {
+    if (!_grant.active) throw const FormatException('管理会话已关闭，请重新进入');
+    if (_owner._closed || _owner._revision != _grant.revision) {
+      throw const FormatException('监管配置已变更，请重新进入管理');
+    }
+    return runZoned(() async {
+      _owner.require(_grant.operation);
+      return await action();
+    }, zoneValues: {_owner._zoneKey: _grant});
+  }
+
+  void close() => _grant.active = false;
 }
 
 final class PendingCredentials {

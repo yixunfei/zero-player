@@ -10,6 +10,7 @@ import '../../discovery/data/catalog_discovery.dart';
 import '../../library/data/history_repository.dart';
 import '../../sources/data/source_repository.dart';
 import '../../sources/domain/video_source.dart';
+import '../../sources/domain/source_order.dart';
 
 final class SearchController extends ChangeNotifier {
   SearchController(this.sources, this.network, this.history) {
@@ -43,6 +44,8 @@ final class SearchController extends ChangeNotifier {
   final items = <CatalogItem>[];
   final statuses = <String, String>{};
   final sourceNames = <String, String>{};
+  final sourceLabels = <String, String>{};
+  final _sourceOrder = <String, int>{};
   final failedSources = <String>{};
   final latencies = <String, int>{};
   bool loading = false;
@@ -56,16 +59,31 @@ final class SearchController extends ChangeNotifier {
   Set<String> _excluded = {};
   final _running = <String>{};
   Map<String, List<CatalogItem>>? _groupsCache;
+  Timer? _notification;
   @override
   void notifyListeners() {
+    _notification?.cancel();
+    _notification = null;
     _groupsCache = null;
     super.notifyListeners();
+  }
+
+  void _notifyProgress({bool itemsChanged = false}) {
+    if (itemsChanged) _groupsCache = null;
+    _notification ??= Timer(const Duration(milliseconds: 120), () {
+      _notification = null;
+      super.notifyListeners();
+    });
   }
 
   Map<String, List<CatalogItem>> get groups {
     if (_groupsCache != null) return _groupsCache!;
     final sorted = List<CatalogItem>.of(items)
       ..sort((a, b) {
+        final priority = (_sourceOrder[a.sourceId] ?? 999999).compareTo(
+          _sourceOrder[b.sourceId] ?? 999999,
+        );
+        if (priority != 0) return priority;
         final rank = _rank(a.title).compareTo(_rank(b.title));
         if (rank != 0) return rank;
         final preferred = (a.sourceId == preferredSourceId ? 0 : 1).compareTo(
@@ -174,6 +192,8 @@ final class SearchController extends ChangeNotifier {
       _seen.clear();
       statuses.clear();
       sourceNames.clear();
+      sourceLabels.clear();
+      _sourceOrder.clear();
       failedSources.clear();
       latencies.clear();
     }
@@ -194,16 +214,9 @@ final class SearchController extends ChangeNotifier {
                       (!filterAdult || s.classification != 'adult')),
             )
             .toList()
-          ..sort((a, b) {
-            final preferred = (a.id == preferredSourceId ? 0 : 1).compareTo(
-              b.id == preferredSourceId ? 0 : 1,
-            );
-            if (preferred != 0) return preferred;
-            final failure = a.failures.compareTo(b.failures);
-            return failure != 0
-                ? failure
-                : (a.latencyMs ?? 999999).compareTo(b.latencyMs ?? 999999);
-          });
+          ..sort(
+            (a, b) => compareSearchSources(a, b, entryId: preferredSourceId),
+          );
     if (generation != _generation) return;
     if (enabled.isEmpty) {
       error = '没有可用的已启用源，请先添加或启用来源';
@@ -212,6 +225,11 @@ final class SearchController extends ChangeNotifier {
       return;
     }
     for (final source in enabled) {
+      _sourceOrder.putIfAbsent(source.id, () => _sourceOrder.length);
+      sourceLabels[source.id] = searchSourceLabel(
+        source,
+        entryId: preferredSourceId,
+      );
       statuses[source.id] = '排队中';
       failedSources.remove(source.id);
       sourceNames[source.id] = '${source.displayName} · ${source.description}';
@@ -280,7 +298,7 @@ final class SearchController extends ChangeNotifier {
     try {
       statuses[source.id] = '正在查询';
       _running.add(source.id);
-      notifyListeners();
+      _notifyProgress();
       final provider = createVodProvider(
         source,
         network,
@@ -309,7 +327,7 @@ final class SearchController extends ChangeNotifier {
           }
         }
         statuses[source.id] = '$count 条结果';
-        notifyListeners();
+        _notifyProgress(itemsChanged: true);
       }
       await sources.health(source.id, null, latencyMs: latencies[source.id]);
       if (generation == _generation) {
@@ -346,7 +364,7 @@ final class SearchController extends ChangeNotifier {
       remove();
       if (generation == _generation) {
         _running.remove(source.id);
-        notifyListeners();
+        _notifyProgress();
       }
     }
   }
@@ -362,6 +380,8 @@ final class SearchController extends ChangeNotifier {
   }
 
   void cancel({bool notify = true}) {
+    _notification?.cancel();
+    _notification = null;
     final wasLoading = loading;
     _generation++;
     _cancellation?.cancel();

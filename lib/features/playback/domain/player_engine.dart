@@ -22,6 +22,7 @@ final class PlaybackSnapshot {
   const PlaybackSnapshot({
     this.position = Duration.zero,
     this.duration = Duration.zero,
+    this.buffer = Duration.zero,
     this.playing = false,
     this.buffering = false,
     this.completed = false,
@@ -30,6 +31,9 @@ final class PlaybackSnapshot {
   });
   final Duration position;
   final Duration duration;
+
+  /// End of the playable buffer, in the engine's playback timeline.
+  final Duration buffer;
   final bool playing;
   final bool buffering;
   final bool completed;

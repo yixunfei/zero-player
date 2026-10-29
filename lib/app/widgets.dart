@@ -189,12 +189,22 @@ final class LoadView<T> extends StatelessWidget {
 }
 
 final class PosterGrid extends StatelessWidget {
-  const PosterGrid({super.key, required this.children});
-  final List<Widget> children;
+  const PosterGrid({super.key, required this.children, this.sliver = false})
+    : itemCount = null,
+      itemBuilder = null;
+  const PosterGrid.builder({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.sliver = false,
+  }) : children = null;
+  final List<Widget>? children;
+  final int? itemCount;
+  final IndexedWidgetBuilder? itemBuilder;
+  final bool sliver;
   @override
-  Widget build(BuildContext context) => GridView.builder(
-    padding: const EdgeInsets.all(20),
-    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+  Widget build(BuildContext context) {
+    final delegate = SliverGridDelegateWithMaxCrossAxisExtent(
       maxCrossAxisExtent:
           Theme.of(context).visualDensity == VisualDensity.comfortable
           ? 320
@@ -202,8 +212,22 @@ final class PosterGrid extends StatelessWidget {
       childAspectRatio: .66,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-    ),
-    itemCount: children.length,
-    itemBuilder: (context, index) => children[index],
-  );
+    );
+    if (sliver) {
+      return SliverPadding(
+        padding: const EdgeInsets.all(20),
+        sliver: SliverGrid.builder(
+          gridDelegate: delegate,
+          itemCount: itemCount ?? children!.length,
+          itemBuilder: itemBuilder ?? (_, index) => children![index],
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(20),
+      gridDelegate: delegate,
+      itemCount: itemCount ?? children!.length,
+      itemBuilder: itemBuilder ?? (_, index) => children![index],
+    );
+  }
 }

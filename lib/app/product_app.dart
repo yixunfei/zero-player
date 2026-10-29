@@ -2,6 +2,7 @@ import 'dart:async';
 import '../features/supervision/presentation/supervision_page.dart';
 import 'dart:ui' show AppExitResponse;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/catalog/presentation/detail_page.dart';
@@ -21,6 +22,8 @@ import 'shell.dart';
 import 'app_theme.dart';
 import 'application_fullscreen.dart';
 import 'list_keyboard_navigation.dart';
+import 'app_back_dispatcher.dart';
+import 'app_layout.dart';
 
 final class ProductApp extends ConsumerStatefulWidget {
   const ProductApp({super.key});
@@ -32,6 +35,7 @@ final class _ProductAppState extends ConsumerState<ProductApp>
     with WidgetsBindingObserver {
   late final AppServices services;
   late final GoRouter router;
+  late final AppBackDispatcher backDispatcher;
   @override
   void initState() {
     super.initState();
@@ -40,86 +44,11 @@ final class _ProductAppState extends ConsumerState<ProductApp>
       ..maximumSize = 120
       ..maximumSizeBytes = 64 * 1024 * 1024;
     WidgetsBinding.instance.addObserver(this);
-    router = GoRouter(
-      routes: [
-        ShellRoute(
-          builder: (context, state, child) => AppShell(
-            services: services,
-            location: state.uri.path,
-            child: child,
-          ),
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, state) => DiscoveryPage(services: services),
-            ),
-            GoRoute(
-              path: '/search',
-              builder: (_, state) => PageListNavigation(
-                child: SearchPage(
-                  services: services,
-                  initial: state.uri.queryParameters['q'] ?? '',
-                  preferredSourceId:
-                      state.uri.queryParameters['source'] ??
-                      services.searchSourceId,
-                ),
-              ),
-            ),
-            GoRoute(
-              path: '/live',
-              builder: (_, state) => LivePage(services: services),
-            ),
-            GoRoute(
-              path: '/radio',
-              builder: (_, state) => RadioPage(services: services),
-            ),
-            GoRoute(
-              path: '/calendar',
-              builder: (_, _) => ReleaseCalendarPage(services: services),
-            ),
-            GoRoute(
-              path: '/history',
-              builder: (_, state) =>
-                  PageListNavigation(child: HistoryPage(services: services)),
-            ),
-            GoRoute(
-              path: '/downloads',
-              builder: (_, state) =>
-                  PageListNavigation(child: DownloadsPage(services: services)),
-            ),
-            GoRoute(
-              path: '/settings',
-              builder: (_, state) =>
-                  PageListNavigation(child: SettingsPage(services: services)),
-            ),
-          ],
-        ),
-        GoRoute(
-          path: '/supervision',
-          builder: (_, state) => SupervisionPage(services: services),
-        ),
-        GoRoute(
-          path: '/sources',
-          builder: (_, state) =>
-              PageListNavigation(child: SourcesPage(services: services)),
-        ),
-        GoRoute(
-          path: '/detail/:source/:id',
-          builder: (_, state) => DetailPage(
-            services: services,
-            sourceId: state.pathParameters['source']!,
-            remoteId: state.pathParameters['id']!,
-          ),
-        ),
-        GoRoute(
-          path: '/player',
-          redirect: (_, state) => state.extra is PlaybackRequest ? null : '/',
-          builder: (_, state) => PlayerPage(
-            services: services,
-            request: state.extra! as PlaybackRequest,
-          ),
-        ),
-      ],
+    router = _createRouter();
+    backDispatcher = AppBackDispatcher(
+      router: router,
+      platform: services.platform,
+      shutdown: services.closeSafely,
     );
     unawaited(services.subscriptions.refreshDue());
     services.sourceMonitor.start();
@@ -129,6 +58,88 @@ final class _ProductAppState extends ConsumerState<ProductApp>
       }
     });
   }
+
+  GoRouter _createRouter() => GoRouter(
+    routes: [
+      ShellRoute(
+        builder: (context, state, child) => AppShell(
+          services: services,
+          location: state.uri.path,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, state) => DiscoveryPage(services: services),
+          ),
+          GoRoute(
+            path: '/search',
+            builder: (_, state) => PageListNavigation(
+              child: SearchPage(
+                services: services,
+                initial: state.uri.queryParameters['q'] ?? '',
+                preferredSourceId:
+                    state.uri.queryParameters['source'] ??
+                    services.searchSourceId,
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/live',
+            builder: (_, state) => LivePage(services: services),
+          ),
+          GoRoute(
+            path: '/radio',
+            builder: (_, state) => RadioPage(services: services),
+          ),
+          GoRoute(
+            path: '/calendar',
+            builder: (_, _) => ReleaseCalendarPage(services: services),
+          ),
+          GoRoute(
+            path: '/history',
+            builder: (_, state) =>
+                PageListNavigation(child: HistoryPage(services: services)),
+          ),
+          GoRoute(
+            path: '/downloads',
+            builder: (_, state) =>
+                PageListNavigation(child: DownloadsPage(services: services)),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (_, state) =>
+                PageListNavigation(child: SettingsPage(services: services)),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/supervision',
+        builder: (_, state) => SupervisionPage(services: services),
+      ),
+      GoRoute(
+        path: '/sources',
+        builder: (_, state) =>
+            PageListNavigation(child: SourcesPage(services: services)),
+      ),
+      GoRoute(
+        path: '/detail/:source/:id',
+        builder: (_, state) => DetailPage(
+          services: services,
+          sourceId: state.pathParameters['source']!,
+          remoteId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/player',
+        redirect: (_, state) => state.extra is PlaybackRequest ? null : '/',
+        builder: (_, state) => PlayerPage(
+          services: services,
+          request: state.extra! as PlaybackRequest,
+        ),
+      ),
+    ],
+  );
 
   Future<void> _startFullscreen() async {
     try {
@@ -174,12 +185,25 @@ final class _ProductAppState extends ConsumerState<ProductApp>
     listenable: services.settings,
     builder: (context, _) {
       final tv =
-          services.settings.value.mode == 'television' ||
-          services.platform.television;
+          services.platform.television ||
+          (services.settings.value.mode == 'television' &&
+              !usesCompactNavigation(context, services.platform));
       return MaterialApp.router(
         title: 'Zero Player',
         debugShowCheckedModeBanner: false,
-        routerConfig: router,
+        routerDelegate: router.routerDelegate,
+        routeInformationParser: router.routeInformationParser,
+        routeInformationProvider: router.routeInformationProvider,
+        backButtonDispatcher: backDispatcher,
+        onNavigationNotification: (notification) {
+          // Root exit requires confirmation even when nested navigators cannot pop.
+          unawaited(
+            SystemNavigator.setFrameworkHandlesBack(
+              services.platform.android || notification.canHandlePop,
+            ),
+          );
+          return true;
+        },
         theme: buildAppTheme(
           Brightness.light,
           tv,

@@ -7,14 +7,14 @@ final class BlockSourceButton extends StatelessWidget {
     super.key,
     required this.name,
     required this.onBlock,
+    this.compact = false,
   });
   final String name;
   final Future<void> Function() onBlock;
+  final bool compact;
   @override
-  Widget build(BuildContext context) => TextButton.icon(
-    icon: const Icon(Icons.block, size: 18),
-    label: const Text('屏蔽渠道？'),
-    onPressed: () async {
+  Widget build(BuildContext context) {
+    Future<void> block() async {
       final accepted = await confirm(
         context,
         '屏蔽 $name？',
@@ -23,6 +23,18 @@ final class BlockSourceButton extends StatelessWidget {
       if (accepted && context.mounted) {
         await perform(context, onBlock, success: '已屏蔽，可在源管理中恢复');
       }
-    },
-  );
+    }
+
+    return compact
+        ? IconButton(
+            tooltip: '屏蔽 $name',
+            onPressed: block,
+            icon: const Icon(Icons.block),
+          )
+        : TextButton.icon(
+            icon: const Icon(Icons.block, size: 18),
+            label: const Text('屏蔽渠道？'),
+            onPressed: block,
+          );
+  }
 }

@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:zero_player/features/playback/domain/player_engine.dart';
 
 final class FakePlayerEngine implements PlayerEngine {
-  FakePlayerEngine({this.onVolume});
+  FakePlayerEngine({this.onVolume, this.onSeek});
   final Future<void> Function(double)? onVolume;
+  final Future<void> Function(Duration)? onSeek;
   final changes = StreamController<PlaybackSnapshot>.broadcast();
   final failures = StreamController<String>.broadcast();
   int opens = 0;
@@ -15,12 +16,19 @@ final class FakePlayerEngine implements PlayerEngine {
     changes.add(state);
   }
 
-  void change({Duration? position, bool? playing, double? rate}) => emit(
+  void change({
+    Duration? position,
+    bool? playing,
+    double? rate,
+    double? volume,
+  }) => emit(
     PlaybackSnapshot(
       position: position ?? snapshot.position,
       duration: snapshot.duration,
       playing: playing ?? snapshot.playing,
       rate: rate ?? snapshot.rate,
+      volume: volume ?? snapshot.volume,
+      buffer: snapshot.buffer,
     ),
   );
   @override
@@ -46,6 +54,7 @@ final class FakePlayerEngine implements PlayerEngine {
   @override
   Future<void> seek(Duration value) async {
     seeks.add(value);
+    await onSeek?.call(value);
     change(position: value);
   }
 
@@ -64,7 +73,11 @@ final class FakePlayerEngine implements PlayerEngine {
   @override
   Future<void> stop() async => emit(const PlaybackSnapshot());
   @override
-  Future<void> setVolume(double value) async => onVolume?.call(value);
+  Future<void> setVolume(double value) async {
+    await onVolume?.call(value);
+    change(volume: value);
+  }
+
   @override
   Future<List<int>?> screenshot() async => null;
 }

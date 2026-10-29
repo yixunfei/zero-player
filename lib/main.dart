@@ -20,5 +20,19 @@ Future<void> main() async {
       ], await rootBundle.loadString('assets/fonts/$font-OFL.txt'));
     }
   });
+  LicenseRegistry.addLicense(() async* {
+    final attribution = await rootBundle.loadString(
+      'assets/licenses/CONTENT-FILTER-NOTICE.txt',
+    );
+    for (final entry in const {
+      'SenseVoiceSmall / sherpa-onnx conversion': 'FunASR-MODEL-LICENSE.txt',
+      'PP-OCRv4 / RapidOCR': 'RapidOCR-LICENSE.txt',
+    }.entries) {
+      final license = await rootBundle.loadString(
+        'assets/licenses/${entry.value}',
+      );
+      yield LicenseEntryWithLineBreaks([entry.key], '$attribution\n\n$license');
+    }
+  });
   runApp(const ApplicationBootstrap());
 }

@@ -1,3 +1,5 @@
+import 'feature_rule_dialog.dart';
+import 'feature_rules_dialog.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -13,7 +15,8 @@ import '../../catalog/domain/catalog_item.dart';
 import '../application/playback_controller.dart';
 import 'source_switch.dart';
 import 'probe_dialog.dart';
-import 'timeline_slider.dart';
+import 'playback_diagnostics_dialog.dart';
+import 'player_transport.dart';
 import 'skip_marks_dialog.dart';
 import 'playback_surface.dart';
 import 'quality_selector.dart';
@@ -36,6 +39,7 @@ final class _PlayerPageState extends State<PlayerPage>
   bool locked = false;
   bool leaving = false;
   bool closed = false;
+  bool _capturing = false;
   late final void Function() _removeCloseHook;
   BoxFit fit = BoxFit.contain;
   @override
@@ -44,7 +48,10 @@ final class _PlayerPageState extends State<PlayerPage>
     engine = MediaKitEngine(
       isTrustedPlaylist: (uri) =>
           widget.services.gateway.isRegisteredPlaylist(uri) ||
-          widget.services.offline.isRegisteredPlaylist(uri),
+          widget.services.offline.isRegisteredPlaylist(uri) ||
+          widget.services.contentFilter.server.isRegisteredPlaylist(uri),
+      isFilteredPlaylist:
+          widget.services.contentFilter.server.isRegisteredPlaylist,
     );
     controller = PlaybackController(widget.services, engine);
     _removeCloseHook = widget.services.addCloseHook(controller.close);
@@ -251,6 +258,10 @@ final class _PlayerPageState extends State<PlayerPage>
         child: const Text('小窗'),
       ),
       OutlinedButton(onPressed: _screenshot, child: const Text('截图')),
+      OutlinedButton(
+        onPressed: () => showPlaybackDiagnostics(context, controller),
+        child: const Text('播放诊断'),
+      ),
       if (controller.request?.offline == null)
         OutlinedButton(
           onPressed: () => selectQuality(context, controller),
@@ -266,6 +277,29 @@ final class _PlayerPageState extends State<PlayerPage>
           ),
           child: const Text('测速 / 画质'),
         ),
+      if (!controller.isLive && controller.request != null) ...[
+        OutlinedButton(
+          onPressed: controller.busy
+              ? null
+              : () {
+                  controller.markFeatureStart();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已标记特征起点，请继续播放后标记终点')),
+                  );
+                },
+          child: const Text('标记特征起点'),
+        ),
+        OutlinedButton(
+          onPressed: controller.busy
+              ? null
+              : () => editFeatureRule(context, controller),
+          child: const Text('标记特征终点 / 采集'),
+        ),
+        OutlinedButton(
+          onPressed: () => showFeatureRules(context, controller),
+          child: const Text('特征管理'),
+        ),
+      ],
       if (!controller.isLive && controller.request?.offline == null) ...[
         OutlinedButton(
           onPressed: () => perform(context, controller.mark),
@@ -283,114 +317,20 @@ final class _PlayerPageState extends State<PlayerPage>
       ],
     ],
   );
-  Widget _rate() => PopupMenuButton<double>(
-    tooltip: '倍速',
-    initialValue: controller.state.rate,
-    onSelected: engine.setRate,
-    itemBuilder: (_) => [
-      for (final rate in [.5, .75, 1.0, 1.25, 1.5, 2.0])
-        PopupMenuItem(value: rate, child: Text('${rate}x')),
-    ],
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Text('${controller.state.rate}x'),
-    ),
+  Widget _transport() => PlayerTransport(
+    controller: controller,
+    fullscreen: fullscreen,
+    fit: fit,
+    onFullscreen: _fullscreen,
+    onOptions: _showOptions,
+    onFit: (value) => setState(() => fit = value),
+    onMark: () {
+      controller.featureStart = null;
+      editFeatureRule(context, controller, quickCapture: true);
+    },
+    onScreenshot: _screenshot,
   );
-  Widget _volume() => SizedBox(
-    width: 150,
-    child: Row(
-      children: [
-        IconButton(
-          tooltip: controller.state.volume == 0 ? '取消静音' : '静音',
-          onPressed: () =>
-              engine.setVolume(controller.state.volume == 0 ? 60 : 0),
-          icon: Icon(
-            controller.state.volume == 0 ? Icons.volume_off : Icons.volume_up,
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            value: controller.state.volume.clamp(0, 100),
-            max: 100,
-            semanticFormatterCallback: (value) => '音量 ${value.round()}%',
-            onChanged: engine.setVolume,
-          ),
-        ),
-      ],
-    ),
-  );
-  Widget _transport() => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      if (!controller.isLive)
-        Row(
-          children: [
-            Text(clockText(controller.originalPosition)),
-            Expanded(
-              child: TimelineSlider(
-                position: controller.originalPosition,
-                duration: controller.originalDuration,
-                marks: controller.marks,
-                seek: controller.seek,
-              ),
-            ),
-            Text(clockText(controller.originalDuration)),
-          ],
-        ),
-      Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          _volume(),
-          _rate(),
 
-          IconButton(
-            tooltip: '后退 10 秒',
-            onPressed: controller.isLive
-                ? null
-                : () => controller.seek(
-                    controller.originalPosition - const Duration(seconds: 10),
-                  ),
-            icon: const Icon(Icons.replay_10),
-          ),
-          FilledButton.tonalIcon(
-            onPressed: controller.busy ? null : controller.toggle,
-            icon: Icon(
-              controller.state.playing ? Icons.pause : Icons.play_arrow,
-            ),
-            label: Text(controller.state.playing ? '暂停' : '播放'),
-          ),
-          IconButton(
-            tooltip: '前进 10 秒',
-            onPressed: controller.isLive
-                ? null
-                : () => controller.seek(
-                    controller.originalPosition + const Duration(seconds: 10),
-                  ),
-            icon: const Icon(Icons.forward_10),
-          ),
-          IconButton(
-            tooltip: '下一集 / 频道',
-            onPressed: controller.request == null
-                ? null
-                : controller.nextEpisode,
-            icon: const Icon(Icons.skip_next),
-          ),
-          IconButton(
-            tooltip: fullscreen ? '退出全屏' : '全屏',
-            onPressed: _fullscreen,
-            icon: Icon(fullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
-          ),
-          IconButton(
-            tooltip: '显示选集与设置',
-            onPressed: _showOptions,
-            icon: const Icon(Icons.tune),
-          ),
-        ],
-      ),
-    ],
-  );
   Widget _episodes() => Column(
     children: [
       LineSelector(
@@ -447,19 +387,25 @@ final class _PlayerPageState extends State<PlayerPage>
   }
 
   Future<void> _screenshot() => perform(context, () async {
-    final bytes = await engine.screenshot();
-    if (bytes == null) throw StateError('当前没有可截图的视频帧');
-    final file = File(
-      p.join(
-        widget.services.root.path,
-        'screenshot-${DateTime.now().millisecondsSinceEpoch}.jpg',
-      ),
-    );
+    if (_capturing) return;
+    _capturing = true;
+    final position = controller.originalPosition;
+    File? file;
     try {
+      final bytes = await engine.screenshot();
+      if (bytes == null) throw StateError('当前没有可截图的视频帧');
+      final stamp = clockText(position).replaceAll(':', '-');
+      file = File(
+        p.join(
+          widget.services.root.path,
+          'screenshot-$stamp-${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ),
+      );
       await file.writeAsBytes(bytes);
       await FileTransfer.saveFile(file, p.basename(file.path), 'image/jpeg');
     } finally {
-      if (await file.exists()) await file.delete();
+      if (file != null && await file.exists()) await file.delete();
+      _capturing = false;
     }
   });
 }

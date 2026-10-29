@@ -43,6 +43,7 @@ void main() {
     (tester) async {
       final db = AppDatabase.memory();
       final settings = SettingsController(db);
+      final platform = PlatformServices(applyFullscreen: (_, _) async {});
       await db.close();
       addTearDown(settings.dispose);
       await tester.pumpWidget(
@@ -50,7 +51,8 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
-                onPressed: () => showNavigationGuide(context, settings),
+                onPressed: () =>
+                    showNavigationGuide(context, settings, platform: platform),
                 child: const Text('open'),
               ),
             ),

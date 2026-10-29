@@ -32,6 +32,7 @@ void main() {
     await root.delete(recursive: true);
   });
   _regressionTests();
+  _failedSeekRegression();
   test(
     'resume, pause persistence, and long press cancellation restore prior rate',
     () async {
@@ -124,7 +125,89 @@ Future<void> _initializeFixture() async {
   player = PlaybackController(services, engine);
 }
 
+void _failedSeekRegression() {
+  test('failed seek does not prevent rearming on a native reset', () async {
+    await player.close();
+    var failSeek = false;
+    engine = FakePlayerEngine(
+      onSeek: (_) async {
+        if (failSeek) throw StateError('native seek failed');
+      },
+    );
+    player = PlaybackController(services, engine);
+    await services.skips.add(
+      'source|movie|main|EP1',
+      const Duration(seconds: 5),
+      const Duration(seconds: 10),
+      const Duration(seconds: 30),
+      'advert',
+    );
+    await player.open(PlaybackRequest(item));
+    await player.seek(const Duration(seconds: 6));
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.seeks.last, const Duration(seconds: 10));
+    failSeek = true;
+    await expectLater(
+      player.seek(const Duration(seconds: 20), rearmSkips: false),
+      throwsStateError,
+    );
+    failSeek = false;
+    engine.change(position: Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    engine.change(position: const Duration(seconds: 6));
+    await Future<void>.delayed(Duration.zero);
+    expect(engine.seeks.last, const Duration(seconds: 10));
+    expect(engine.seeks.length, 4);
+  });
+}
+
 void _regressionTests() {
+  test(
+    'manual rewind re-arms a mark while undo exempts only that visit',
+    () async {
+      await services.skips.add(
+        'source|movie|main|EP1',
+        const Duration(seconds: 5),
+        const Duration(seconds: 10),
+        const Duration(seconds: 30),
+        'advert',
+      );
+      await player.open(PlaybackRequest(item));
+      await player.seek(const Duration(seconds: 6));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.seeks.last, const Duration(seconds: 10));
+      await player.undoSkip();
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.seeks.last, const Duration(seconds: 6));
+      await player.seek(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      engine.change(position: const Duration(seconds: 6));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.seeks.last, const Duration(seconds: 10));
+    },
+  );
+  test(
+    'filter enabled without channel features or models still opens and resumes',
+    () async {
+      await services.settings.update({'contentFilter': true});
+      await player.open(
+        PlaybackRequest(item, position: const Duration(seconds: 6)),
+      );
+      for (var i = 0; i < 100 && player.filterStatus == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(engine.opens, 1);
+      expect(engine.snapshot.playing, isTrue);
+      expect(engine.seeks.last, const Duration(seconds: 6));
+      expect(player.error, isNull);
+      expect(player.filterStatus, contains('未安装'));
+      expect(
+        Directory('${root.path}/content_filter/background').existsSync(),
+        isFalse,
+      );
+    },
+  );
+
   test('pause then resume does not disable later network recovery', () async {
     await player.open(PlaybackRequest(item));
     await Future<void>.delayed(Duration.zero);

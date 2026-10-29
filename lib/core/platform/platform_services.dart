@@ -16,13 +16,27 @@ final class PlatformServices {
   static const _channel = MethodChannel('zero_player/platform');
   bool television = false;
   bool smallWindow = false;
+  bool get mobile =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  bool get android => defaultTargetPlatform == TargetPlatform.android;
   late final FullscreenController _fullscreen;
   ValueListenable<bool> get appFullscreen => _fullscreen.application;
   ValueListenable<bool> get fullscreenChanging => _fullscreen.changing;
   bool? _nativeFullscreen;
+  bool _appFullscreenAllowed = true;
+  bool get appFullscreenAllowed => _appFullscreenAllowed;
+
+  Future<void> configureAppFullscreen({required bool allowed}) {
+    _appFullscreenAllowed = allowed;
+    return allowed ? Future<void>.value() : _fullscreen.setApplication(false);
+  }
+
   Future<void> setAppFullscreen(bool enabled) =>
-      _fullscreen.setApplication(enabled);
-  Future<void> toggleAppFullscreen() => _fullscreen.toggleApplication();
+      _fullscreen.setApplication(enabled && _appFullscreenAllowed);
+  Future<void> toggleAppFullscreen() => _appFullscreenAllowed
+      ? _fullscreen.toggleApplication()
+      : _fullscreen.setApplication(false);
 
   DesktopLifecycle? desktop;
   DesktopRadioTray? radioTray;
@@ -97,6 +111,14 @@ final class PlatformServices {
       await windowManager.setFullScreen(enabled);
       _nativeFullscreen = enabled;
     } else {
+      if (Platform.isAndroid && !enabled) {
+        // Edge-to-edge changes inset layout but may retain immersive visibility.
+        // Explicitly show both bars before restoring the application's layout.
+        await SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.manual,
+          overlays: SystemUiOverlay.values,
+        );
+      }
       await SystemChrome.setEnabledSystemUIMode(
         enabled ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
       );

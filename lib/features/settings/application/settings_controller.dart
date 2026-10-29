@@ -22,6 +22,12 @@ final class UserSettings {
     this.downloadMiB = 4096,
     this.skip = true,
     this.adFilter = false,
+    this.contentFilter = false,
+    this.filterOcr = false,
+    this.filterAsr = false,
+    this.filterKeywords = true,
+    this.filterSkipSeconds = 20,
+    this.filterStrategy = 'conservative',
     this.filterAdult = true,
     this.recommendation = 'douban',
     this.homeChannel = '',
@@ -50,6 +56,11 @@ final class UserSettings {
   final int downloadMiB;
   final bool skip;
   final bool adFilter;
+  final bool contentFilter;
+  final bool filterOcr, filterAsr;
+  final bool filterKeywords;
+  final int filterSkipSeconds;
+  final String filterStrategy;
   final bool filterAdult;
   final String recommendation;
   final String homeChannel;
@@ -79,6 +90,12 @@ final class UserSettings {
     'downloadMiB': downloadMiB,
     'skip': skip,
     'adFilter': adFilter,
+    'contentFilter': contentFilter,
+    'filterOcr': filterOcr,
+    'filterAsr': filterAsr,
+    'filterKeywords': filterKeywords,
+    'filterSkipSeconds': filterSkipSeconds,
+    'filterStrategy': filterStrategy,
     'filterAdult': filterAdult,
     'recommendation': recommendation,
     'homeChannel': homeChannel,
@@ -127,6 +144,20 @@ final class UserSettings {
     ),
     skip: map['skip'] != false,
     adFilter: map['adFilter'] == true,
+    contentFilter: map['contentFilter'] == true,
+    filterOcr: map['filterOcr'] == true,
+    filterAsr: map['filterAsr'] == true,
+    filterKeywords: map['filterKeywords'] != false,
+    filterSkipSeconds: ((map['filterSkipSeconds'] as num?)?.toInt() ?? 20)
+        .clamp(1, 120),
+    filterStrategy:
+        {
+          'conservative',
+          'aggressive',
+          'confirm',
+        }.contains(map['filterStrategy'])
+        ? map['filterStrategy'] as String
+        : 'conservative',
     filterAdult: map['filterAdult'] != false,
     recommendation: {'douban', 'off'}.contains(map['recommendation'])
         ? map['recommendation'] as String
@@ -222,6 +253,16 @@ final class SettingsController extends ChangeNotifier {
   }
 
   void _checkAdultFilter(Map<String, Object> changes) {
+    if ([
+      'contentFilter',
+      'filterOcr',
+      'filterAsr',
+      'filterKeywords',
+    ].any((key) => changes[key] == false)) {
+      authorize?.call();
+    }
+    if (changes.containsKey('filterSkipSeconds')) authorize?.call();
+    if (changes.containsKey('filterStrategy')) authorize?.call();
     if (changes['filterAdult'] != false) return;
     if (adultFilterRequired?.call() == true) {
       throw const FormatException('监管模式强制开启成人过滤，请先验证密码关闭监管模式');

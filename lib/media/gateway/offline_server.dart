@@ -25,6 +25,19 @@ final class OfflineServer {
   final _tasks = <String, String>{};
   bool isPlaying(String id) => _tasks.containsValue(id);
 
+  bool isRegisteredResource(Uri uri) {
+    if (_server == null ||
+        uri.scheme != 'http' ||
+        uri.authority != '127.0.0.1:${_server!.port}' ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return false;
+    }
+    final parts = uri.pathSegments;
+    return parts.length == 2 &&
+        _sessions[parts[0]]?.containsKey(parts[1]) == true;
+  }
+
   bool isRegisteredPlaylist(Uri uri) {
     if (_server == null ||
         uri.scheme != 'http' ||

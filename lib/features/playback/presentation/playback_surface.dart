@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../app/widgets.dart';
 import '../application/playback_controller.dart';
+import 'filter_playback_overlay.dart';
 
 final class PlaybackSurface extends StatefulWidget {
   const PlaybackSurface({
@@ -39,6 +40,7 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   bool _keyboardInput = false;
   final _surfaceFocus = FocusNode();
   Timer? timer;
+  Timer? _hintTimer;
   Duration? seekPreview;
   Duration seekStart = Duration.zero;
   double dragX = 0, dragY = 0, baseVolume = 0, shade = 0, baseShade = 0;
@@ -55,6 +57,7 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   @override
   void dispose() {
     timer?.cancel();
+    _hintTimer?.cancel();
     _surfaceFocus.dispose();
     widget.controller.removeListener(_sync);
     super.dispose();
@@ -91,8 +94,8 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
 
   void _tap() {
     _surfaceFocus.requestFocus();
-    setState(() => visible = !visible);
-    _arm();
+    _show();
+    if (!widget.locked && !widget.controller.busy) widget.controller.toggle();
   }
 
   @override
@@ -104,6 +107,43 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   );
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+        _surfaceFocus.hasPrimaryFocus &&
+        !widget.locked) {
+      final key = event.logicalKey;
+      if (key == LogicalKeyboardKey.arrowUp ||
+          key == LogicalKeyboardKey.arrowDown) {
+        final volume =
+            (widget.controller.state.volume +
+                    (key == LogicalKeyboardKey.arrowUp ? 5 : -5))
+                .clamp(0.0, 100.0);
+        widget.controller.engine.setVolume(volume);
+        _showHint('音量 ${volume.round()}%');
+        return KeyEventResult.handled;
+      }
+      if (!widget.controller.isLive &&
+          (key == LogicalKeyboardKey.arrowLeft ||
+              key == LogicalKeyboardKey.arrowRight)) {
+        final seconds = HardwareKeyboard.instance.isShiftPressed ? 30 : 10;
+        final target =
+            widget.controller.originalPosition +
+            Duration(
+              seconds: key == LogicalKeyboardKey.arrowRight
+                  ? seconds
+                  : -seconds,
+            );
+        widget.controller.seek(target);
+        _showHint(
+          '跳转 ${clockText(target < Duration.zero ? Duration.zero : target)}',
+        );
+        return KeyEventResult.handled;
+      }
+      if (event is KeyDownEvent && key == LogicalKeyboardKey.space) {
+        widget.controller.toggle();
+        _show();
+        return KeyEventResult.handled;
+      }
+    }
     if (event is KeyDownEvent) {
       _keyboardInput = true;
       final wasHidden = !visible;
@@ -137,6 +177,15 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
     return KeyEventResult.ignored;
   }
 
+  void _showHint(String value) {
+    _hintTimer?.cancel();
+    setState(() => hint = value);
+    _show();
+    _hintTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => hint = null);
+    });
+  }
+
   Widget _surface() => MouseRegion(
     cursor: visible ? SystemMouseCursors.basic : SystemMouseCursors.none,
     onHover: (_) => _show(),
@@ -160,6 +209,18 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
           fit: StackFit.expand,
           children: [
             _gestureVideo(),
+            if (!visible && !widget.locked)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 72,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _show,
+                  child: const SizedBox.expand(),
+                ),
+              ),
             if (shade > 0)
               IgnorePointer(
                 child: ColoredBox(color: Colors.black.withValues(alpha: shade)),
@@ -168,28 +229,8 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
               const IgnorePointer(
                 child: Center(child: CircularProgressIndicator()),
               ),
-            if (widget.controller.error != null)
-              Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(widget.controller.error!),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: widget.locked
-                              ? null
-                              : widget.controller.retry,
-                          child: const Text('重试'),
-                        ),
-                        if (widget.errorAction != null) widget.errorAction!,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            FilterPlaybackOverlay(controller: widget.controller),
+            if (widget.controller.error != null) _errorPanel(),
             if (hint != null)
               Center(
                 child: DecoratedBox(
@@ -227,6 +268,34 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
                 ),
               ),
           ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _errorPanel() => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 64, 16, 64),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Card(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.controller.error!),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: widget.locked ? null : widget.controller.retry,
+                    child: const Text('重试'),
+                  ),
+                  if (widget.errorAction != null) widget.errorAction!,
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     ),
@@ -320,7 +389,6 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   Widget _gestureVideo() => GestureDetector(
     behavior: HitTestBehavior.opaque,
     onTap: _tap,
-    onDoubleTap: widget.locked ? null : widget.controller.toggle,
     onLongPressStart: canGesture
         ? (_) {
             widget.controller.beginSpeed();

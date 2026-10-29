@@ -38,6 +38,7 @@ def main():
     if native.exists():
         shutil.copytree(native, target / 'ffmpegkit-windows', dirs_exist_ok=True)
     collect_native_notices(target)
+    shutil.copytree(ROOT / 'assets/licenses', target / 'content-filter-models', dirs_exist_ok=True)
     (target / 'inventory.json').write_text(json.dumps(inventory, indent=2), encoding='utf-8')
     shutil.copy2(ROOT / 'NOTICE.md', target / 'NOTICE.md')
     print(f'Collected notices for {len(inventory)} packages in {target}')

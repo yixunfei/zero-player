@@ -8,6 +8,7 @@ import '../../catalog/domain/catalog_item.dart';
 import '../application/search_controller.dart';
 import 'search_status_panel.dart';
 import '../../catalog/presentation/source_choices.dart';
+import '../../catalog/presentation/source_choices_dialog.dart';
 
 final class SearchPage extends StatefulWidget {
   const SearchPage({
@@ -67,6 +68,7 @@ final class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _search() => perform(context, () async {
+    _inputFocus.unfocus();
     await controller.search(
       text.text,
       filterAdult: widget.services.contentPolicy.filterAdult,
@@ -94,7 +96,11 @@ final class _SearchPageState extends State<SearchPage> {
             children: [
               for (final only in [false, true])
                 ChoiceChip(
-                  label: Text(only ? '仅当前来源' : '全站 · 优先 ${snapshot.data}'),
+                  label: Text(
+                    only ? '仅当前来源' : '全站 · 优先 ${snapshot.data}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   selected: _onlyPreferred == only,
                   onSelected: controller.loading
                       ? null
@@ -129,93 +135,119 @@ final class _SearchPageState extends State<SearchPage> {
       },
       child: ListenableBuilder(
         listenable: controller,
-        builder: (context, _) => Column(
-          children: [
-            _searchBar(),
-            _scope(),
-            if (controller.loading) const LinearProgressIndicator(),
-            if (controller.query.isEmpty) _history(),
-            SearchStatusPanel(controller: controller),
-            Expanded(
-              child: controller.items.isEmpty
-                  ? EmptyState(
-                      controller.loading ? '正在逐源搜索' : '还没有搜索结果',
-                      controller.error ??
-                          (controller.loading
-                              ? '结果会随来源响应陆续出现'
-                              : controller.query.isEmpty
-                              ? '输入片名，或选择搜索记录'
-                              : '未找到匹配内容，可缩短关键词或切换搜索范围'),
-                      action: TextButton(
-                        onPressed: () => context.push('/sources'),
-                        child: const Text('管理视频源'),
-                      ),
-                    )
-                  : PosterGrid(
-                      children: [
-                        for (final group in controller.groups.values)
-                          PosterCard(
-                            title: group.first.title,
-                            description: group.first.description,
-                            poster:
-                                group
-                                    .where((i) => i.poster.isNotEmpty)
-                                    .firstOrNull
-                                    ?.poster ??
-                                '',
-                            subtitle:
-                                '${group.first.year} ${group.first.remarks} · ${group.map((i) => i.sourceId).toSet().length} 个来源',
-                            onTap: () => _choose(group),
-                          ),
-                      ],
-                    ),
+        builder: (context, _) => CustomScrollView(
+          key: const ValueKey('search-scroll'),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _searchBar(),
+                  _scope(),
+                  if (controller.loading) const LinearProgressIndicator(),
+                  if (controller.query.isEmpty) _history(),
+                  SearchStatusPanel(controller: controller),
+                ],
+              ),
             ),
+            if (controller.items.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  controller.loading ? '正在逐源搜索' : '还没有搜索结果',
+                  controller.error ??
+                      (controller.loading
+                          ? '结果会随来源响应陆续出现'
+                          : controller.query.isEmpty
+                          ? '输入片名，或选择搜索记录'
+                          : '未找到匹配内容，可缩短关键词或切换搜索范围'),
+                  action: TextButton(
+                    onPressed: () => context.push('/sources'),
+                    child: const Text('管理视频源'),
+                  ),
+                ),
+              )
+            else
+              _results(),
           ],
         ),
       ),
     ),
   );
-  Widget _searchBar() => Padding(
-    padding: const EdgeInsets.all(20),
-    child: Row(
-      children: [
-        IconButton(
-          tooltip: '返回上一页 (Esc / Alt+←)',
-          onPressed: _back,
-          icon: const Icon(Icons.arrow_back),
-        ),
-        Expanded(
-          child: TextField(
-            controller: text,
-            focusNode: _inputFocus,
-            autofocus: true,
-            onSubmitted: (_) => _search(),
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: '输入影片名称',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                tooltip: '清空输入',
-                onPressed: () {
-                  text.clear();
-                  controller.clear();
-                  _inputFocus.requestFocus();
-                },
-                icon: const Icon(Icons.close),
+  Widget _results() {
+    final groups = controller.groups.values.toList(growable: false);
+    return PosterGrid.builder(
+      sliver: true,
+      itemCount: groups.length,
+      itemBuilder: (_, index) {
+        final group = groups[index];
+        return PosterCard(
+          key: ValueKey('${group.first.sourceId}/${group.first.id}'),
+          title: group.first.title,
+          description: group.first.description,
+          poster:
+              group.where((i) => i.poster.isNotEmpty).firstOrNull?.poster ?? '',
+          subtitle:
+              '${group.first.year} ${group.first.remarks} · ${group.map((i) => i.sourceId).toSet().length} 个来源',
+          onTap: () => _choose(group),
+        );
+      },
+    );
+  }
+
+  Widget _searchBar() {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return Padding(
+      padding: EdgeInsets.all(compact ? 12 : 20),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: '返回上一页 (Esc / Alt+←)',
+            onPressed: _back,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          Expanded(
+            child: TextField(
+              controller: text,
+              focusNode: _inputFocus,
+              autofocus: true,
+              onSubmitted: (_) => _search(),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: '输入影片名称',
+                prefixIcon: compact ? null : const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  tooltip: '清空输入',
+                  onPressed: () {
+                    text.clear();
+                    controller.clear();
+                    _inputFocus.requestFocus();
+                  },
+                  icon: const Icon(Icons.close),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        FilledButton(
-          onPressed: controller.loading
-              ? () => setState(controller.cancel)
-              : _search,
-          child: Text(controller.loading ? '停止' : '搜索'),
-        ),
-      ],
-    ),
-  );
+          SizedBox(width: compact ? 4 : 12),
+          if (compact)
+            IconButton.filled(
+              tooltip: controller.loading ? '停止搜索' : '搜索',
+              onPressed: controller.loading
+                  ? () => setState(controller.cancel)
+                  : _search,
+              icon: Icon(controller.loading ? Icons.stop : Icons.search),
+            )
+          else
+            FilledButton(
+              onPressed: controller.loading
+                  ? () => setState(controller.cancel)
+                  : _search,
+              child: Text(controller.loading ? '停止' : '搜索'),
+            ),
+        ],
+      ),
+    );
+  }
 
   void _cancelOrBack() {
     if (controller.loading) {
@@ -241,7 +273,7 @@ final class _SearchPageState extends State<SearchPage> {
       children: [
         for (final query in snapshot.data ?? <String>[])
           ActionChip(
-            label: Text(query),
+            label: Text(query, maxLines: 1, overflow: TextOverflow.ellipsis),
             onPressed: () {
               text.text = query;
               _search();
@@ -263,27 +295,21 @@ final class _SearchPageState extends State<SearchPage> {
     ),
   );
   Future<void> _choose(List<CatalogItem> items) async {
+    _inputFocus.unfocus();
     final selected = await showDialog<CatalogItem>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(items.first.title),
-        content: SizedBox(
-          width: 600,
-          child: SingleChildScrollView(
-            child: SourceChoices(
-              services: widget.services,
-              items: items,
-              onSelected: (item) => Navigator.pop(context, item),
-              onBlock: controller.blockSource,
-            ),
+      builder: (context) => SourceChoicesDialog(
+        title: items.first.title,
+        child: SingleChildScrollView(
+          child: SourceChoices(
+            services: widget.services,
+            items: items,
+            sourceNames: controller.sourceNames,
+            sourceLabels: controller.sourceLabels,
+            onSelected: (item) => Navigator.pop(context, item),
+            onBlock: controller.blockSource,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-        ],
       ),
     );
     if (selected != null && mounted) {

@@ -37,10 +37,27 @@ final class DiscoveryToolbar extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final wide = constraints.maxWidth >= 1000;
+      if (constraints.maxWidth < 560) {
+        return Column(
+          key: const ValueKey('discovery-toolbar-column'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: _channel(context)),
+                const SizedBox(width: 8),
+                _options(),
+              ],
+            ),
+            const SizedBox(height: 8),
+            HomeSearch(onSearch: onSearch),
+          ],
+        );
+      }
       return Row(
         key: const ValueKey('discovery-toolbar-row'),
         children: [
-          SizedBox(width: wide ? 230 : 120, child: _channel()),
+          SizedBox(width: wide ? 230 : 120, child: _channel(context)),
           const SizedBox(width: 12),
           Expanded(child: HomeSearch(onSearch: onSearch)),
           const SizedBox(width: 8),
@@ -82,14 +99,16 @@ final class DiscoveryToolbar extends StatelessWidget {
     },
   );
 
-  Widget _channel() => DropdownButtonFormField<String>(
+  Widget _channel(BuildContext context) => DropdownButtonFormField<String>(
     // Recreate an open menu when its allowed choices change. Flutter's popup
     // otherwise retains the old entries even after the parent is rebuilt.
     key: ValueKey((channel, sources.map((s) => s.id).join(','))),
     initialValue: sources.any((s) => s.id == channel) ? channel : '',
     isExpanded: true,
     itemHeight: 48,
-    menuMaxHeight: 420,
+    menuMaxHeight: (MediaQuery.sizeOf(context).height - 160)
+        .clamp(200.0, 420.0)
+        .toDouble(),
     decoration: const InputDecoration(labelText: '推荐频道', isDense: true),
     items: [
       DropdownMenuItem(

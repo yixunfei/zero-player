@@ -8,6 +8,7 @@ import '../domain/catalog_item.dart';
 import 'movie_header.dart';
 import '../../playback/presentation/line_selector.dart';
 import '../../sources/presentation/block_source_button.dart';
+import '../../sources/presentation/channel_favorite_action.dart';
 
 final class DetailPage extends StatefulWidget {
   const DetailPage({
@@ -76,6 +77,10 @@ final class _DetailPageState extends State<DetailPage> {
         spacing: 12,
         runSpacing: 12,
         children: [
+          ChannelFavoriteAction(
+            sourceId: item.sourceId,
+            repository: widget.services.sources,
+          ),
           FilledButton.icon(
             onPressed: item.lines.isEmpty ? null : () => _resume(item),
             icon: const Icon(Icons.play_arrow),

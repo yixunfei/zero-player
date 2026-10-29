@@ -4,9 +4,7 @@ import 'package:zero_player/features/discovery/presentation/discovery_toolbar.da
 
 void main() {
   for (final width in [320.0, 390.0, 760.0, 1280.0]) {
-    testWidgets('search shares the channel row at width $width', (
-      tester,
-    ) async {
+    testWidgets('toolbar adapts to the available width $width', (tester) async {
       tester.view.physicalSize = Size(width, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -35,10 +33,27 @@ void main() {
       );
       final search = find.byKey(const ValueKey('home-search'));
       final channel = find.byType(DropdownButtonFormField<String>);
-      expect(
-        tester.getRect(search).center.dy,
-        closeTo(tester.getRect(channel).center.dy, 1),
-      );
+      if (width < 608) {
+        expect(
+          find.byKey(const ValueKey('discovery-toolbar-column')),
+          findsOneWidget,
+        );
+        expect(
+          tester.getRect(search).top,
+          greaterThanOrEqualTo(tester.getRect(channel).bottom),
+        );
+        expect(tester.getRect(search).left, greaterThanOrEqualTo(24));
+        expect(tester.getRect(search).right, lessThanOrEqualTo(width - 24));
+      } else {
+        expect(
+          tester.getRect(search).center.dy,
+          closeTo(tester.getRect(channel).center.dy, 1),
+        );
+        expect(
+          find.byKey(const ValueKey('discovery-toolbar-row')),
+          findsOneWidget,
+        );
+      }
       expect(tester.getSize(search).width, greaterThan(50));
       await tester.tap(search);
       expect(searched, isTrue);

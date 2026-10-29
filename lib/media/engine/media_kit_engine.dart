@@ -13,11 +13,13 @@ final class MediaKitEngine implements PlayerEngine {
     bool videoOutput = true,
     this.gateway,
     this.isTrustedPlaylist,
+    this.isFilteredPlaylist,
   }) {
     if (videoOutput) video = VideoController(player);
     for (final stream in <Stream<dynamic>>[
       player.stream.position,
       player.stream.duration,
+      player.stream.buffer,
       player.stream.playing,
       player.stream.buffering,
       player.stream.completed,
@@ -43,6 +45,7 @@ final class MediaKitEngine implements PlayerEngine {
   final _subscriptions = <StreamSubscription<dynamic>>[];
   final MediaGateway? gateway;
   final bool Function(Uri)? isTrustedPlaylist;
+  final bool Function(Uri)? isFilteredPlaylist;
   GatewaySession? _session;
   Future<void>? _securityReady;
   Future<void>? _disposing;
@@ -84,6 +87,7 @@ final class MediaKitEngine implements PlayerEngine {
   PlaybackSnapshot get snapshot => PlaybackSnapshot(
     position: player.state.position,
     duration: player.state.duration,
+    buffer: player.state.buffer,
     playing: player.state.playing,
     buffering: player.state.buffering,
     completed: player.state.completed,
@@ -129,6 +133,10 @@ final class MediaKitEngine implements PlayerEngine {
     await _setVerified('access-references', trustedHls ? 'yes' : 'no');
     await _setVerified('demuxer', trustedHls ? 'lavf' : '');
     await _setVerified('demuxer-lavf-format', trustedHls ? 'hls' : '');
+    await (player.platform as NativePlayer).setProperty(
+      'demuxer-lavf-o',
+      isFilteredPlaylist?.call(uri) == true ? 'live_start_index=0' : '',
+    );
     if (_disposing != null) return;
     await player.add(
       Media(uri.toString(), httpHeaders: HeaderPolicy.sanitize(headers)),

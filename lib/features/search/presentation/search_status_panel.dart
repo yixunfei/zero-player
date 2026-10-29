@@ -34,16 +34,25 @@ class SearchStatusPanel extends StatelessWidget {
                 children: [
                   for (final status in controller.statuses.entries)
                     ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                       dense: true,
                       title: Text(
-                        '${status.key == controller.preferredSourceId ? '当前来源优先 · ' : ''}${controller.sourceNames[status.key] ?? ''}',
+                        '${controller.sourceLabels[status.key] ?? '未知渠道'} · ${controller.sourceNames[status.key] ?? ''}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
                         '${status.value}${controller.latencies[status.key] == null ? '' : ' · ${controller.latencies[status.key]} ms'}',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       trailing: controller.failedSources.contains(status.key)
                           ? BlockSourceButton(
                               name: controller.sourceNames[status.key] ?? '此来源',
+                              compact:
+                                  MediaQuery.sizeOf(context).shortestSide < 600,
                               onBlock: () => controller.blockSource(status.key),
                             )
                           : null,

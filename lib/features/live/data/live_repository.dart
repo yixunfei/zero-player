@@ -57,6 +57,10 @@ final class LiveRepository {
     bool existingOnly = false,
   }) async {
     final id = stableId(url.toString());
+    if (existingOnly &&
+        (await db.rows('SELECT id FROM live_lists WHERE id=?', [id])).isEmpty) {
+      return;
+    }
     try {
       if (headers.isEmpty) {
         final saved = await db.rows('SELECT value FROM app_meta WHERE key=?', [

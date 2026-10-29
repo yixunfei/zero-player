@@ -59,6 +59,15 @@ migrate_working_dir/
 !/docs/implementation/SUPERVISION-2026-10-28.md
 !/docs/implementation/SUPERVISION-DISPLAY-FIX-2026-10-28.md
 !/docs/implementation/CHANNEL-RADIO-DEDUPE-2026-10-28.md
+!/docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md
+!/docs/implementation/MOBILE-FILTER-20261029.md
+!/docs/implementation/PLAYER-IMPROVEMENTS-20261029.md
+!/docs/implementation/AD-FILTER-REPAIR-20261029.md
+!/docs/implementation/FEATURE-SEEK-SYNC-20261029.md
+!/docs/implementation/RELEASE-0.0.7.md
+!/docs/implementation/REVIEW-20261029.md
+!/docs/implementation/FEATURE-BOUNDARIES-20261029.md
+!/docs/implementation/FEATURE-REUSE-20261029.md
 
 # Symbolication related
 app.*.symbols

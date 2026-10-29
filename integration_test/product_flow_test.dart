@@ -212,7 +212,8 @@ void _productFlowTest() {
       expect(video.controller.player.state.width, 640);
       expect(video.controller.player.state.height, 360);
       await _immersiveExperience(tester, boundary, video);
-      await tester.tap(find.text('暂停'));
+      await tester.ensureVisible(find.byTooltip('暂停 (空格)'));
+      await tester.tap(find.byTooltip('暂停 (空格)'));
       await tester.pump(const Duration(milliseconds: 250));
       expect(video.controller.player.state.playing, isFalse);
       await tester.tap(find.byTooltip('返回').first);
@@ -260,12 +261,18 @@ Future<void> _responsiveExperience(
   router.go('/history');
   await pumpUntil(tester, () => find.text('测试影片').evaluate().isNotEmpty);
   expect(find.text('测试影片'), findsOneWidget);
+  // Native setSurfaceSize changes render constraints, not the view metrics
+  // consumed by MediaQuery-based navigation. Override both for phone layout.
+  tester.view.physicalSize =
+      const Size(390, 844) * tester.view.devicePixelRatio;
+  addTearDown(tester.view.resetPhysicalSize);
   await binding.setSurfaceSize(const Size(390, 844));
   router.go('/settings');
   await tester.pump(const Duration(milliseconds: 250));
   expect(find.byType(NavigationBar), findsOneWidget);
   expect(tester.takeException(), isNull);
   await screenshot(boundary, 'product-phone-settings.png');
+  tester.view.resetPhysicalSize();
   await binding.setSurfaceSize(const Size(1280, 800));
   await services.settings.update({'mode': 'television'});
   router.go('/sources');
@@ -308,23 +315,25 @@ Future<void> _immersiveExperience(
 ) async {
   await screenshot(boundary, 'enhancement-player-controls.png');
   await tester.pump(const Duration(seconds: 4));
-  expect(find.text('暂停').hitTestable(), findsNothing);
+  expect(find.byTooltip('暂停 (空格)').hitTestable(), findsNothing);
   await screenshot(boundary, 'enhancement-player-immersive.png');
   await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
   await tester.pump(const Duration(milliseconds: 350));
-  expect(find.text('暂停'), findsOneWidget);
+  expect(find.byTooltip('暂停 (空格)').hitTestable(), findsOneWidget);
   await tester.tap(find.byTooltip('锁定防误触'));
   await tester.pump(const Duration(milliseconds: 100));
-  expect(find.text('暂停').hitTestable(), findsNothing);
+  expect(find.byTooltip('暂停 (空格)').hitTestable(), findsNothing);
   expect(find.byTooltip('解除防误触'), findsOneWidget);
   await tester.tap(find.byTooltip('解除防误触'));
   await tester.pump(const Duration(milliseconds: 100));
-  expect(find.text('暂停'), findsOneWidget);
+  expect(find.byTooltip('暂停 (空格)').hitTestable(), findsOneWidget);
   expect(tester.takeException(), isNull);
   await binding.setSurfaceSize(const Size(390, 844));
   await tester.pump(const Duration(milliseconds: 300));
+  expect(find.byTooltip('播放速率').hitTestable(), findsOneWidget);
+  await tester.ensureVisible(find.byTooltip('静音'));
+  await tester.pump(const Duration(milliseconds: 100));
   expect(find.byTooltip('静音').hitTestable(), findsOneWidget);
-  expect(find.byTooltip('倍速').hitTestable(), findsOneWidget);
   await screenshot(boundary, 'experience-player-phone.png');
   expect(tester.takeException(), isNull);
   await binding.setSurfaceSize(const Size(844, 390));

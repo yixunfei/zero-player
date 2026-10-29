@@ -5,6 +5,7 @@ import '../../catalog/domain/catalog_item.dart';
 import '../../search/application/search_controller.dart';
 import '../application/playback_controller.dart';
 import '../../catalog/presentation/source_choices.dart';
+import '../../catalog/presentation/source_choices_dialog.dart';
 import '../../sources/presentation/block_source_button.dart';
 
 Future<void> switchPlaybackSource(
@@ -25,6 +26,7 @@ Future<void> switchPlaybackSource(
   );
   final work = search.search(
     request.item.title,
+    preferredSourceId: request.item.sourceId,
     filterAdult: services.settings.value.filterAdult,
     concurrency: services.settings.value.searchConcurrency,
   );
@@ -32,9 +34,9 @@ Future<void> switchPlaybackSource(
   try {
     selected = await showDialog<CatalogItem>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择来源与版本'),
-        content: _sourceChoices(
+      builder: (context) => SourceChoicesDialog(
+        title: '选择来源与版本',
+        child: _sourceChoices(
           context,
           services,
           search,
@@ -42,12 +44,6 @@ Future<void> switchPlaybackSource(
           currentSource?.description ?? '',
           request.item.sourceId,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-        ],
       ),
     );
   } finally {
@@ -90,42 +86,64 @@ Widget _sourceChoices(
   String name,
   String description,
   String currentId,
-) => SizedBox(
-  width: 600,
-  height: 400,
-  child: ListenableBuilder(
-    listenable: search,
-    builder: (context, _) => ListView(
-      children: [
+) => ListenableBuilder(
+  listenable: search,
+  builder: (context, _) => ListView(
+    children: [
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+        title: Text(
+          '当前来源 · $name',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          description,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: search.statuses[currentId] == '已屏蔽'
+            ? const Text('已屏蔽')
+            : BlockSourceButton(
+                name: name,
+                compact: MediaQuery.sizeOf(context).shortestSide < 600,
+                onBlock: () => search.blockSource(currentId),
+              ),
+      ),
+      if (search.loading) const LinearProgressIndicator(),
+      Text(
+        search.error ?? '屏蔽后不再参与搜索、自动换源与后续下载，可在源管理中重新启用。',
+        maxLines: 4,
+        overflow: TextOverflow.ellipsis,
+      ),
+      SourceChoices(
+        services: services,
+        items: search.groups.values.expand((group) => group).toList(),
+        sourceNames: search.sourceNames,
+        sourceLabels: search.sourceLabels,
+        onSelected: (item) => Navigator.pop(context, item),
+        onBlock: search.blockSource,
+      ),
+      for (final id in search.failedSources)
         ListTile(
-          title: Text('当前来源 · $name'),
-          subtitle: Text(description),
-          trailing: search.statuses[currentId] == '已屏蔽'
-              ? const Text('已屏蔽')
-              : BlockSourceButton(
-                  name: name,
-                  onBlock: () => search.blockSource(currentId),
-                ),
-        ),
-        if (search.loading) const LinearProgressIndicator(),
-        Text(search.error ?? '屏蔽后不再参与搜索、自动换源与后续下载，可在源管理中重新启用。'),
-        SourceChoices(
-          services: services,
-          items: List.of(search.items),
-          onSelected: (item) => Navigator.pop(context, item),
-          onBlock: search.blockSource,
-        ),
-        for (final id in search.failedSources)
-          ListTile(
-            title: Text(search.sourceNames[id] ?? id),
-            subtitle: Text(search.statuses[id] ?? ''),
-            trailing: BlockSourceButton(
-              name: search.sourceNames[id] ?? '此来源',
-              onBlock: () => search.blockSource(id),
-            ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+          title: Text(
+            search.sourceNames[id] ?? id,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-      ],
-    ),
+          subtitle: Text(
+            search.statuses[id] ?? '',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: BlockSourceButton(
+            name: search.sourceNames[id] ?? '此来源',
+            compact: MediaQuery.sizeOf(context).shortestSide < 600,
+            onBlock: () => search.blockSource(id),
+          ),
+        ),
+    ],
   ),
 );
 

@@ -1,3 +1,4 @@
+import '../media/content_filter/fingerprints/feature_repository.dart';
 import 'dart:async';
 import 'dart:io';
 import '../features/supervision/application/content_policy.dart';
@@ -47,6 +48,7 @@ import '../media/cache/segment_store.dart';
 import '../media/export/ffmpeg_exporter.dart';
 import '../media/gateway/media_gateway.dart';
 import '../media/gateway/offline_server.dart';
+import '../media/content_filter/content_filter_service.dart';
 
 final servicesProvider = Provider<AppServices>(
   (ref) => throw StateError('Services not initialized'),
@@ -57,8 +59,10 @@ final class AppServices {
     this.root,
     this.db, {
     this.radioEngine,
+    PlatformServices? platform,
     bool allowPrivateNetworks = false,
-  }) : http = MediaHttpClient(allowPrivateNetworks: allowPrivateNetworks);
+  }) : platform = platform ?? PlatformServices(),
+       http = MediaHttpClient(allowPrivateNetworks: allowPrivateNetworks);
   final PlayerEngine Function()? radioEngine;
   RadioController? _radioPlayer;
   RadioController get radioPlayer => _radioPlayer ??= RadioController(
@@ -71,7 +75,7 @@ final class AppServices {
   /// In-session browsing context; distinct from the user's saved home default.
   String? searchSourceId;
   final AppDatabase db;
-  final platform = PlatformServices();
+  final PlatformServices platform;
   final MediaHttpClient http;
   late final network = DocumentClient(http);
   late final posters = PosterRepository(network);
@@ -93,9 +97,13 @@ final class AppServices {
   late final builtins = BuiltinSources(sources);
   late final sourceProbe = SourceProbe(sources, network);
   late final sourceMonitor = BackgroundSourceMonitor(sourceProbe, settings);
-  late final subscriptions = SubscriptionService(network, sources);
+  late final subscriptions = SubscriptionService(network, sources, live: live);
   late final history = HistoryRepository(db, policy: contentPolicy);
   late final skips = SkipRepository(db);
+  late final filterFeatures = FeatureRepository(
+    db,
+    authorize: () => supervision.require(SensitiveOperation.settings),
+  );
   late final live = LiveRepository(
     db,
     network,
@@ -125,6 +133,15 @@ final class AppServices {
     authorize: () => supervision.require(SensitiveOperation.restore),
     authorizeExport: () => supervision.require(SensitiveOperation.export),
   );
+
+  Future<void> restoreBackup(BackupPreview preview) async {
+    await backup.restore(preview);
+    contentPolicy.forgetSources();
+    await sources.all(includeSuppressed: true);
+    await settings.load();
+    contentPolicy.refresh();
+  }
+
   late final store = SegmentStore(
     Directory(p.join(root.path, 'segments')),
     metadata: SegmentIndex(db),
@@ -132,6 +149,14 @@ final class AppServices {
   late final fetcher = SegmentFetcher(store, http);
   late final gateway = MediaGateway(store, client: http);
   late final offline = OfflineServer(store);
+  late final contentFilter = ContentFilterService(
+    Directory(p.join(root.path, 'content_filter')),
+    http,
+    isTrustedInput: (uri) =>
+        gateway.isRegisteredResource(uri) || offline.isRegisteredResource(uri),
+    isPlaylist: (uri) =>
+        gateway.isRegisteredPlaylist(uri) || offline.isRegisteredPlaylist(uri),
+  );
   late final downloads = DownloadRepository(
     db,
     Directory(p.join(root.path, 'downloads')),
@@ -287,6 +312,7 @@ final class AppServices {
     () => downloadScheduler.close(),
     () => sourceMonitor.close(),
     () => settings.removeListener(_applySettings),
+    () => contentFilter.close(),
     () => offline.close(),
     () => gateway.close(),
     () => posters.close(),

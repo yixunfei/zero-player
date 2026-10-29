@@ -7,6 +7,7 @@ void validateSetting(String key, Object? value) {
     'mode': {'auto', 'television'},
     'recommendation': {'douban', 'off'},
     'homeLayout': {'single', 'aggregate'},
+    'filterStrategy': {'conservative', 'aggressive', 'confirm'},
   };
   if (choices.containsKey(key)) {
     if (!choices[key]!.contains(value)) throw const FormatException('设置选项无效');
@@ -30,6 +31,10 @@ void validateSetting(String key, Object? value) {
         : 4;
     if (value is! int || value < 1 || value > max) {
       throw const FormatException('并发设置无效');
+    }
+  } else if (key == 'filterSkipSeconds') {
+    if (value is! int || value < 1 || value > 120) {
+      throw const FormatException('跳过步长应为 1–120 秒');
     }
   } else if (key == 'prefetchSegments') {
     if (value is! int || value < 0 || value > 10) {
@@ -56,6 +61,10 @@ void validateSetting(String key, Object? value) {
     'cache',
     'skip',
     'adFilter',
+    'contentFilter',
+    'filterOcr',
+    'filterAsr',
+    'filterKeywords',
     'filterAdult',
     'allowMetered',
     'cacheWhilePaused',

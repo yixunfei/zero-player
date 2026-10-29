@@ -20,7 +20,15 @@ void main() {
       ]) {
         expect(adultContent(value), isTrue, reason: value);
       }
-      for (final value in ['日韩伦理', '電影 / 倫理', '有码', '香港三級']) {
+      for (final value in [
+        '日韩伦理',
+        '電影 / 倫理',
+        '有码',
+        '香港三級',
+        '韩国伦理,剧情',
+        '日韩伦理 / 动作',
+        '劇情；香港三級|喜劇',
+      ]) {
         expect(adultContent(value, category: true), isTrue, reason: value);
       }
     },
@@ -38,6 +46,7 @@ void main() {
       'AV1 高清编码',
     ]) {
       expect(adultContent(value), isFalse, reason: value);
+      expect(adultContent(value, category: true), isFalse, reason: value);
     }
   });
   test(

@@ -4,7 +4,7 @@ import 'package:zero_player/features/discovery/presentation/discovery_toolbar.da
 import 'package:zero_player/features/sources/domain/video_source.dart';
 
 void main() {
-  for (final width in [390.0, 1280.0]) {
+  for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets('long channel menu reopens at current item at $width', (
       tester,
     ) async {
@@ -12,12 +12,17 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      tester.platformDispatcher.textScaleFactorTestValue = width < 400
+          ? 1.6
+          : 1;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       var current = '60';
       final sources = List.generate(
         80,
         (i) => VideoSource(
           id: '$i',
-          name: '频道 $i',
+          name: i == 60 ? '超长频道名称 - 第六十个资源服务商 及其提供的视频内容目录' : '频道 $i',
+          favorite: i == 60,
           endpoint: Uri.https('source$i.test'),
         ),
       );
@@ -80,7 +85,14 @@ void _expectSelected(WidgetTester tester, String id) {
   );
   expect(scroll.position.pixels, greaterThan(0));
   expect(
-    find.descendant(of: list, matching: find.text('频道 $id')).hitTestable(),
+    find
+        .descendant(
+          of: list,
+          matching: find.text(
+            id == '60' ? '超长频道名称 - 第六十个资源服务商 及其提供的视频内容目录' : '频道 $id',
+          ),
+        )
+        .hitTestable(),
     findsOneWidget,
   );
   expect(

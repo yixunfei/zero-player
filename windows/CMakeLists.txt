@@ -63,6 +63,14 @@ set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Enhanced OCR/ASR runtimes are installed explicitly into app support storage.
+list(FILTER PLUGIN_BUNDLED_LIBRARIES EXCLUDE REGEX
+  "(onnxruntime|sherpa-onnx-c-api|sherpa-onnx-cxx-api)\\.dll$")
+# Remove only stale inference DLLs left by earlier builds of this bundle.
+install(CODE "file(REMOVE
+  \"${CMAKE_INSTALL_PREFIX}/onnxruntime.dll\"
+  \"${CMAKE_INSTALL_PREFIX}/sherpa-onnx-c-api.dll\"
+  \"${CMAKE_INSTALL_PREFIX}/sherpa-onnx-cxx-api.dll\")" COMPONENT Runtime)
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

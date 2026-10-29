@@ -5,6 +5,8 @@ import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:go_router/go_router.dart';
 import 'app_services.dart';
 import 'application_fullscreen.dart';
+import 'app_layout.dart';
+import 'mobile_bottom_navigation.dart';
 import 'navigation_guide.dart';
 import '../features/radio/presentation/radio_mini_player.dart';
 
@@ -47,7 +49,13 @@ final class _AppShellState extends State<AppShell> {
     widget.services.platform.appFullscreen.addListener(_fullscreenChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !widget.services.settings.value.navigationGuideSeen) {
-        unawaited(showNavigationGuide(context, widget.services.settings));
+        unawaited(
+          showNavigationGuide(
+            context,
+            widget.services.settings,
+            platform: widget.services.platform,
+          ),
+        );
       }
     });
   }
@@ -81,69 +89,82 @@ final class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
     valueListenable: widget.services.platform.appFullscreen,
-    builder: (context, full, _) => LayoutBuilder(
-      builder: (context, bounds) {
-        final tv =
-            widget.services.settings.value.mode == 'television' ||
-            widget.services.platform.television;
-        final wide = bounds.maxWidth >= 700 || tv;
-        return CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyM, control: true):
-                _open,
-            const SingleActivator(LogicalKeyboardKey.contextMenu): _open,
-            const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
-              if (widget.location != '/search') context.push('/search');
-            },
-          },
-          child: Focus(
-            focusNode: _focus,
-            autofocus: true,
-            child: Scaffold(
-              key: _scaffold,
-              drawer: _drawer(),
+    builder: (context, full, _) {
+      final wide = !usesCompactNavigation(context, widget.services.platform);
+      return _appFrame(full: full, wide: wide);
+    },
+  );
 
-              body: SafeArea(
-                child: Column(
-                  children: [
-                    ClipRect(
-                      child: AnimatedAlign(
-                        alignment: Alignment.topCenter,
-                        heightFactor: _barVisible ? 1 : 0,
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 180),
-                        child: ExcludeFocus(
-                          excluding: !_barVisible,
-                          child: _appBar(wide),
-                        ),
-                      ),
+  Widget _appFrame({required bool full, required bool wide}) {
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyM, control: true): _open,
+        const SingleActivator(LogicalKeyboardKey.contextMenu): _open,
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
+          if (widget.location != '/search') context.push('/search');
+        },
+      },
+      child: Focus(
+        focusNode: _focus,
+        autofocus: true,
+        child: Scaffold(
+          key: _scaffold,
+          drawer: _drawer(),
+          body: SafeArea(
+            child: Column(
+              children: [
+                ClipRect(
+                  child: AnimatedAlign(
+                    alignment: Alignment.topCenter,
+                    heightFactor: _barVisible ? 1 : 0,
+                    duration: _animationDuration(context),
+                    child: ExcludeFocus(
+                      excluding: !_barVisible,
+                      child: _appBar(wide),
                     ),
-                    _pageBody(wide),
-                    if (widget.location != '/radio')
-                      RadioMiniPlayer(controller: widget.services.radioPlayer),
-                  ],
+                  ),
                 ),
-              ),
-              bottomNavigationBar: wide || full
-                  ? null
-                  : NavigationBar(
-                      height: 68,
-                      selectedIndex: _index,
-                      labelBehavior:
-                          NavigationDestinationLabelBehavior.onlyShowSelected,
-                      onDestinationSelected: _navigate,
-                      destinations: [
-                        for (final d in _destinations)
-                          NavigationDestination(icon: Icon(d.$3), label: d.$2),
-                      ],
-                    ),
+                _pageBody(wide),
+                if (widget.location != '/radio')
+                  RadioMiniPlayer(controller: widget.services.radioPlayer),
+              ],
             ),
           ),
-        );
-      },
-    ),
-  );
+          bottomNavigationBar: _navigationBar(full: full, wide: wide),
+        ),
+      ),
+    );
+  }
+
+  Duration _animationDuration(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context)
+      ? Duration.zero
+      : const Duration(milliseconds: 180);
+
+  Widget? _navigationBar({required bool full, required bool wide}) {
+    if (wide || MediaQuery.viewInsetsOf(context).bottom > 0) return null;
+    return ClipRect(
+      child: AnimatedAlign(
+        alignment: Alignment.topCenter,
+        heightFactor: _barVisible ? 1 : 0,
+        duration: _animationDuration(context),
+        child: IgnorePointer(
+          ignoring: !_barVisible,
+          child: ExcludeSemantics(
+            excluding: !_barVisible,
+            child: ExcludeFocus(
+              excluding: !_barVisible,
+              child: MobileBottomNavigation(
+                location: widget.location,
+                onNavigate: (route) => context.go(route),
+                onMore: _open,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _pageBody(bool wide) => Expanded(
     child: NotificationListener<ScrollUpdateNotification>(
@@ -151,14 +172,14 @@ final class _AppShellState extends State<AppShell> {
       child: Stack(
         children: [
           Positioned.fill(child: FocusTraversalGroup(child: widget.child)),
-          if (!_barVisible)
+          if (wide && !_barVisible)
             Positioned(
               left: 12,
               top: 8,
-              child: FilledButton.tonalIcon(
+              child: IconButton.filled(
+                tooltip: '展开导航',
                 onPressed: _open,
                 icon: const Icon(Icons.menu),
-                label: const Text('菜单'),
               ),
             ),
           if (wide)
@@ -247,7 +268,7 @@ final class _AppShellState extends State<AppShell> {
           : _destinations[_index].$2,
     ),
     actions: [
-      AppFullscreenButton(platform: widget.services.platform),
+      if (wide) AppFullscreenButton(platform: widget.services.platform),
       IconButton(
         tooltip: '管理视频源',
         onPressed: () => context.push('/sources'),

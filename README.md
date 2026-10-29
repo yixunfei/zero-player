@@ -4,7 +4,7 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.6 Windows 阶段性正式版** · [下载发布包](https://github.com/yixunfei/zero-player/releases/tag/v0.0.6) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.6.md)
+**v0.0.7 Windows / Android ARM64** · [下载发布包](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.7.md)
 
 ## 功能
 
@@ -17,6 +17,7 @@
 - **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
 - 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
 - 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
+- 播放中特征跳过（默认关闭）：原画质直接播放，后台优先检测音频；没有规则、资源缺失或检测失败时继续播放。支持频道/全剧声画样本、保守/积极/提示策略、离线关键词检测。关键词始终先确认，默认跳过时长 20 秒，可调整并撤销。轻量关键词、OCR / ASR 资源在设置中手动下载，不随基础包安装。Android 实机性能待设备验收。详见 [实施记录](docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md)。
 - 下载、续传、离线播放与 TS/MP4 导出；设置、历史记录及用户数据保存在本机。
 - 一次性导航引导、版权说明与开源许可证入口。
 
@@ -28,12 +29,10 @@
 | --- | --- |
 | Windows 10/11 x64 安装 | windows-x64-setup.exe |
 | Windows x64 便携运行 | windows-x64-portable.zip（完整解压后运行 zero_player.exe） |
-| Android 8.0+ 手机/TV | android-arm64.apk；不确定架构时选 android-universal.apk |
-| Android x64 设备/模拟器 | android-x64.apk |
-| Android 分发工具输入 | android.aab（不能直接安装） |
+| Android 8.0+ ARM64 手机/平板/TV | android-arm64.apk（本次未完成 Android 实机验收） |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-本次 v0.0.6 仅发布 Windows x64，文件以 zero-player-0.0.6 开头；Android APK/AAB 仍在 [v0.0.1 发布页](https://github.com/yixunfei/zero-player/releases/tag/v0.0.1)，不包含后续 Windows 版本的全部改进。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
+本次 v0.0.7 发布 Windows x64 安装器/便携包和 Android ARM64 签名 APK，文件以 zero-player-0.0.7 开头；本次不发布 Android x64、通用包或 AAB。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
 
 ## 开发
 

@@ -31,17 +31,18 @@ final class BackupService {
     'channel_preferences',
     'app_meta',
   ];
-  static const _liveMetadata =
+  static const _backupMetadata =
       " WHERE key GLOB 'live_headers:*' OR key GLOB 'live_state:*' OR key GLOB 'live_list_enabled:*' OR key GLOB 'live_metadata:*'"
       " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'"
-      " OR key GLOB 'source_favorite:*'";
+      " OR key GLOB 'source_favorite:*' OR key GLOB 'filter_feature:*'"
+      " OR key GLOB 'content_label:*'";
 
   Future<String> export() async => db.transaction(() async {
     authorizeExport?.call();
     final data = <String, Object>{};
     for (final name in tables) {
       data[name] = await db.rows(
-        'SELECT * FROM $name${name == 'app_meta' ? _liveMetadata : ''} '
+        'SELECT * FROM $name${name == 'app_meta' ? _backupMetadata : ''} '
         'LIMIT ${maxRowsPerTable + 1}',
       );
       if ((data[name] as List).length > maxRowsPerTable) {
@@ -88,6 +89,7 @@ final class BackupService {
         );
       }
     }
+    validateFeatureCollection(result['app_meta']!);
     return BackupPreview(
       Map.unmodifiable({
         for (final e in result.entries)
@@ -120,7 +122,7 @@ final class BackupService {
     authorize?.call();
     for (final table in tables.reversed) {
       await db.customStatement(
-        'DELETE FROM $table${table == 'app_meta' ? _liveMetadata : ''}',
+        'DELETE FROM $table${table == 'app_meta' ? _backupMetadata : ''}',
       );
     }
     for (final table in tables) {

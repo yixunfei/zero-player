@@ -27,6 +27,16 @@ The v0.0.1 release includes dependency notices and records of native source/buil
 
 Synthetic color bars and tones in tests are project-generated. Development FFmpeg command-line tools and downloaded reference source are not included in the application source archive.
 
+## Offline content filtering
+
+- Optional keyword spotting weights: sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20, published by k2-fsa / sherpa-onnx at https://github.com/k2-fsa/sherpa-onnx/releases/tag/kws-models . Only the quantized chunk-16 encoder/joiner, decoder and token vocabulary are installed. The downloaded archive does not contain a separate model-weight license; the toolkit's Apache-2.0 license is not asserted here as a license grant for these weights. Exact source, archive and extracted-file hashes are pinned in lib/media/content_filter/keyword_models.dart. Weights are not included in the base application or source archive.
+- sherpa_onnx 2.0.1: Apache-2.0, https://github.com/k2-fsa/sherpa-onnx. An explicitly downloaded, pinned platform archive supplies the optional shared ONNX Runtime 1.28.2 library.
+- ONNX Runtime: MIT, https://github.com/microsoft/onnxruntime. onnxruntime_v2 1.23.2+2 supplies Dart FFI bindings; all ONNX/sherpa native libraries are excluded from base Windows and Android packages. Explicit enhancement installation loads a shared verified native runtime from application support storage.
+- SenseVoiceSmall: FunAudioLLM / Alibaba Group; int8 ONNX conversion by csukuangfj / sherpa-onnx. Conversion revision 2365baeacb507f821a0c8120fcee3d484dba7a07: https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17 . Its LICENSE refers to FunASR. Model weights have separate terms under the FunASR Model Open Source License Agreement, not the source toolkit's MIT license. Attribution and agreement v1.1 are retained in assets/licenses and the app license screen.
+- PP-OCRv4: PaddleOCR / PaddlePaddle, converted to ONNX by RapidOCR / SWHL. Pinned model repository revision 1cfba2e90fc938db55889873735088de210cc173 declares Apache-2.0: https://huggingface.co/SWHL/RapidOCR . Full RapidOCR license and attribution are retained in assets/licenses.
+
+Model weights and native inference libraries download only through the manual resource action, never during playback. Their exact lengths and SHA256 values are pinned in lib/media/content_filter/local_models.dart, keyword_models.dart and runtime_catalog.dart. The model-free visual/audio fingerprint code uses existing Dart image and numerical processing and does not load those libraries. These model terms remain separate from Zero Player's source license. The development speech fixture is locally synthesized by an installed Microsoft SAPI voice and is not bundled in the app or source archive.
+
 ## Xiaolai font
 
 Xiaolai Regular v3.126 by LXGW, derived from SetoFont. Bundled under SIL Open Font License 1.1. Copyright and full license: assets/fonts/OFL.txt. Upstream: https://github.com/lxgw/kose-font .

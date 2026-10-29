@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import '../core/platform/platform_services.dart';
+import 'app_layout.dart';
 import '../features/settings/application/settings_controller.dart';
 import '../features/settings/presentation/disclaimer_dialog.dart';
 
 Future<void> showNavigationGuide(
   BuildContext context,
-  SettingsController settings,
-) => showDialog<void>(
+  SettingsController settings, {
+  required PlatformServices platform,
+}) => showDialog<void>(
   context: context,
   barrierDismissible: false,
-  builder: (_) => _NavigationGuide(settings: settings),
+  builder: (_) => _NavigationGuide(settings: settings, platform: platform),
 );
 
 final class _NavigationGuide extends StatefulWidget {
-  const _NavigationGuide({required this.settings});
+  const _NavigationGuide({required this.settings, required this.platform});
   final SettingsController settings;
+  final PlatformServices platform;
   @override
   State<_NavigationGuide> createState() => _NavigationGuideState();
 }
@@ -42,55 +46,69 @@ final class _NavigationGuideState extends State<_NavigationGuide> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_saving,
-    child: AlertDialog(
-      icon: Icon(Icons.menu_open, color: Theme.of(context).colorScheme.primary),
-      title: const Text('从这里开始探索'),
-      scrollable: true,
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _tip(
-              Icons.menu,
-              '左上角「菜单」',
-              '点击即可打开导航，进入发现、搜索、直播、记录、下载和设置。向下滚动时，左上角仍保留菜单入口。',
-            ),
-            _tip(Icons.search, '主页中央搜索', '通过醒目的搜索框查找影片、剧集或动漫；键盘也可使用 Ctrl+K。'),
-            _tip(
-              Icons.fullscreen_exit,
-              '自由切换全屏',
-              '顶部全屏按钮或 F11 切换沉浸与窗口；Esc 可退出应用沉浸模式。搜索页和播放器优先处理各自的返回操作。',
-            ),
-            const Text('键盘导航：Ctrl+M 打开菜单。确认后不再自动显示本引导，可在设置中再次查看。'),
-            TextButton(
-              onPressed: () => showResourceDisclaimer(context),
-              child: const Text('阅读免责声明与版权说明'),
-            ),
-            if (_error != null)
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+  Widget build(BuildContext context) {
+    final compact = usesCompactNavigation(context, widget.platform);
+    return PopScope(
+      canPop: !_saving,
+      child: AlertDialog(
+        icon: Icon(
+          Icons.menu_open,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: const Text('从这里开始探索'),
+        scrollable: true,
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _tip(
+                Icons.menu,
+                compact ? '底部导航与「更多」' : '左上角「菜单」',
+                compact
+                    ? '底部可切换发现、搜索、直播和记录；「更多」可进入广播、下载和设置。向下浏览时导航收起，向上滚动时重新显示。'
+                    : '点击即可打开导航，进入发现、搜索、直播、记录、下载和设置。向下滚动时，左上角仍保留菜单入口。',
               ),
-          ],
+              _tip(Icons.search, '主页中央搜索', '通过醒目的搜索框查找影片、剧集或动漫；键盘也可使用 Ctrl+K。'),
+              _tip(
+                Icons.fullscreen_exit,
+                compact ? '返回与视频全屏' : '自由切换全屏',
+                compact
+                    ? '手机保留系统状态栏和导航栏，视频仍可全屏播放。Android 返回手势先关闭弹窗或返回上一页，在首页退出时需要确认。'
+                    : '顶部全屏按钮或 F11 切换沉浸与窗口；Esc 可退出应用沉浸模式。搜索页和播放器优先处理各自的返回操作。',
+              ),
+              Text(
+                compact
+                    ? '确认后不再自动显示本引导，可在设置中再次查看。'
+                    : '键盘导航：Ctrl+M 打开菜单。确认后不再自动显示本引导，可在设置中再次查看。',
+              ),
+              TextButton(
+                onPressed: () => showResourceDisclaimer(context),
+                child: const Text('阅读免责声明与版权说明'),
+              ),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            child: const Text('稍后再说'),
+          ),
+          FilledButton(
+            autofocus: true,
+            onPressed: _saving ? null : _confirm,
+            child: Text(_saving ? '正在保存…' : '我知道了，开始使用'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text('稍后再说'),
-        ),
-        FilledButton(
-          autofocus: true,
-          onPressed: _saving ? null : _confirm,
-          child: Text(_saving ? '正在保存…' : '我知道了，开始使用'),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 
   Widget _tip(IconData icon, String title, String text) => Padding(
     padding: const EdgeInsets.only(bottom: 18),

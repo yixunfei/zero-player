@@ -1,9 +1,11 @@
 param(
     [switch]$WindowsOnly,
+    [switch]$AndroidArm64Only,
     [string]$Iscc = "$PSScriptRoot/../.tools/inno/ISCC.exe",
     [string]$VcRuntime = 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Redist/MSVC/14.44.35112/x64/Microsoft.VC143.CRT'
 )
 $ErrorActionPreference = 'Stop'
+if ($WindowsOnly -and $AndroidArm64Only) { throw 'Select one Android packaging mode.' }
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $versionLine = (Select-String -LiteralPath "$projectRoot/pubspec.yaml" -Pattern '^version:').Line
 $buildVersion = ($versionLine -replace '^version:\s*', '').Trim()
@@ -25,12 +27,19 @@ $androidFiles = @{
     'app-arm64-v8a-release.apk' = "zero-player-$version-android-arm64.apk"
     'app-x86_64-release.apk' = "zero-player-$version-android-x64.apk"
 }
+if ($AndroidArm64Only) {
+    $androidFiles = @{ 'app-release.apk' = "zero-player-$version-android-arm64.apk" }
+}
 $bundle = "$projectRoot/build/app/outputs/bundle/release/app-release.aab"
 if (!$WindowsOnly) {
     foreach ($name in $androidFiles.Keys) {
         if (!(Test-Path -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name")) { throw "Missing Android APK: $name" }
     }
-    if (!(Test-Path -LiteralPath $bundle)) { throw 'Build Android appbundle first.' }
+    if (!$AndroidArm64Only -and !(Test-Path -LiteralPath $bundle)) { throw 'Build Android appbundle first.' }
+    if ($AndroidArm64Only) {
+        & python "$projectRoot/tool/verify_apk.py" "$projectRoot/build/app/outputs/flutter-apk/app-release.apk" --abis arm64-v8a --max-mib 70 --compressed-native --version $version --build-number ($buildVersion.Split('+')[1])
+        if ($LASTEXITCODE -ne 0) { throw 'ARM64 APK validation failed.' }
+    }
 }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item -Path "$windowsBuild/*" -Destination $stage -Recurse
@@ -47,7 +56,9 @@ if (!$WindowsOnly) {
     foreach ($name in $androidFiles.Keys) {
         Copy-Item -LiteralPath "$projectRoot/build/app/outputs/flutter-apk/$name" -Destination (Join-Path $release $androidFiles[$name])
     }
-    Copy-Item -LiteralPath $bundle -Destination "$release/zero-player-$version-android.aab"
+    if (!$AndroidArm64Only) {
+        Copy-Item -LiteralPath $bundle -Destination "$release/zero-player-$version-android.aab"
+    }
 }
 Compress-Archive -Path "$stage/*" -DestinationPath "$release/zero-player-$version-windows-x64-portable.zip" -CompressionLevel Optimal
 & $Iscc "/DProductVersion=$version" "/DReleaseRoot=$release" "$projectRoot/tool/windows.iss"

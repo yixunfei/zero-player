@@ -18,9 +18,19 @@ final class PartialCatalogImportException extends FormatException {
 }
 
 final class SubscriptionService {
-  SubscriptionService(this.network, this.repository);
+  SubscriptionService(this.network, this.repository, {LiveRepository? live})
+    : live =
+          live ??
+          LiveRepository(
+            repository.db,
+            network,
+            policy: repository.policy,
+            authorize: repository.authorize,
+            canEnable: repository.canEnable,
+          );
   final DocumentClient network;
   final SourceRepository repository;
+  final LiveRepository live;
   static const parser = JsonSourceCatalogParser();
   final _cancellation = CancellationToken();
   final _pending = <Future<void>>{};
@@ -89,7 +99,6 @@ final class SubscriptionService {
       });
 
   Future<void> _importLives(List<LiveCatalogEntry> entries) async {
-    final live = LiveRepository(repository.db, network);
     final failures = <String>[];
     for (final entry in entries) {
       _cancellation.check();
@@ -100,6 +109,7 @@ final class SubscriptionService {
           epg: entry.epg,
           headers: entry.headers,
           cancellation: _cancellation,
+          existingOnly: !(repository.canEnable?.call() ?? true),
         );
       } catch (_) {
         _cancellation.check();

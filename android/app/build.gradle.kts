@@ -17,6 +17,13 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    packaging {
+        // APK downloads stay compact; Android extracts native libraries once
+        // at installation. Preserve all codecs, fonts, and selected ABIs.
+        jniLibs.useLegacyPackaging = true
+        jniLibs.excludes += setOf("**/libonnxruntime.so", "**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -33,7 +40,11 @@ android {
             abiFilters.clear()
             // AGP forbids ndk.abiFilters together with Flutter's ABI splits.
             if (project.findProperty("split-per-abi") != "true") {
-                abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+                // Keep emulator binaries out of an explicitly arm64 phone build.
+                val targets = (project.findProperty("target-platform") as? String
+                    ?: "android-arm64").split(",")
+                if ("android-arm64" in targets) abiFilters.add("arm64-v8a")
+                if ("android-x64" in targets) abiFilters.add("x86_64")
             }
         }
         targetSdk = flutter.targetSdkVersion
@@ -54,6 +65,8 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -78,4 +91,10 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Both Dart FFI clients use sherpa's bundled libonnxruntime.so. Exclude the
+// second Maven distribution instead of choosing an ABI-dependent pickFirst.
+configurations.configureEach {
+    exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android")
 }

@@ -12,11 +12,15 @@ final class SourceChoices extends StatefulWidget {
     required this.items,
     required this.onSelected,
     required this.onBlock,
+    this.sourceNames = const {},
+    this.sourceLabels = const {},
   });
   final AppServices services;
   final List<CatalogItem> items;
   final ValueChanged<CatalogItem> onSelected;
   final Future<void> Function(String) onBlock;
+  final Map<String, String> sourceNames;
+  final Map<String, String> sourceLabels;
   @override
   State<SourceChoices> createState() => _SourceChoicesState();
 }
@@ -81,35 +85,49 @@ final class _SourceChoicesState extends State<SourceChoices> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([_probe, widget.services.contentPolicy]),
-    builder: (context, _) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(12),
-          child: Text('正在检测渠道接口延迟；API 可用不代表视频可播。播放线路会单独检测媒体响应。'),
-        ),
-        for (final item in widget.items)
-          if (!_blocked.contains(item.sourceId) &&
-              widget.services.contentPolicy.itemAllowed(item))
-            ListTile(
-              title: Text(item.title),
-              subtitle: Text(
-                '${item.year} ${item.remarks} · ${_probe.statuses[item.sourceId] ?? '等待接口检测'}',
-              ),
-              onTap: () {
-                if (widget.services.contentPolicy.itemAllowed(item)) {
-                  widget.onSelected(item);
-                }
-              },
-              trailing: BlockSourceButton(
-                name: '此来源',
-                onBlock: () async {
-                  await widget.onBlock(item.sourceId);
-                  if (mounted) setState(() => _blocked.add(item.sourceId));
-                },
-              ),
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 480;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('正在检测渠道接口延迟；API 可用不代表视频可播。播放线路会单独检测媒体响应。'),
             ),
-      ],
+            for (final item in widget.items)
+              if (!_blocked.contains(item.sourceId) &&
+                  widget.services.contentPolicy.itemAllowed(item))
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  minLeadingWidth: 0,
+                  title: Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${widget.sourceLabels[item.sourceId] ?? ''} ${widget.sourceNames[item.sourceId] ?? ''} · ${item.year} ${item.remarks} · ${_probe.statuses[item.sourceId] ?? '等待接口检测'}',
+                    maxLines: compact ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () {
+                    if (widget.services.contentPolicy.itemAllowed(item)) {
+                      widget.onSelected(item);
+                    }
+                  },
+                  trailing: BlockSourceButton(
+                    name: '此来源',
+                    compact: compact,
+                    onBlock: () async {
+                      await widget.onBlock(item.sourceId);
+                      if (mounted) setState(() => _blocked.add(item.sourceId));
+                    },
+                  ),
+                ),
+          ],
+        );
+      },
     ),
   );
 }

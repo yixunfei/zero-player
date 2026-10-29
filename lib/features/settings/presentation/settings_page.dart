@@ -2,6 +2,8 @@ import '../../supervision/presentation/sensitive_action.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/app_services.dart';
+import '../../../app/app_version.dart';
+import '../../../app/app_layout.dart';
 import '../../../app/widgets.dart';
 import '../../../core/platform/file_transfer.dart';
 import 'home_preferences.dart';
@@ -9,6 +11,7 @@ import '../../../app/app_fonts.dart';
 import '../../../app/navigation_guide.dart';
 import 'disclaimer_dialog.dart';
 import 'adult_filter_setting.dart';
+import 'content_filter_setting.dart';
 
 final class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.services});
@@ -60,6 +63,7 @@ final class SettingsPage extends StatelessWidget {
             subtitle: '实验功能：只处理无加密静态 TS 单清单的成对 CUE 标记；不支持时保留原视频。离线文件保留完整原片。',
           ),
           AdultFilterSetting(policy: services.contentPolicy),
+          ContentFilterSetting(services: services),
           const Divider(),
           _toggle(context, '边播边缓存 HLS 分片', 'cache', settings.cache),
           ..._cacheOptions(context),
@@ -114,13 +118,20 @@ final class SettingsPage extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ),
-      _toggle(
-        context,
-        '启动时沉浸全屏',
-        'startFullscreen',
-        settings.startFullscreen,
-        subtitle: '下次启动生效；当前会话可用 Esc、F11 或顶部按钮退出全屏',
-      ),
+      if (usesCompactNavigation(context, services.platform))
+        const ListTile(
+          leading: Icon(Icons.phone_android),
+          title: Text('手机导航'),
+          subtitle: Text('浏览时保留系统栏；向下浏览隐藏底栏，向上浏览恢复。视频播放仍可全屏。'),
+        )
+      else
+        _toggle(
+          context,
+          '启动时沉浸全屏',
+          'startFullscreen',
+          settings.startFullscreen,
+          subtitle: '下次启动生效；当前会话可用 Esc、F11 或顶部按钮退出全屏',
+        ),
       _choice(
         context,
         '每次手动加载条目',
@@ -160,7 +171,11 @@ final class SettingsPage extends StatelessWidget {
       leading: const Icon(Icons.help_outline),
       title: const Text('查看导航引导'),
       subtitle: const Text('菜单、搜索和全屏操作提示'),
-      onTap: () => showNavigationGuide(context, services.settings),
+      onTap: () => showNavigationGuide(
+        context,
+        services.settings,
+        platform: services.platform,
+      ),
     ),
     ListTile(
       leading: const Icon(Icons.policy_outlined),
@@ -276,12 +291,12 @@ final class SettingsPage extends StatelessWidget {
       onTap: () => _restore(context),
     ),
     ListTile(
-      title: const Text('Zero Player 0.0.5'),
+      title: const Text('Zero Player $appVersion'),
       subtitle: const Text('AGPL-3.0-or-later · 本地数据 · 无需独立后端'),
       onTap: () => showLicensePage(
         context: context,
         applicationName: 'Zero Player',
-        applicationVersion: '0.0.5',
+        applicationVersion: appBuildVersion,
         applicationLegalese: 'AGPL-3.0-or-later\n媒体依赖许可见源码 NOTICE.md',
       ),
     ),
@@ -376,12 +391,7 @@ final class SettingsPage extends StatelessWidget {
       context,
       services.supervision,
       SensitiveOperation.restore,
-      () async {
-        await services.backup.restore(preview);
-        services.contentPolicy.forgetSources();
-        await services.sources.all(includeSuppressed: true);
-        await services.settings.load();
-      },
+      () => services.restoreBackup(preview),
     )) {
       return;
     }

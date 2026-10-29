@@ -14,7 +14,7 @@ Future<void> showSkipMarks(
     builder: (context) => StatefulBuilder(
       builder: (context, update) {
         Future<void> refresh() async {
-          player.marks = await services.skips.list(player.workKey);
+          await player.refreshSkipMarks();
           if (context.mounted) update(() {});
         }
 

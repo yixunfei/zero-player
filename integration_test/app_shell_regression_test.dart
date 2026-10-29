@@ -236,7 +236,8 @@ Future<void> _menuAndDisclaimer(WidgetTester tester) async {
       .controller!;
   scroll.jumpTo(650);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('菜单').hitTestable());
+  expect(find.text('菜单').hitTestable(), findsNothing);
+  await tester.tap(find.byTooltip('展开导航').hitTestable());
   await tester.pumpAndSettle();
   expect(find.byTooltip('收起导航'), findsOneWidget);
   await tester.tap(find.byTooltip('收起导航'));

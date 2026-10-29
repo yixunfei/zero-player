@@ -112,6 +112,9 @@ final _adultWords = RegExp(
   r'(^|[^a-z0-9])(av|xxx|r[ -]?18g?|porn(?:ography)?|hentai|nsfw)(?=$|[^a-z0-9])|18\s*\+|18\s*禁',
   caseSensitive: false,
 );
+final _regionalAdultLabel = RegExp(
+  r'^(?:日本|韩国|日韩|欧美|港台|香港|台湾|国产|中国|西方)?(?:伦理|理论|三级)(?:片|剧|电影)?$',
+);
 
 bool adultContent(String text, {bool category = false}) {
   final normalized = normalizeContent(text);
@@ -122,14 +125,13 @@ bool adultContent(String text, {bool category = false}) {
     return true;
   }
   if (_adultLabels.contains(normalized)) return true;
-  if (category &&
-      RegExp(
-        r'^(?:日本|韩国|日韩|欧美|港台|香港|台湾|国产|中国|西方)?(?:伦理|理论|三级)(?:片|剧|电影)?$',
-      ).hasMatch(normalized)) {
+  if (category && _regionalAdultLabel.hasMatch(normalized)) {
     return true;
   }
   return category &&
-      folded
-          .split(RegExp(r'[,，/|、;；\s]+'))
-          .any((part) => _adultLabels.contains(normalizeContent(part)));
+      folded.split(RegExp(r'[,，/|、;；\s]+')).any((part) {
+        final label = normalizeContent(part);
+        return _adultLabels.contains(label) ||
+            _regionalAdultLabel.hasMatch(label);
+      });
 }

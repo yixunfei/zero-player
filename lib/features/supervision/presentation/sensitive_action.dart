@@ -12,6 +12,7 @@ Future<bool> runSensitive(
   Future<void> Function() action, {
   bool needed = true,
   bool recovery = false,
+  String? explanation,
 }) async {
   if (guard == null || !needed) {
     await action();
@@ -23,7 +24,8 @@ Future<bool> runSensitive(
   if (guard.needsPassword(operation)) {
     secret = await showDialog<String>(
       context: context,
-      builder: (_) => _SecretDialog(recovery: recovery),
+      builder: (_) =>
+          _SecretDialog(recovery: recovery, explanation: explanation),
     );
     if (secret == null || !context.mounted) return false;
   }
@@ -37,8 +39,9 @@ Future<bool> runSensitive(
 }
 
 final class _SecretDialog extends StatefulWidget {
-  const _SecretDialog({required this.recovery});
+  const _SecretDialog({required this.recovery, this.explanation});
   final bool recovery;
+  final String? explanation;
   @override
   State<_SecretDialog> createState() => _SecretDialogState();
 }
@@ -65,7 +68,9 @@ final class _SecretDialogState extends State<_SecretDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.recovery ? '恢复码仅用于重设密码，完成后旧恢复码失效。' : '仅授权本次操作；下一次敏感操作仍需验证。',
+            widget.recovery
+                ? '恢复码仅用于重设密码，完成后旧恢复码失效。'
+                : (widget.explanation ?? '仅授权本次操作；下一次敏感操作仍需验证。'),
           ),
           const SizedBox(height: 16),
           TextField(

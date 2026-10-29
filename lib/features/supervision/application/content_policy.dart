@@ -58,6 +58,9 @@ final class ContentPolicy extends ChangeNotifier {
     _adultCatalogs.clear();
   }
 
+  /// Publish only after restore has rebuilt sources and loaded settings.
+  void refresh() => notifyListeners();
+
   void rememberChannels(Iterable<LiveChannel> channels) {
     _live.clear();
     for (final channel in channels) {
