@@ -187,16 +187,26 @@ final class UserSettings {
 }
 
 final class SettingsController extends ChangeNotifier {
-  SettingsController(this.db, {this.authorize, this.adultFilterRequired});
+  SettingsController(
+    this.db, {
+    this.authorize,
+    this.adultFilterRequired,
+    this.authorizeAdultDisable,
+    this.authorizeContentFilter,
+    this.prepareAuthorization,
+  });
   final AppDatabase db;
   final void Function()? authorize;
   final bool Function()? adultFilterRequired;
+  final void Function()? authorizeAdultDisable, authorizeContentFilter;
+  final Future<void> Function()? prepareAuthorization;
   UserSettings value = const UserSettings();
   Future<void> _pending = Future.value();
   Future<void>? _closing;
   bool _disposed = false;
   Future<void> load() async {
     if (_disposed || _closing != null) throw StateError('Settings are closed');
+    await prepareAuthorization?.call();
     final rows = await db.rows('SELECT key,value FROM settings');
     final values = <String, Object?>{};
     for (final row in rows) {
@@ -234,6 +244,7 @@ final class SettingsController extends ChangeNotifier {
   }
 
   Future<void> _update(Map<String, Object> changes) async {
+    await prepareAuthorization?.call();
     _checkAdultFilter(changes);
     for (final entry in changes.entries) {
       validateSetting(entry.key, entry.value);
@@ -259,14 +270,17 @@ final class SettingsController extends ChangeNotifier {
       'filterAsr',
       'filterKeywords',
     ].any((key) => changes[key] == false)) {
-      authorize?.call();
+      authorizeContentFilter?.call();
     }
-    if (changes.containsKey('filterSkipSeconds')) authorize?.call();
-    if (changes.containsKey('filterStrategy')) authorize?.call();
+    if (changes.containsKey('filterSkipSeconds')) {
+      authorizeContentFilter?.call();
+    }
+    if (changes.containsKey('filterStrategy')) authorizeContentFilter?.call();
     if (changes['filterAdult'] != false) return;
     if (adultFilterRequired?.call() == true) {
       throw const FormatException('监管模式强制开启成人过滤，请先验证密码关闭监管模式');
     }
+    authorizeAdultDisable?.call();
     authorize?.call();
   }
 

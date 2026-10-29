@@ -12,6 +12,7 @@ import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/app/product_app.dart';
 import 'package:zero_player/core/network/file_response.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/core/persistence/installation_metadata.dart';
 import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/sources/presentation/source_card.dart';
@@ -98,6 +99,10 @@ Future<void> _setup() async {
   );
   await services.supervision.load();
   debugPrint('SUPERVISION_STAGE state loaded');
+  await services.db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+    installationAccessKey,
+    upgradedInstallationAccess,
+  ]);
   await services.settings.load();
   await services.settings.update({
     'recommendation': 'off',

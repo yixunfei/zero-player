@@ -1,4 +1,5 @@
 import '../../supervision/presentation/sensitive_action.dart';
+import 'backup_restore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/app_services.dart';
@@ -62,7 +63,10 @@ final class SettingsPage extends StatelessWidget {
             settings.adFilter,
             subtitle: '实验功能：只处理无加密静态 TS 单清单的成对 CUE 标记；不支持时保留原视频。离线文件保留完整原片。',
           ),
-          AdultFilterSetting(policy: services.contentPolicy),
+          AdultFilterSetting(
+            policy: services.contentPolicy,
+            access: services.installationAccess,
+          ),
           ContentFilterSetting(services: services),
           const Divider(),
           _toggle(context, '边播边缓存 HLS 分片', 'cache', settings.cache),
@@ -379,22 +383,6 @@ final class SettingsPage extends StatelessWidget {
     if (text == null) return;
     final preview = await services.backup.preview(text);
     if (!context.mounted) return;
-    if (!await confirm(
-      context,
-      '恢复备份',
-      '${preview.sourceCount} 个来源、${preview.historyCount} 条观看记录。确认替换当前设置、源和历史？损坏的数据会回滚。',
-    )) {
-      return;
-    }
-    if (!context.mounted) return;
-    if (!await runSensitive(
-      context,
-      services.supervision,
-      SensitiveOperation.restore,
-      () => services.restoreBackup(preview),
-    )) {
-      return;
-    }
-    if (context.mounted) message(context, '备份已恢复');
+    await confirmBackupRestore(context, services, preview);
   });
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import '../features/supervision/application/content_policy.dart';
 import '../features/supervision/application/supervision_controller.dart';
+import '../features/supervision/application/installation_access.dart';
 import '../features/supervision/domain/supervision_rules.dart';
 import '../features/supervision/data/content_records.dart';
 import 'package:flutter/foundation.dart';
@@ -79,11 +80,28 @@ final class AppServices {
   final MediaHttpClient http;
   late final network = DocumentClient(http);
   late final posters = PosterRepository(network);
-  late final supervision = SupervisionController(db);
+  late final SupervisionController supervision = SupervisionController(
+    db,
+    protectContentFilter: () => installationAccess.protectContentFilter,
+  );
+  late final InstallationAccess installationAccess = InstallationAccess(
+    db,
+    authorizeProtectionChange: () {
+      if (!supervision.configured) {
+        throw const FormatException('请先设置监管密码');
+      }
+      supervision.require(SensitiveOperation.supervision);
+    },
+    onProtectionChanged: supervision.invalidatePermissions,
+  );
   late final settings = SettingsController(
     db,
     authorize: () => supervision.require(SensitiveOperation.settings),
     adultFilterRequired: () => supervision.enabled,
+    prepareAuthorization: installationAccess.load,
+    authorizeAdultDisable: installationAccess.requireAdultAccess,
+    authorizeContentFilter: () =>
+        supervision.require(SensitiveOperation.contentFilter),
   );
   late final contentPolicy = ContentPolicy(settings, supervision);
   void _authorizeChannels() => supervision.require(SensitiveOperation.channels);
@@ -102,7 +120,7 @@ final class AppServices {
   late final skips = SkipRepository(db);
   late final filterFeatures = FeatureRepository(
     db,
-    authorize: () => supervision.require(SensitiveOperation.settings),
+    authorize: () => supervision.require(SensitiveOperation.contentFilter),
   );
   late final live = LiveRepository(
     db,
@@ -132,6 +150,7 @@ final class AppServices {
     db,
     authorize: () => supervision.require(SensitiveOperation.restore),
     authorizeExport: () => supervision.require(SensitiveOperation.export),
+    authorizeAdultDisable: installationAccess.requireAdultAccess,
   );
 
   Future<void> restoreBackup(BackupPreview preview) async {
@@ -321,6 +340,7 @@ final class AppServices {
     () => platform.dispose(),
     () => contentPolicy.dispose(),
     () => settings.close(),
+    () => installationAccess.close(),
     () => supervision.close(),
     () => db.close(),
   ]);

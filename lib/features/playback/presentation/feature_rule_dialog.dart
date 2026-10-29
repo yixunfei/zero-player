@@ -272,7 +272,7 @@ final class _FeatureRuleDialogState extends State<_FeatureRuleDialog> {
       saved = await runSensitive(
         context,
         services.supervision,
-        SensitiveOperation.settings,
+        SensitiveOperation.contentFilter,
         save,
         needed: widget.rule != null,
       );

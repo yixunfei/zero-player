@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/core/persistence/installation_metadata.dart';
 import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/live/domain/live_channel.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
@@ -82,6 +83,10 @@ void _registerCase1() {
         await root.delete(recursive: true);
       });
       await services.supervision.load();
+      await services.db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+        installationAccessKey,
+        upgradedInstallationAccess,
+      ]);
       await services.settings.load();
       await services.gateway.start();
       await services.settings.update({'filterAdult': false});

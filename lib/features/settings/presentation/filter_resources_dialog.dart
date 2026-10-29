@@ -101,7 +101,7 @@ final class _ResourcesDialogState extends State<_ResourcesDialog> {
       await runSensitive(
         context,
         services.supervision,
-        SensitiveOperation.settings,
+        SensitiveOperation.contentFilter,
         () async {
           if (enable == true) {
             final token = CancellationToken();

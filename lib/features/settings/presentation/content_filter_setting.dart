@@ -5,6 +5,7 @@ import '../../../app/setting_dropdown.dart';
 import '../../../media/content_filter/filter_strategy.dart';
 import '../../supervision/presentation/sensitive_action.dart';
 import 'filter_resources_dialog.dart';
+import 'content_filter_protection.dart';
 
 final class ContentFilterSetting extends StatelessWidget {
   const ContentFilterSetting({super.key, required this.services});
@@ -13,6 +14,7 @@ final class ContentFilterSetting extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
+      ContentFilterProtection(services: services),
       SwitchListTile(
         title: const Text('播放中特征跳过（流畅优先）'),
         subtitle: const Text(
@@ -26,7 +28,7 @@ final class ContentFilterSetting extends StatelessWidget {
           () => runSensitive(
             context,
             services.supervision,
-            SensitiveOperation.settings,
+            SensitiveOperation.contentFilter,
             () => services.settings.update({'contentFilter': value}),
             needed: !value,
           ),
@@ -72,7 +74,7 @@ final class ContentFilterSetting extends StatelessWidget {
                 () => runSensitive(
                   context,
                   services.supervision,
-                  SensitiveOperation.settings,
+                  SensitiveOperation.contentFilter,
                   () => services.settings.update({'filterSkipSeconds': value}),
                 ),
               );
@@ -104,7 +106,7 @@ final class ContentFilterSetting extends StatelessWidget {
           () => runSensitive(
             context,
             services.supervision,
-            SensitiveOperation.settings,
+            SensitiveOperation.contentFilter,
             () => services.settings.update({'filterStrategy': strategy.name}),
           ),
         );

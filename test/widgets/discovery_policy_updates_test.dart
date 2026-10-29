@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/core/persistence/installation_metadata.dart';
 import 'package:zero_player/features/discovery/presentation/discovery_page.dart';
 import 'package:zero_player/features/settings/presentation/home_preferences.dart';
 import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
@@ -16,6 +17,10 @@ void main() {
     root = await Directory.systemTemp.createTemp('discovery-policy-');
     services = AppServices.scoped(root, AppDatabase.memory());
     await services.supervision.load();
+    await services.db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+      installationAccessKey,
+      upgradedInstallationAccess,
+    ]);
     await services.settings.load();
     await services.settings.update({
       'filterAdult': false,

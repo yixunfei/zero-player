@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_services.dart';
 import 'product_app.dart';
+import 'installation_introduction.dart';
 
 /// Retries service construction without registering global bindings again.
 final class ApplicationBootstrap extends StatefulWidget {
@@ -39,7 +40,10 @@ final class _ApplicationBootstrapState extends State<ApplicationBootstrap> {
       if (snapshot.hasData) {
         return ProviderScope(
           overrides: [servicesProvider.overrideWithValue(snapshot.data!)],
-          child: const ProductApp(),
+          child: InstallationIntroduction(
+            services: snapshot.data!,
+            child: const ProductApp(),
+          ),
         );
       }
       return MaterialApp(

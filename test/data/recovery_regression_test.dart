@@ -73,7 +73,7 @@ void _migrationTests() {
       (await db.rows('PRAGMA table_info(sources)')).map((row) => row['name']),
       contains('homepage'),
     );
-    expect((await db.rows('PRAGMA user_version')).single['user_version'], 2);
+    expect((await db.rows('PRAGMA user_version')).single['user_version'], 3);
   });
 }
 

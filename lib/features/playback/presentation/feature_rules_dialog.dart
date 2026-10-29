@@ -17,9 +17,9 @@ Future<void> showFeatureRules(
     final allowed = await runSensitive(
       context,
       guard,
-      SensitiveOperation.settings,
+      SensitiveOperation.contentFilter,
       () async {
-        session = guard.createSession(SensitiveOperation.settings);
+        session = guard.createSession(SensitiveOperation.contentFilter);
       },
       explanation: '进入后可连续管理特征，关闭管理窗口后重新锁定。',
     );

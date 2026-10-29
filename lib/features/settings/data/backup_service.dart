@@ -7,13 +7,24 @@ final class BackupPreview {
   final Map<String, List<Map<String, Object?>>> tables;
   int get sourceCount => tables['sources']!.length;
   int get historyCount => tables['watch_history']!.length;
+  bool get disablesAdultFilter => tables['settings']!.any(
+    (row) =>
+        row['key'] == 'filterAdult' &&
+        jsonDecode(row['value'] as String) == false,
+  );
 }
 
 final class BackupService {
-  const BackupService(this.db, {this.authorize, this.authorizeExport});
+  const BackupService(
+    this.db, {
+    this.authorize,
+    this.authorizeExport,
+    this.authorizeAdultDisable,
+  });
   final AppDatabase db;
   final void Function()? authorize;
   final void Function()? authorizeExport;
+  final void Function()? authorizeAdultDisable;
   static const maxBytes = 20 * 1024 * 1024;
   static const maxRowsPerTable = 20000;
   static const tables = [
@@ -120,6 +131,9 @@ final class BackupService {
 
   Future<void> restore(BackupPreview preview) => db.atomic(() async {
     authorize?.call();
+    if (preview.disablesAdultFilter) {
+      authorizeAdultDisable?.call();
+    }
     for (final table in tables.reversed) {
       await db.customStatement(
         'DELETE FROM $table${table == 'app_meta' ? _backupMetadata : ''}',

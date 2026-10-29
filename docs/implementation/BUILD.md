@@ -1,5 +1,11 @@
 # 构建与打包
 
+## 首次使用与过滤授权回归
+
+新增 `integration_test/installation_access_test.dart`，Windows 原生覆盖首次监管设置、隐藏密码错误与成功、取消、重启持久化、监管期间成人过滤锁定，以及恢复备份的双重验证。测试通过 `ADULT_ACCESS_TEST_PASSWORD` 编译参数读取由维护者提供的访问密码，未提供时仅运行不需要该密码的用例；不要把真实值提交到源码、日志或截图。建议用忽略目录下的临时 JSON 配合 `--dart-define-from-file`，完成后删除。
+
+本轮静态分析与源码长度检查通过；单元及界面回归 466 项通过、2 项公开网络测试跳过。新增原生用例 3 项、既有监管原生用例 1 项、窗口原生用例 2 项均通过。Windows Release 与 Android ARM64 Release 构建通过，APK 为 64.48 MiB，通过 ABI、可选资源排除、70 MiB 预算及 v2 签名校验。Android 未连接设备，编译与包体校验不能替代实机运行验收。发布的 v0.0.7 产物保持原样，本轮补充功能在新版本正式发布前仅属于源码更新。
+
 ## v0.0.7 发布配置
 
 本版本为 `0.0.7+7`，发布 Windows x64 与 Android ARM64。完成测试后依次执行 `flutter build windows --release`、`flutter build apk --release --target-platform android-arm64`；平台构建不可并发。随后校验 Android 签名，执行 `python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审查后的源文件并运行 `python tool/package_source.py`，最后 `pwsh -File tool/package_release.ps1 -AndroidArm64Only`。产物位于 `artifacts/release/0.0.7/`。此模式校验 ARM64、70 MiB 预算及 APK 内部版本，不混入其他旧 Android 包。

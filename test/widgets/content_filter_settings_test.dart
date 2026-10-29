@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/features/settings/presentation/content_filter_setting.dart';
 import 'package:zero_player/media/content_filter/filter_strategy.dart';
+import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 import '../../test_support/mobile_app_fixture.dart';
 
 void main() {
@@ -55,6 +56,13 @@ void _authorizationDisplayTest() {
         final guard = fixture.services.supervision;
         await guard.saveCredentials(
           await guard.prepareCredentials('test-password'),
+        );
+        await guard.execute(
+          SensitiveOperation.supervision,
+          () => fixture.services.installationAccess.setContentFilterProtection(
+            true,
+          ),
+          password: 'test-password',
         );
       });
       try {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/playback/presentation/feature_rules_dialog.dart';
@@ -97,6 +98,11 @@ void _passwordSessionTest(_Fixture Function() fixture) {
           'management-password',
         );
         await guard.saveCredentials(credentials);
+        await guard.execute(
+          SensitiveOperation.supervision,
+          () => f.services.installationAccess.setContentFilterProtection(true),
+          password: 'management-password',
+        );
       });
       await tester.pumpWidget(
         MaterialApp(

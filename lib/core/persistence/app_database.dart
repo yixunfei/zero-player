@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 
 import 'schema.dart';
+import 'installation_metadata.dart';
 
 /// Current development schema; no legacy-format migration scaffolding.
 final class AppDatabase extends GeneratedDatabase {
@@ -18,7 +19,7 @@ final class AppDatabase extends GeneratedDatabase {
       .where((changed) => changed == null || changed.any(tables.contains))
       .map((_) {});
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => const [];
   @override
@@ -27,10 +28,14 @@ final class AppDatabase extends GeneratedDatabase {
       for (final sql in schemaStatements) {
         await customStatement(sql);
       }
+      await customStatement('INSERT INTO app_meta VALUES(?,?)', [
+        installationAccessKey,
+        freshInstallationAccess,
+      ]);
     }),
     onUpgrade: (_, from, to) => transaction(() async {
       // Preserve the user's current sources, history and offline tasks.
-      if (from == 1 && to == 2) {
+      if (from == 1 && to == 3) {
         await customStatement(
           'CREATE TABLE IF NOT EXISTS app_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)',
         );
@@ -38,9 +43,13 @@ final class AppDatabase extends GeneratedDatabase {
         await _addColumn('sources', 'homepage', 'TEXT');
         await _addColumn('source_health', 'latency_ms', 'INTEGER');
         await _addColumn('downloads', 'work_json', 'TEXT');
-      } else {
+      } else if (from != 2 || to != 3) {
         throw StateError('Unsupported database migration: $from -> $to');
       }
+      await customStatement('INSERT OR IGNORE INTO app_meta VALUES(?,?)', [
+        installationAccessKey,
+        upgradedInstallationAccess,
+      ]);
     }),
     beforeOpen: (_) async {
       await customStatement('PRAGMA foreign_keys = ON');

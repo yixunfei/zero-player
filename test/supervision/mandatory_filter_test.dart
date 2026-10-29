@@ -5,6 +5,7 @@ import 'package:zero_player/features/live/domain/live_channel.dart';
 import 'package:zero_player/features/settings/data/backup_service.dart';
 import 'package:zero_player/features/settings/presentation/adult_filter_setting.dart';
 import 'package:zero_player/features/supervision/application/content_policy.dart';
+import 'package:zero_player/features/supervision/application/installation_access.dart';
 import 'package:zero_player/features/supervision/application/supervision_controller.dart';
 import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 import '../../test_support/supervision_fixture.dart';
@@ -23,6 +24,7 @@ void main() {
     );
   });
   tearDown(() => f.close());
+  _switchCase(() => f);
 
   test(
     'supervision overrides a disabled preference across content boundaries',
@@ -77,13 +79,19 @@ void main() {
       await restarted.close();
     },
   );
+}
 
+void _switchCase(SupervisionFixture Function() fixture) {
   testWidgets(
     'switch reflects mandatory filtering and updates after supervision changes',
     (tester) async {
+      final f = fixture();
+      final access = InstallationAccess(f.db);
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: AdultFilterSetting(policy: f.policy)),
+          home: Scaffold(
+            body: AdultFilterSetting(policy: f.policy, access: access),
+          ),
         ),
       );
       SwitchListTile toggle() => tester.widget(find.byType(SwitchListTile));
@@ -102,6 +110,7 @@ void main() {
       expect(toggle().value, isFalse);
       expect(toggle().onChanged, isNotNull);
       await tester.pumpWidget(const SizedBox());
+      await tester.runAsync(access.close);
     },
   );
 }

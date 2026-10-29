@@ -29,7 +29,12 @@ void _registerCases0() {
       );
       final draft = await f.guard.prepareCredentials('safe-test-password');
       expect(f.guard.configured, isFalse);
-      expect(await f.db.rows('SELECT * FROM app_meta'), isEmpty);
+      expect(
+        await f.db.rows('SELECT * FROM app_meta WHERE key=?', [
+          SupervisionController.storageKey,
+        ]),
+        isEmpty,
+      );
       await f.guard.saveCredentials(draft);
       expect(f.guard.enabled, isTrue);
       final stored = (await f.db.rows('SELECT value FROM app_meta')).toString();

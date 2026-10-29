@@ -11,11 +11,13 @@ final class SupervisionController extends ChangeNotifier {
     this.db, {
     this._hasher = const PasswordHasher(),
     DateTime Function()? clock,
+    this.protectContentFilter,
   }) : _clock = clock ?? DateTime.now;
   static const storageKey = 'supervision:v1';
   final AppDatabase db;
   final CredentialHasher _hasher;
   final DateTime Function() _clock;
+  final bool Function()? protectContentFilter;
   final Object _zoneKey = Object();
   Future<void>? _loading;
   Future<void>? _closing;
@@ -64,7 +66,14 @@ final class SupervisionController extends ChangeNotifier {
 
   bool needsPassword(SensitiveOperation operation) =>
       corrupted ||
-      (configured && (enabled || operation == SensitiveOperation.supervision));
+      (configured &&
+          (operation == SensitiveOperation.supervision ||
+              (enabled &&
+                  (operation != SensitiveOperation.contentFilter ||
+                      (protectContentFilter?.call() ?? false)))));
+
+  /// Changing an authorization policy revokes any open management capability.
+  void invalidatePermissions() => _revision++;
 
   bool allows(SensitiveOperation operation) {
     try {
