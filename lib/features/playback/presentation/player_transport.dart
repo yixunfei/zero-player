@@ -65,9 +65,12 @@ final class PlayerTransport extends StatelessWidget {
         _rate(),
         if (!controller.isLive)
           IconButton(
-            tooltip: '标记不良信息 · 最近 4 秒',
+            tooltip: controller.request?.supportsMarks == true
+                ? '标记不良信息 · 最近 4 秒'
+                : '本地和下载视频暂不支持特征标记',
             onPressed:
-                controller.busy ||
+                controller.request?.supportsMarks != true ||
+                    controller.busy ||
                     controller.originalPosition < const Duration(seconds: 1)
                 ? null
                 : onMark,

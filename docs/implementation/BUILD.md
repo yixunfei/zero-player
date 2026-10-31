@@ -35,7 +35,7 @@ Windows 原生测试推荐在 PowerShell 中使用统一入口：
 $previousDeviceTest = $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST
 try {
     $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = 'true'
-    flutter build apk --release --no-pub --target-platform android-arm64
+    flutter build apk --release --target-platform android-arm64
     if ($LASTEXITCODE -ne 0) { throw 'Android build failed' }
 } finally {
     $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = $previousDeviceTest
@@ -45,6 +45,8 @@ python tool/collect_native_sources.py
 python tool/collect_notices.py
 pwsh -File tool/package_release.ps1 -DeviceTest -AndroidArm64Only
 ~~~
+
+原生测试后的 Android Release 应执行上述不带 `--no-pub` 的普通构建入口，重新生成发布用插件注册信息。2026-10-31 复打包时，保留旧生成文件后确认 `--no-pub` 复用了含 integration_test 的 Android 注册项，导致 Java 编译失败；普通构建恢复成功。打包前检查 Android 和 Windows 的普通注册文件均不含 integration_test，不手工改生成文件或替换 DLL。
 
 另用 SDK 的 `apksigner verify --verbose --print-certs` 校验签名。测试打包输出 `artifacts/device-test/<version>-<timestamp>/`，包含 Windows 安装器/便携包、ARM64 APK、依赖声明/原生来源及 SHA256SUMS；不修改 Git 暂存区，也不要求生产发行的已暂存源码 ZIP。Windows 保留普通应用身份；Android 测试包独立，包中不含本机数据库或私钥。构建与包校验不能替代设备验收。
 

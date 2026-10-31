@@ -4,11 +4,13 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.7 Windows / Android ARM64** · [下载发布包](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.7.md)
+**v0.0.8 Windows x64** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.8) · [Android v0.0.7](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.8.md)
 
-## 本轮新增（尚未发布）
+## v0.0.8 新增
 
-当前本地测试版本为 **0.0.8+8**，包含广播/直播全量预检目录和搜索默认全渠道（当前来源优先）。独立 Android 测试包名为 `dev.zeroplayer.zero_player.devtest`，可与正式版并存；构建及验收见 [实施状态](docs/implementation/STATUS.md)。上述 v0.0.7 链接仍指向原公开版本。
+当前版本为 **0.0.8+8**，新增本地视频播放与续播、指定下载目录自动保存、内嵌音轨/字幕选择，以及 Windows 可选视频格式关联；完善单实例文件转发、下载中断恢复、播放器窗口与电视焦点。广播/直播全量预检目录和搜索默认全渠道（当前来源优先）也包含在本版。
+
+本次正式发行仅提供 Windows x64。原 Android 正式签名文件当前不可用，因此保留 Android v0.0.7，不用测试签名替换正式版。独立包名 `dev.zeroplayer.zero_player.devtest` 的 Android 测试构建不作为本次公开附件。验收范围见[实施状态](docs/implementation/STATUS.md)。
 
 全新安装提供可跳过的监管设置提示；首次在非监管状态关闭成人过滤需完成本机访问密码验证。新增默认关闭的“内容过滤设置需要监管验证”，修改该开关本身始终验证监管密码。监管开启期间仍禁止关闭成人过滤。已有安装升级免新增首次流程，普通备份不传递本机验证记录。详情见使用指南。
 
@@ -24,7 +26,7 @@
 - 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
 - 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
 - 播放中特征跳过（默认关闭）：原画质直接播放，后台优先检测音频；没有规则、资源缺失或检测失败时继续播放。支持频道/全剧声画样本、保守/积极/提示策略、离线关键词检测。关键词始终先确认，默认跳过时长 20 秒，可调整并撤销。轻量关键词、OCR / ASR 资源在设置中手动下载，不随基础包安装。Android 实机性能待设备验收。详见 [实施记录](docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md)。
-- 下载、续传、离线播放与 TS/MP4 导出；设置、历史记录及用户数据保存在本机。
+- 下载、续传、指定目录自动保存、离线播放与 TS/MP4 导出；本地视频播放、续播、内嵌音轨/字幕选择及 Windows 可选文件关联（v0.0.8）。设置、历史记录及用户数据保存在本机。
 - 一次性导航引导、版权说明与开源许可证入口。
 
 广播内置源：[popocoding/awesome-m3u 的中国广播列表](https://raw.githubusercontent.com/popocoding/awesome-m3u/refs/heads/main/radio/cn.m3u)。首次离线可使用随包成功快照，超过 24 小时后台更新；刷新失败保留旧列表。源站可能变更，列表收录不保证可播放性或授权。
@@ -38,7 +40,9 @@
 | Android 8.0+ ARM64 手机/平板/TV | android-arm64.apk（本次未完成 Android 实机验收） |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-本次 v0.0.7 发布 Windows x64 安装器/便携包和 Android ARM64 签名 APK，文件以 zero-player-0.0.7 开头；本次不发布 Android x64、通用包或 AAB。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
+本次 v0.0.8 提供 `zero-player-0.0.8-windows-x64-setup.exe` 和 `zero-player-0.0.8-windows-x64-portable.zip`，另附源码、第三方声明、原生来源及 `SHA256SUMS.txt`。Android 最新公开包仍为 v0.0.7。Windows 二进制未做商业代码签名；本轮未重新验收安装/卸载后的系统文件关联。
+
+不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。便携包必须完整解压，不能仅复制 EXE。
 
 ## 开发
 

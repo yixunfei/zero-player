@@ -42,6 +42,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   String? _notice;
   int _sourceGeneration = 0;
   StreamSubscription<void>? _sourceChanges;
+  StreamSubscription<void>? _historyChanges;
 
   @override
   void initState() {
@@ -53,6 +54,13 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     _provider = settings.recommendation;
     _filterAdult = widget.services.contentPolicy.filterAdult;
     _history = widget.services.history.recentWorks();
+    _historyChanges = widget.services.history.changes.listen((_) {
+      if (mounted) {
+        setState(() {
+          _history = widget.services.history.recentWorks();
+        });
+      }
+    });
     _feed.addListener(_changed);
     _scroll.addListener(_loadNearEnd);
     widget.services.settings.addListener(_settingsChanged);
@@ -277,6 +285,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   @override
   void dispose() {
     unawaited(_sourceChanges?.cancel());
+    unawaited(_historyChanges?.cancel());
     widget.services.settings.removeListener(_settingsChanged);
     widget.services.contentPolicy.removeListener(_policyChanged);
     _feed.removeListener(_changed);

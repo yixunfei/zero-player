@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app/application_bootstrap.dart';
+import 'features/playback/application/local_video.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  if (args.isNotEmpty) LocalVideo.startupPath = args.first;
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   LicenseRegistry.addLicense(() async* {

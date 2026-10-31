@@ -17,6 +17,7 @@ const _destinations = [
   ('/radio', '广播（实验）', Icons.radio_outlined),
   ('/history', '记录', Icons.history),
   ('/downloads', '下载', Icons.download_outlined),
+  ('/local', '本地视频', Icons.video_file_outlined),
   ('/settings', '设置', Icons.settings_outlined),
 ];
 

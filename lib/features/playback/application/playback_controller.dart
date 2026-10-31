@@ -28,6 +28,8 @@ import '../domain/feature_work_identity.dart';
 import 'playback_diagnostics.dart';
 import 'filter_detection_queue.dart';
 
+enum PlaybackMediaKind { online, live, downloaded, local }
+
 final class PlaybackRequest {
   const PlaybackRequest(
     this.item, {
@@ -39,6 +41,7 @@ final class PlaybackRequest {
     this.headersByUri = const {},
     this.offline,
     this.quality,
+    this.mediaKind,
   });
   final CatalogItem item;
   final int line;
@@ -49,6 +52,18 @@ final class PlaybackRequest {
   final Map<Uri, Map<String, String>> headersByUri;
   final OfflineSession? offline;
   final Uri? quality;
+  final PlaybackMediaKind? mediaKind;
+  PlaybackMediaKind get kind =>
+      mediaKind ??
+      (live
+          ? PlaybackMediaKind.live
+          : offline == null
+          ? PlaybackMediaKind.online
+          : item.sourceId == 'local'
+          ? PlaybackMediaKind.local
+          : PlaybackMediaKind.downloaded);
+  bool get supportsMarks =>
+      kind == PlaybackMediaKind.online && !live && offline == null;
 }
 
 final class PlaybackController extends ChangeNotifier {
@@ -57,7 +72,9 @@ final class PlaybackController extends ChangeNotifier {
     _states = engine.states.listen(_onState);
     _errors = engine.errors.listen((_) {
       if (!_switching && !_closed && !blocked) {
-        error = '播放中断。可重试、切换线路或重新搜索其他来源';
+        error = request?.offline != null
+            ? '本地媒体播放中断，请重试或检查文件是否可读'
+            : '播放中断。可重试、切换线路或重新搜索其他来源';
         _scheduleRecovery();
         notifyListeners();
       }
@@ -391,6 +408,8 @@ final class PlaybackController extends ChangeNotifier {
           ? e.message
           : e is FormatException
           ? e.message
+          : next.offline != null
+          ? '无法打开本地媒体，请检查文件是否存在及编码是否受支持'
           : '无法打开媒体。请检查来源，或切换线路后重试';
     } finally {
       if (generation == _generation && !_closed) {
@@ -836,7 +855,8 @@ final class PlaybackController extends ChangeNotifier {
     if (blocked ||
         request == null ||
         isLive ||
-        request!.offline != null ||
+        (request!.offline != null &&
+            request!.kind != PlaybackMediaKind.local) ||
         _switching) {
       return;
     }
@@ -871,6 +891,7 @@ final class PlaybackController extends ChangeNotifier {
         headersByUri: request!.headersByUri,
         offline: current.offline,
         quality: current.quality,
+        mediaKind: current.mediaKind,
       ),
     );
   }
@@ -900,6 +921,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   void markFeatureStart() {
+    markTarget;
     featureStart = originalPosition;
     notifyListeners();
   }
@@ -909,8 +931,7 @@ final class PlaybackController extends ChangeNotifier {
         busy ||
         blocked ||
         request == null ||
-        isLive ||
-        request!.offline != null ||
+        !request!.supportsMarks ||
         originalDuration <= Duration.zero) {
       throw const FormatException('当前媒体尚未就绪，无法标记');
     }
@@ -1090,6 +1111,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> mark() async {
+    markTarget;
     if (markStart == null) {
       markStart = originalPosition;
       notifyListeners();

@@ -1,4 +1,12 @@
-enum DownloadStatus { queued, running, paused, failed, complete }
+enum DownloadStatus {
+  queued,
+  running,
+  pendingSave,
+  saving,
+  paused,
+  failed,
+  complete,
+}
 
 final class DownloadTask {
   const DownloadTask(this.row);

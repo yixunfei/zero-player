@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/playback/domain/player_engine.dart';
 import 'package:zero_player/features/playback/presentation/playback_surface.dart';
@@ -66,6 +67,7 @@ void main() {
       tester,
     ) async {
       _viewport(tester, size);
+      controller.request = _onlineRequest();
       var marks = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -101,9 +103,23 @@ void main() {
       expect(engine.snapshot.playing, isTrue);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
+      controller.request = null;
     });
   }
 }
+
+PlaybackRequest _onlineRequest() => PlaybackRequest(
+  CatalogItem(
+    sourceId: 'fixture',
+    id: 'movie',
+    title: 'movie',
+    lines: [
+      PlayLine('main', [
+        Episode('1', Uri.parse('https://example.invalid/movie.mp4')),
+      ]),
+    ],
+  ),
+);
 
 Future<void> _createPlayingSession() async {
   root = await Directory.systemTemp.createTemp('player-controls-');

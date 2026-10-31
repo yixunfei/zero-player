@@ -40,6 +40,7 @@ final class PlatformServices {
 
   DesktopLifecycle? desktop;
   DesktopRadioTray? radioTray;
+  bool _disposed = false;
 
   Future<AppExitResponse> requestAppExit(
     Future<void> Function() shutdown,
@@ -60,6 +61,13 @@ final class PlatformServices {
     if (!Platform.isWindows || desktop == null || radioTray != null) return;
     radioTray = DesktopRadioTray(session, desktop!);
     await radioTray!.initialize();
+  }
+
+  Future<void> revealWindow() async {
+    if (!Platform.isWindows) return;
+    if (await windowManager.isMinimized()) await windowManager.restore();
+    await windowManager.show();
+    await windowManager.focus();
   }
 
   Future<void> initialize({File? windowState}) async {
@@ -134,6 +142,9 @@ final class PlatformServices {
   }
 
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await _windowOperation(_restorePlayerWindow);
     await radioTray?.dispose();
     desktop?.dispose();
     await _fullscreen.dispose();
@@ -153,21 +164,68 @@ final class PlatformServices {
   }
 
   Rect? _previousBounds;
-  Future<bool> pictureInPicture() async {
+  bool _previousOnTop = false;
+  bool _previousMaximized = false;
+  Future<void> _windowQueue = Future.value();
+
+  Future<T> _windowOperation<T>(Future<T> Function() action) {
+    final operation = _windowQueue.then((_) => action());
+    _windowQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<bool> pictureInPicture() => _windowOperation(() async {
     if (Platform.isAndroid) {
       return await _channel.invokeMethod<bool>('pictureInPicture') ?? false;
     }
     if (Platform.isWindows) {
-      smallWindow = !smallWindow;
-      if (smallWindow) _previousBounds = await windowManager.getBounds();
-      await windowManager.setAlwaysOnTop(smallWindow);
       if (smallWindow) {
-        await windowManager.setSize(const Size(720, 480));
-      } else if (_previousBounds != null) {
-        await windowManager.setBounds(_previousBounds!);
+        await _restoreSmallWindow();
+      } else {
+        await _fullscreen.suspend();
+        try {
+          _previousOnTop = await windowManager.isAlwaysOnTop();
+          _previousMaximized = await windowManager.isMaximized();
+          smallWindow = true;
+          if (_previousMaximized) await windowManager.unmaximize();
+          _previousBounds = await windowManager.getBounds();
+          await windowManager.setAlwaysOnTop(true);
+          await windowManager.setSize(const Size(720, 480));
+        } catch (_) {
+          await _restoreSmallWindow();
+          rethrow;
+        }
       }
       return true;
     }
     return false;
+  });
+
+  Future<void> restorePlayerWindow() =>
+      _disposed ? Future.value() : _windowOperation(_restorePlayerWindow);
+
+  Future<void> _restorePlayerWindow() async {
+    await _fullscreen.setPlayer(false);
+    if (Platform.isWindows && smallWindow) await _restoreSmallWindow();
+  }
+
+  Future<void> _restoreSmallWindow() async {
+    await _fullscreen.suspend();
+    try {
+      if (smallWindow) {
+        await windowManager.setAlwaysOnTop(_previousOnTop);
+        if (_previousBounds != null) {
+          await windowManager.setBounds(_previousBounds!);
+        }
+        if (_previousMaximized) await windowManager.maximize();
+        smallWindow = false;
+        _previousBounds = null;
+      }
+    } finally {
+      await _fullscreen.resume();
+    }
   }
 }

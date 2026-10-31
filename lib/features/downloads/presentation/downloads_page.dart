@@ -1,3 +1,4 @@
+import '../../../core/platform/video_files.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -83,8 +84,10 @@ final class _DownloadsPageState extends State<DownloadsPage> {
           Text(
             '${_status(task.status)} · ${(task.bytes / 1048576).toStringAsFixed(1)} MiB · ${task.completed} / ${task.total} 项',
           ),
+          _outputLocation(task),
           if (task.error != null) Text(task.error!),
-          if (task.status == DownloadStatus.running)
+          if (task.status == DownloadStatus.running ||
+              task.status == DownloadStatus.saving)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: LinearProgressIndicator(),
@@ -92,7 +95,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
           Wrap(
             spacing: 8,
             children: [
-              if (task.status == DownloadStatus.complete) ...[
+              if (task.localPath != null) ...[
                 FilledButton.icon(
                   onPressed: () => _play(task),
                   icon: const Icon(Icons.play_arrow),
@@ -106,8 +109,11 @@ final class _DownloadsPageState extends State<DownloadsPage> {
                   onPressed: () => _export(task, ExportFormat.ts),
                   child: const Text('导出 TS'),
                 ),
-              ] else if (task.status == DownloadStatus.running ||
-                  task.status == DownloadStatus.queued)
+              ],
+              if (task.status == DownloadStatus.running ||
+                  task.status == DownloadStatus.queued ||
+                  task.status == DownloadStatus.pendingSave ||
+                  task.status == DownloadStatus.saving)
                 OutlinedButton(
                   onPressed: () => perform(
                     context,
@@ -115,7 +121,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
                   ),
                   child: const Text('暂停'),
                 )
-              else
+              else if (task.status != DownloadStatus.complete)
                 OutlinedButton(
                   onPressed: () => perform(
                     context,
@@ -123,9 +129,30 @@ final class _DownloadsPageState extends State<DownloadsPage> {
                   ),
                   child: const Text('继续 / 重试'),
                 ),
+              if (task.status != DownloadStatus.running &&
+                  task.status != DownloadStatus.queued &&
+                  task.status != DownloadStatus.pendingSave &&
+                  task.status != DownloadStatus.saving)
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('保存到指定目录'),
+                  onPressed: () => perform(context, () async {
+                    final destination = await VideoFiles.chooseDirectory();
+                    if (destination == null) return;
+                    await widget.services.downloads.setOutput(
+                      task.id,
+                      destination,
+                    );
+                    await widget.services.downloadScheduler.resume(task.id);
+                  }),
+                ),
               TextButton(
                 onPressed: () async {
-                  if (await confirm(context, '删除离线任务', '删除此任务及其独占媒体文件？') &&
+                  if (await confirm(
+                        context,
+                        '删除离线任务',
+                        '删除此任务及应用缓存？已保存到所选目录的视频会保留。',
+                      ) &&
                       mounted) {
                     await perform(
                       context,
@@ -141,9 +168,23 @@ final class _DownloadsPageState extends State<DownloadsPage> {
       ),
     ),
   );
+  Widget _outputLocation(DownloadTask task) => FutureBuilder<String?>(
+    future: widget.services.downloads.output(task.id, saved: true),
+    builder: (_, snapshot) => FutureBuilder<String?>(
+      future: widget.services.downloads.output(task.id),
+      builder: (_, destination) => SelectableText(
+        snapshot.data != null
+            ? '已保存：${snapshot.data}'
+            : '保存位置：${destination.data ?? '应用离线库'}',
+      ),
+    ),
+  );
+
   String _status(DownloadStatus value) => switch (value) {
     DownloadStatus.queued => '排队中',
     DownloadStatus.running => '下载中',
+    DownloadStatus.pendingSave => '缓存已完成，等待保存',
+    DownloadStatus.saving => '正在保存',
     DownloadStatus.paused => '已暂停',
     DownloadStatus.failed => '失败，可恢复',
     DownloadStatus.complete => '已完成',
@@ -174,6 +215,7 @@ final class _DownloadsPageState extends State<DownloadsPage> {
           ],
         ),
         offline: session,
+        mediaKind: PlaybackMediaKind.downloaded,
       ),
     );
   });

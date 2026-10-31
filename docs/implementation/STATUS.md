@@ -4,7 +4,7 @@
 
 ## 当前交接
 
-- 当前源码版本为 `0.0.8+8`；v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 等后续源码更新已于 2026-10-31 作为提交 `acb4d81` 推送至 `origin/main`。
+- 当前发行源码版本为 `0.0.8+8`；v0.0.8 仅发行 Windows x64，说明见 [版本说明](RELEASE-0.0.8.md)。v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 等后续源码更新已于 2026-10-31 作为提交 `acb4d81` 推送至 `origin/main`。
 - 系统恢复后的项目根为 `K:/zero-player`。Flutter 3.44.1 / Dart 3.12.1、JDK 21、Android SDK、VS 2022 C++ 工具链可用。本机信息见 [.codex/LOCAL_ENVIRONMENT.md](../../.codex/LOCAL_ENVIRONMENT.md)。
 - Android ARM64 debug APK 已在恢复阶段构建；本轮复核 SHA-256 与恢复记录一致：`f868082b7a3541a27077a4b8bac0d170c1c22642fb63487dd41858938f8b46e2`。此结论不代表 Release 或设备验收。
 - 恢复阶段全量单元/组件回归：483 通过、2 项公网测试跳过；真实 RFC1918 网卡授权/撤销测试执行通过。日志 `build/restore-20261030-tests.log`。发布工具 Python 回归 6 项通过，源码规模检查通过。
@@ -12,6 +12,99 @@
 - 首次 Windows 原生回归发现 CMake 缓存绑定旧 L:；已将旧目录保留在 `build/windows-before-restore-20261030`，按原摘要校验复用 mpv/ANGLE 压缩包，重新生成 Windows 构建目录。原生复验 3 项通过：安全配置/受控播放 1 项，MP4/HLS 的 FFprobe 与 FFmpeg 声画采样 2 项（不将 tearDownAll 计入用例）。日志 `.dart_tool/native-8c0bcc01/`；驱动有既有插件检测提示，但实际取得成功结果且退出码为 0。
 - 恢复阶段 `flutter analyze --no-pub` 无问题（`build/restore-20261030-final-analyze.log`）。
 - Windows x64 普通 Release 重新构建通过（退出码 0），产物 `build/windows/x64/runner/Release/zero_player.exe`，必须保留同目录 DLL/data。日志 `build/restore-20261030-windows-release.log`；插件注册与产物检查确认无 integration_test 插件。本轮未生成安装器、公开发布或验收真实用户媒体。
+
+## v0.0.8 正式发行范围（2026-10-31）
+
+- 用户已授权提交、推送和发布；当前已验证业务源码指纹与上一轮复查/打包一致，本轮仅更新发行文档。使用版本 `0.0.8+8`、标签 `v0.0.8`，正式发行仅含 Windows x64 安装器/便携包及源码、依赖声明、原生来源和 SHA-256 清单。
+- 原 Android 正式签名文件仍不可用，本版不上传独立包名/测试签名 APK 为正式附件，保留 v0.0.7 Android 下载。本轮未更改签名、监管、用户数据或系统默认应用。
+- 已验证基线：555 项回归通过、2 项跳过；Windows 原生业务 4 项通过；静态分析、源码规模和 Python 工具回归 12 项通过，见上轮 repackage 日志。发行附件基于同一普通 Windows Release，源码 ZIP 从审阅后的 Git index 固定快照生成，并核对到发行提交；不包含本地密钥或数据。安装后关联/卸载、Android/TV 实机和真实媒体长时播放仍未验收。
+- 发布入口：https://github.com/yixunfei/zero-player/releases/tag/v0.0.8 。本地发行附件位于 `artifacts/release/0.0.8/`，校验和以该目录 `SHA256SUMS.txt` 为准；历史测试包保留。
+
+## 复查通过与重新打包（2026-10-31 17:21，Asia/Shanghai）
+
+- 基于当前工作区复查原 8 项问题及后续三项 P2 闭环；未发现本轮打包阻断项，未修改业务源码。555 项全量单元/组件回归通过、2 项按原配置跳过（`build/repackage-recheck-tests.log`）；静态分析无问题（`build/repackage-analyze.log`）；源码规模检查及 12 项 Python 工具回归通过（`build/repackage-python.log`）。
+- Windows 原生 4 项业务用例通过（不计 tearDownAll）：隐藏/最小化窗口跨进程文件转发、实际本地解码/跳转/续播/导出后重播、HLS 下载保存和小窗/全屏恢复；日志 `.dart_tool/native-04def3ad/`、`build/repackage-native.log`。驱动仍有既有插件检测提示，业务结果及退出码成功。所有用例使用隔离数据，未启动真实用户数据中的播放任务。
+- Windows 普通 Release 构建通过（`build/repackage-windows.log`）。Android ARM64 测试签名 Release 构建通过（`build/repackage-android-verified.log`），独立包名 `dev.zeroplayer.zero_player.devtest`，版本 `0.0.8+8`，可与正式版并存。APK 包名、版本、原生 ABI、70 MiB 预算及 v2 签名验证通过（`build/repackage-apk-validation.log`、`build/repackage-apk-signature.log`）。
+- 首次 Android `--no-pub` Release 失败：原生测试残留的 integration_test 注册项进入普通 Java 编译，失败证据 `build/repackage-android.log` 与 `build/repackage-android-registrant-before.java` 保留；通过不带 `--no-pub` 的普通构建入口重新生成注册后成功。未手改生成代码、替换 DLL 或清空缓存；构建说明已补充该复现条件。
+- 使用现有 `package_release.ps1 -DeviceTest -AndroidArm64Only` 流程重新打包，依赖声明和原生源码材料均重新收集/校验。最新交付目录：`artifacts/device-test/0.0.8-20261031-172151/`，含 Windows 安装器/便携包、Android ARM64 APK、第三方声明/原生来源 ZIP 和 `SHA256SUMS.txt`。旧安装器均保留，勿与本次新包混用。
+- 交付文件摘要全部重新核对通过；便携包及 APK ZIP CRC 完整，便携包 EXE 与本轮 Release 一致。Windows/Android 普通注册文件均不含 integration_test；583 个复查源码文件的指纹在验证和打包期间未变化。证据 `build/repackage-reviewed-source.json`、`build/repackage-artifact-verification.json`、`build/repackage-packaging.log`。
+- 安装器 SHA-256：`695ea946d69600064eddb236164e834c64b714ca289a950658e320d585a0d655`；便携包：`9942b2089091974c17bd00e3aca1f86bee26d42a0459698cc5ed4136fb41fea7`；APK：`b3d939ed9cfc63ab94de5b455104072fedcea83f43566c1faa41c5cbf4b20412`。
+- 本轮“通过”范围为代码复查、本机回归、Windows 原生业务和构建/包校验。Android/TV SAF 实机、真实用户媒体长时播放、安装/卸载后的系统关联仍未验收；未安装、更改系统默认应用、提交、推送或公开发布，全部已有未提交改动保留。
+
+## 三项 P2 闭环（2026-10-31）
+
+- 隐藏窗口转发先直接 await 原生显示/恢复，再等待帧导航；请求序号抑制过期路由，退出/销毁后不再导航。隔离临时目录及内存数据库的真实 Windows 测试覆盖隐藏首页（无视频帧）、暂停后最小化、连续与重复文件的实际恢复及解码：`.dart_tool/native-9f0bdd5f/forwarded_video_native_test.log` / `build/p2-native-final.log`。最初两次夹具未关闭默认全屏，最小化前置条件失败，日志保留，不算业务通过。
+- 历史入口返回后“选择视频文件”打开独立记录；失效历史增加明确“重新定位原记录（保留进度）”。Android 文档身份优先于 previousId，另一文档不会继承旧记录，同文档跨副本仍按稳定身份续播。正式页面测试验证成功历史入口选新文件及失效路径显式重新定位；组件和领域回归保留。
+- 下载先在数据库持久化随机发布文件名、目录及导出内容 SHA-256，再发布。Windows/Android SAF 重启核验该身份的实际内容，一致才补记完成；不根据普通同名文件认领，不覆盖用户目标。SAF 提供者必须保留请求名称；授权撤销、内容不一致或残留不完整目标保守失败，界面可重新选择目录，完整缓存保留。旧版本没有意图的已发布文件不自动认领，重试以新随机名称另存，旧文件保留。取消和失败沿用完整缓存及不覆盖发布保护；删除任务同时删除发布意图。
+- 全量回归 553 通过、2 项按原配置跳过（`build/p2-all-tests-verified.log`）；后补页面交互测试及整理后的正式新增回归共 6 项通过（`build/p2-final-targeted.log`），现有保存/本地测试 9 项通过（`build/p2-targeted.log`）。静态分析无问题（`build/p2-analyze-final.log`）。早期新增断言的路径分隔符差异和组件夹具异步等待不足已修正，失败日志保留。
+- 普通 Windows Release 构建通过（`build/p2-windows.log`），生成插件注册无 integration_test；EXE SHA-256 `da4658fd809efac17c576252f77a2310a83356a0dda84f5fbe4eb21ea50edbe0`，需保留同目录 DLL/data。Android ARM64 Debug 编译通过（`build/p2-android.log`），APK CRC 完整且仅 arm64-v8a；SHA-256 `811ba4d11a3ce2610d88518537a7f9fa4d10f27d6eb8c81feac99e351887c15e`，旧 APK 保留于 `app-debug-before-p2-20261031.apk`。
+- 本轮未重打安装器；下文旧安装器均不包含此次三项修复。Android/TV SAF 实机（含权限撤销、空间不足及进程终止）、安装后 Shell 关联/卸载、真实用户媒体仍未验证。SAF 中断残留或内容不一致时需重新授权/更换目录，不自动删除外部文件。所有测试使用显式隔离数据；保留全部未提交改动，未提交、推送、公开发布或修改系统默认应用。
+- 下一步：Android/TV 实机验证上述 SAF 边界；如需安装器，必须基于本轮最终普通 Release 重新编译及记录摘要，不能混用旧包。
+
+## 再次复核（2026-10-31，仍有三项遗漏）
+
+- 按当前工作区（含后续补修）复核原 8 项问题，未修改业务源码、未启动实际用户数据目录中的程序。目录独占、待保存状态和遗留内部临时文件清理、失效记录重选入口、离线标记能力限制、横屏滚动、小窗/清理失败退出、首页历史订阅及 Android 流式副本配额/清理均已有对应实现和正向测试。
+- 本轮重跑完整回归 549 项通过、2 项按既有配置跳过，日志 `build/final-recheck-all-tests.log`。另在忽略目录 `build/final_recheck_probe_test.dart` 编写 3 项补充探针，均命中预期异常，日志 `build/final-recheck-probes-verified.log`。首次夹具缺少启动全屏 mock 且跨 fake async 关闭超时，失败日志 `build/final-recheck-probes.log` 保留，修正夹具后验证；探针通过只表示复现成功。
+- [P2] Windows 文件转发在 hidden 生命周期下不能主动唤醒：ProductApp 先把 revealWindow 放进 addPostFrameCallback，再 scheduleFrame；此时 framesEnabled=false，恢复窗口所需操作本身也被卡住。组件生命周期探针确认转发后 show 调用为 0，直到恢复生命周期；需在等待帧之前先显示/恢复窗口，再调度路由。原生转发测试覆盖正在解码的可见窗口，没有覆盖隐藏/最小化窗口。
+- [P2] 从历史 id 页面播放后，再点“选择视频文件”选另一部视频时，LocalVideoPage 始终传 previousId；LocalVideo 优先 previousId 并忽略新文档 identity，导致另一视频沿用旧 ID/进度并重写路径映射。探针用文档 A 的 20 秒进度选择文档 B，确认 B 仍取得 A 的 ID 和 20 秒。应将“重新定位本记录”和“打开新视频”分开，避免静默串记录。
+- [P2] 外部视频已发布、download_saved 事务尚未提交时崩溃仍无法幂等恢复：恢复为 pendingSave 后，重新导出总会遇到已有目标且失败。探针保留与缓存内容一致的已发布目标但无 saved 记录，连续两次重试均失败且无法写入完成凭据。需在发布前持久化保存意图/身份并校验一致内容后认领或提供明确恢复操作，不能盲目覆盖用户文件。
+- 交付物核验：当前测试安装器 SHA-256 与 `build/remaining-fixes-sha256.txt` 一致（B67C3DAF74BA2EFC7BE056BF137F48C15992A6A25E09103B142B529B6117B7B1），Release EXE 也与记录一致（DB70D88CCEBD7880CE4BFB1AA6DCDBB350605F07C302C5BD7E8C3EE7C255CE04）。本轮未重建、安装或验收 Android/TV 真机与 Windows Shell 关联。
+
+## 独立复查剩余问题修复（2026-10-31）
+
+- 保留前序全部未提交改动，在当前工作区继续实现；未推送或发布。播放器退出将引擎关闭、窗口恢复和路由退出分开执行；清理失败仍返回，记录错误并提供“重试恢复窗口”提示，不再停留在已关闭播放器的等待页。
+- Android 视频选择桥接返回原文档 URI 的 SHA-256 身份（不持久化原始 URI），本地播放以文档身份而非 UUID 缓存路径派生记录 ID。同一文档重选后续播，另一文档独立记录；旧记录仍保留从历史入口重新定位。副本复制、取消、容量和原文件保护保持。选择页增加滚动，覆盖横屏和 1.6 倍文字。
+- Windows 目录所有权锁下增加受随机令牌保护的回环文件转发入口。第二进程在取得锁失败后，仅转发绝对本地视频路径并退出，不初始化数据库或缓存。现有窗口恢复可见性，替换播放页；重复打开同一路径也会重新处理。入口拒绝无令牌/网页来源/网络 URL，有体积、排队数量和超时限制；关闭服务前停止接收，保留所有权锁直至资源关闭完成。所有播放请求继续经过本地资源与监管检查。
+- 全量单元/组件回归 549 通过、2 项按原配置跳过（`build/remaining-fixes-all-tests.log`）；最终针对性 9 项通过（`build/remaining-fixes-final-targeted.log`）。新增正向断言验证双重清理失败仍导航、跨副本续播、横屏放大文字、真实独立进程转发及未授权请求拒绝。12 项 Python 工具回归通过（`build/remaining-fixes-python.log`）。早期新增测试夹具遇到 fake async 清理超时/HTTP stub 和 Socket 流类型错误，失败日志保留，修正夹具后复验。
+- Windows 原生 4 项业务用例通过（不计 tearDownAll），日志 `.dart_tool/native-2c17d2a5/`：真实独立进程向正在播放的窗口连续转发中文路径视频并重复打开同一文件，均进入实际解码；HLS 下载保存；本地解码/跳转/续播/导出后重播；小窗及全屏恢复。原生 driver 仍有既有插件检测提示，业务结果与退出码成功。原生测试使用显式临时目录与内存数据库，没有启动已安装程序或触及实际用户数据目录。
+- 最终针对性回归 10 项通过（含停止接收后仍持有所有权锁的断言，`build/remaining-fixes-targeted-complete.log`）；静态分析无问题（`build/remaining-fixes-analyze-clean.log`），源码/函数规模检查和差异检查通过。Windows 普通 Release 构建通过（`build/remaining-fixes-windows.log`），普通插件注册无 integration_test；Android ARM64 Debug 构建通过（`build/remaining-fixes-android.log`），APK CRC 完整且仅含 arm64-v8a。旧 APK 已备份为 `app-debug-before-remaining-fixes-*.apk`。
+- 新安装器编译通过（`build/remaining-fixes-installer.log`）：`build/remaining-fixes-installer-20261031/zero-player-0.0.8-windows-x64-setup.exe`，包含本轮重建后的 Windows Release；旧安装器保留，不再作为当前测试入口。安装器、APK 和 EXE 的 SHA-256 在 `build/remaining-fixes-sha256.txt`。本轮未安装到实际用户环境、修改默认应用、提交或推送。
+- Android/TV 实机文档选择与安装后的关联/卸载仍未验收；新协议的独立进程发送及现有窗口接收/解码已验证，但不将其等同于安装后的 Windows Shell 关联验收。旧版本进程不识别新锁与转发协议，升级前应退出旧版本。
+
+## 全模块审查问题修复（2026-10-31）
+
+- Windows 在打开数据库、恢复下载和清理分片前锁定应用数据目录；同目录的第二个新版本进程提示使用现有窗口，不执行初始化。锁持有到服务全部关闭；关闭失败时保留锁至进程退出。隔离目录中的独立进程测试覆盖冲突、正常释放及异常退出后的接管，并核对第二次 `AppServices.create` 不创建数据库、不删除在途分片（`build/review-owner-initialization.log`）。此方案不转发文件参数，也不能约束不遵守该锁的旧版本进程。
+- 下载缓存完成与目标目录保存分别持久化为 `pendingSave`、`saving` 和 `complete`，启动时恢复待保存任务；中断、失败或取消仍保留完整离线缓存。保存使用任务内独立临时目录并清理旧版 `output.mp4` / 中断目录；Windows 使用不替换已有文件的原生发布操作，Android 检查文档目标并只清理本次创建的文档。若崩溃发生在目标发布后、数据库记录前，重试会保守拒绝同名文件，需用户核对或更换目录。
+- 本地记录读取放入仓库，失效记录允许重新选择并沿用原记录身份和续播进度。区分在线、直播、下载和本地媒体能力；本地/下载视频禁用特征采集及标记并说明原因。下载选集改为可滚动布局，覆盖手机横屏、长标题/路径和放大文字。Windows 小窗串行恢复原边界、置顶和最大化，并处理应用全屏与恢复失败后的重试。首页订阅观看历史领域变化，进度更新无需重载首页或重置滚动；内容记录和本地映射不再广播为通用 `app_meta` 来源变更。
+- Android 本地视频仍流式复制到应用私有缓存，增加复制进度、取消、独立容量核算与低空间保护；清理缓存包含未使用本地副本，保护正在播放的副本，不删除用户原文件。清理或系统回收后，失效记录可重新选择文件。继续使用原监管和过滤规则，不将本地选择视为监管授权。
+- 全量 Flutter 回归 544 通过、2 项按原配置跳过（`build/review-fixes-full-tests-verified.log`）；此后小窗失败恢复调整及相关入口的 30 项针对性回归通过（`build/review-fixes-targeted-last.log`），历史刷新在非零滚动位置另行通过（`build/review-history-scroll.log`）。首次全量运行的 2 个旧夹具失败及修正前日志保留于 `build/review-fixes-full-tests.log`。`flutter analyze --no-pub` 无问题（`build/review-fixes-analyze-final.log`；分析配置排除保留的 `build/` 临时探针），Python 发布工具回归 12 项和源码规模检查通过。
+- Windows 原生 3 项业务用例通过：HLS 下载保存、本地视频解码/跳转/续播/导出后重播、小窗及全屏恢复；日志 `.dart_tool/native-03910f1a/`。驱动仍有既有插件检测提示，但业务结果和退出码成功。Windows 普通 Release 构建通过（`build/review-fixes-windows-verified.log`），生成插件注册不含 integration_test；产物需保留同目录 DLL/data。
+- Android ARM64 Debug 最终编译通过（`build/review-fixes-android-final-verified.log`），APK CRC、版本 `0.0.8+8` 和 ABI 校验通过，SHA-256 `f43fcb42ad8e3f75c8a27afdf3fadb6812e7c66b7f5c8dc3a1743a719a703769`。调试包约 163.30 MiB，校验工具提示 ZIP 填充较大，仅供本地调试；复制进度/取消、低空间与 SAF 行为尚未在 Android/TV 实机验收。未推送、发布或修改默认应用。
+- 探针更正：本轮最初用环境变量尝试隔离旧版双进程，但 Windows 路径插件使用系统已知文件夹，该探针实际触及 `AppData/Roaming/Zero Player contributors/Zero Player` 的数据库和缓存初始化。事后只读查询时下载任务数为 0；数据库修改时间已被触及，不能确认此前是否存在被启动清理的 `.part`，也不能声称完全隔离。后续所有锁测试使用显式临时目录，原生业务测试使用各自临时目录和内存数据库。
+
+## 修复后独立复查（2026-10-31，仍有未闭环项）
+
+- 确认修复会话已结束，审查当前未提交源码；本轮未修改业务源码，也未启动实际用户数据目录中的程序。重跑锁、小窗、首页历史、本地/下载交互和下载保存相关 16 项测试全部通过（`build/recheck-review-targeted.log`）。另在忽略目录写入两个补充探针（`build/recheck_remaining_probe_test.dart`），均命中预期异常（`build/recheck-remaining-probes.log`）；不把异常复现当成功验收。
+- 待修复：PlayerPage._leave 先置 leaving/closed，再 await restorePlayerWindow。若窗口恢复抛错，路由退出不会执行，页面显示等待且后续返回被 leaving 拦截；平台层重试测试没有覆盖播放页这一失败闭环（代码确认，未做原生故障注入）。
+- 待修复：Android 每次文件选择都在 UUID 目录生成新副本；普通选择入口没有 previousId，LocalVideo 又以副本 canonicalPath 派生身份，同一文档重新选择会新建身份并丢失续播。补充探针以两份相同内容/名称的不同缓存路径验证了身份不同、第二次进度为 0；Android 文档选择全链路仍待设备验证。
+- 待修复：Windows 数据目录锁解决新版本多进程争用，但文件关联参数没有转发。应用已运行时双击其他视频只打开提示窗口，不能在现有播放器直接打开该文件；这是公开说明过的功能欠缺，不能将其视为文件关联全链路验收完成。
+- 待修复：下载选集横屏已修，但 LocalVideoPage 仍为不可滚动 Column；568×320、顶部 AppBar 56 和底部栏 64 的布局探针底部溢出 80px。
+- 交付物待同步：此前提供的 `build/local-video-installer-20261031105627/zero-player-0.0.8-windows-x64-setup.exe` SHA256 仍为 `49799BE639065FCA9CC20EDD2A920D4CE6317A2BAF29FFD0D49261108C013D23`，修改时间 11:07:30；新 Release EXE 修改时间 13:18:31。旧安装器没有包含本轮修复，不能用旧安装器验证新源码。
+- 下载“目标已发布但数据库尚未提交”崩溃窗口仍按保守拒绝同名文件处理（上节已注明），属于尚未自动恢复的边界。Android/TV 实机及安装后关联/卸载仍未验收；修复会话曾误触实际用户数据目录的探针记录保留，不声称其完全隔离或无影响。
+
+## 指定下载目录、本地视频与播放器补齐（2026-10-31）
+
+- 开始前工作区干净，已创建本地备份检查点 `7eb0bb7`（父提交 `2f16bfe`）；未推送。以下功能改动保留在工作区，尚未公开发布。
+- 下载选集增加保存目录；Windows 使用文件夹选择，Android 使用 SAF 持久目录授权。目标与任务在同一事务保存，下载完成后自动重封装 MP4；已有任务可重新选择目录。保存失败保留完整缓存，重试不重新联网下载；缓存仍可离线播放/导出。目录中已有同名文件不覆盖，删除任务保留用户目录中的视频。保存过程支持取消，Windows 临时文件写完后发布，Android 取消/失败清理本次新建文档。
+- 新增“本地视频”菜单，支持常见单文件视频、续播与观看记录/首页继续观看；Windows 接受文件路径启动参数。通过受控离线服务器只暴露所选文件，支持 Range；不开放相邻文件、外部播放列表、脚本或自动加载字幕。Android 视频选择采用专用流式复制桥接，避免现有文件选择插件将整段视频装入内存；系统清除缓存或原文件移动后需重新选择。
+- 播放器设置增加内嵌音轨/字幕选择，补充本地播放错误提示，并修复离线流程原先跳过本地视频进度保存的问题。修复导出器将 HLS 专用 allowed_extensions 参数用于普通 MP4 导致导出失败的问题。
+- Windows 安装器提供默认不勾选的格式关联任务，注册当前用户的 OpenWithProgids / Capabilities，并在完成页提供默认应用设置入口。默认播放器由用户在 Windows 系统中确认，便携版不写关联。监管、过滤和网络边界保留；监管下无可验证来源的本地文件会被阻止。
+- 全量单元/组件回归 534 项通过、2 项按原配置跳过：`build/local-video-final-tests-verified.log`。12 项 Python 工具回归通过：`build/local-video-python-tests.log`。新增回归覆盖本地 Range、相邻文件隔离、关闭撤销、续播、标题过滤、目标文件保护、保存失败后缓存重试及删除保留外部文件。
+- Windows 原生 2 项业务用例通过（不计 tearDownAll）：完整 HLS 下载到指定目录、FFmpeg 重封装和完整性校验；本地视频实际解码、跳转、进度保存和导出后重新播放。最终日志 `.dart_tool/native-b93af50c/local_video_native_test.log`。驱动仍有既有插件检测提示，业务结果与退出码均成功。
+- 保留早期失败证据：`.dart_tool/native-a499d7bd/`（本地进度未保存）、`.dart_tool/native-c330d23c/`（MP4 不接受 HLS 参数）；`build/local-video-final-tests.log`（任务元数据错误触发来源观察者、异步文件打开异常）。已修复后复验，上述失败不能当成功证据。
+- 最终相关回归 8 项通过（`build/local-video-final-targeted.log`），静态分析无问题（`build/local-video-final-analyze-verified.log`），源码/函数规模检查通过。Android ARM64 Debug 构建通过（`build/local-video-android-final.log`），APK ZIP CRC 完整且只含 arm64-v8a；旧调试包已保留为 `app-debug-before-local-video-*.apk`。当前 `build/app/outputs/flutter-apk/app-debug.apk` 是普通调试包，非签名发行版。
+- Windows x64 最终普通 Release 构建通过（`build/local-video-windows-final-verified.log`）；产物 `build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data。普通插件注册中无 integration_test。安装器最终编译通过（`build/local-video-installer-final.log`），本地测试包 `build/local-video-installer-20261031105627/zero-player-0.0.8-windows-x64-setup.exe`；APK/安装器校验和在 `build/local-video-artifacts-sha256.txt`。本轮未公开发布或修改用户默认应用。
+- Android/TV 实机、真实用户媒体长时播放、安装后关联及卸载行为未验收；安装器仅做编译检查，未安装到用户系统。
+
+## 全模块代码与交互审查（2026-10-31，历史待修复清单）
+
+- 审查当前工作区（含上轮尚未提交的功能改动）；统计 lib 下 293 个 Dart 文件、37,586 行。检查各业务模块入口、下载/播放状态机、Windows/Android 桥接、历史与备份、监管边界及关键服务组合。本轮未修改业务源码，未安装到用户系统。
+- 本轮全量单元/组件回归 534 项通过、2 项按原配置跳过（`build/module-review-regression.log`）。另外在忽略目录 `build/module_review_probe_test.dart` 编写 6 项隔离探针，全部命中预期异常（`build/module-review-probes-final.log`）；探针通过表示成功复现缺陷，不表示对应功能正常。
+- 探针确认：①缓存已标 complete、目标尚未保存的任务不参加启动恢复；②崩溃遗留 output.mp4 令首次保存重试失败（finally 清理后可再次重试）；③首页按 id 打开已失效本地记录后，“选择视频文件”仍反复尝试旧路径；④Windows 小窗退出播放页后未恢复置顶/窗口状态；⑤已就绪本地/离线视频仍显示特征标记操作，但 markTarget 一律拒绝；⑥568×320 横屏下载弹窗底部溢出 116 像素。
+- 代码链路还确认：首页继续观看只在初始化/完整刷新时更新 Future，未订阅 watch_history 或路由返回，播放返回后可能显示旧记录；Android 本地选择缓存缺少应用内配额、清理、复制取消和进度。
+- 高优先级风险（静态链路，未制造真实数据损坏）：Windows 没有单实例/参数转发或共享缓存所有权锁；多个进程使用同一应用数据目录，第二进程启动会执行 recover 和缓存 .part 清理。文件关联增加此路径的触发机会，需要隔离环境验证并补进程协调。
+- 组织改善建议：以媒体类型/能力表达本地、下载、在线、直播的操作边界；将 PlaybackController 的选线恢复、特征采集/标记和进度存储按职责解耦；把本地记录 SQL 从界面抽到仓库，细化 app_meta 的领域变更通知，避免历史写入触发无关源列表刷新。现有文件规模没有超过项目上限，无需机械拆文件。
+- 下一步建议顺序：进程/缓存所有权与下载保存恢复 → 本地能力/失效重选/弹窗布局/小窗清理 → 首页历史订阅和 Android 资源管理 → Android/TV 真机、安装/卸载关联、长时播放验证。以上问题本轮仅审查记录，尚未修复。
 
 ## 播放器电视焦点与弹窗修复（2026-10-31）
 

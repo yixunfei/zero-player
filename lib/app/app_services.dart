@@ -21,6 +21,7 @@ import '../core/network/cancellation_token.dart';
 import '../core/network/media_http_client.dart';
 import '../core/network/poster_repository.dart';
 import '../core/persistence/app_database.dart';
+import '../core/persistence/application_ownership.dart';
 import '../core/persistence/segment_index.dart';
 import '../core/platform/platform_services.dart';
 import '../features/catalog/data/provider_factory.dart';
@@ -64,6 +65,7 @@ final class AppServices {
     this.db, {
     this.radioEngine,
     PlatformServices? platform,
+    this.openRequests,
     this.allowPrivateNetworks = false,
     this.channelAuditOverride,
   }) : platform = platform ?? PlatformServices();
@@ -76,6 +78,9 @@ final class AppServices {
     policy: contentPolicy,
   );
   Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
+  final Stream<String>? openRequests;
+  Stream<String> get localOpenRequests =>
+      openRequests ?? _ownership?.channel.requests ?? const Stream.empty();
   final Directory root;
 
   /// In-session browsing context; distinct from the user's saved home default.
@@ -213,12 +218,15 @@ final class AppServices {
     settings,
     isMetered: platform.isMetered,
     validateMp4: exporter.validate,
+    exporter: exporter,
     resolve: (task, token) =>
         resolveDownload(task, downloads, sources, network, token),
     failover: DownloadFailover(sources, network, settings),
   );
   final exporter = FfmpegExporter();
   Future<void>? _closing;
+  ApplicationOwnership? _ownership;
+  static final _failedOwners = <ApplicationOwnership>[];
   StreamSubscription<void>? _sourcePolicyChanges;
   Timer? _sourcePolicyTimer;
   Future<void> _sourcePolicyRefresh = Future<void>.value();
@@ -233,10 +241,14 @@ final class AppServices {
   static Future<AppServices> create() async {
     final directory = await getApplicationSupportDirectory();
     await directory.create(recursive: true);
+    final ownership = Platform.isWindows
+        ? await ApplicationOwnership.acquire(directory)
+        : null;
     final services = AppServices.scoped(
       directory,
       AppDatabase(File(p.join(directory.path, 'zero-player.sqlite'))),
     );
+    services._ownership = ownership;
     try {
       await services._initialize();
       return services;
@@ -346,39 +358,50 @@ final class AppServices {
     }
   }
 
-  Future<void> _close() => closeResources([
-    () async {
-      _sourcePolicyTimer?.cancel();
-      await _sourcePolicyChanges?.cancel();
-      await _sourcePolicyRefresh;
-    },
-    () async {
-      await platform.radioTray?.dispose();
-    },
-    () async {
-      await _radioPlayer?.close();
-    },
-    () => radio.close(),
-    ..._closeHooks,
-    () => _closeHooks.clear(),
-    () => subscriptions.close(),
-    () => builtinLive.close(),
-    () => liveProbe.close(),
-    () => downloadScheduler.close(),
-    () => sourceMonitor.close(),
-    () => settings.removeListener(_applySettings),
-    () => contentFilter.close(),
-    () => offline.close(),
-    () => gateway.close(),
-    () => posters.close(),
-    () => synopses.close(),
-    () => http.close(),
-    () => lanAccess.close(),
-    () => platform.dispose(),
-    () => contentPolicy.dispose(),
-    () => settings.close(),
-    () => installationAccess.close(),
-    () => supervision.close(),
-    () => db.close(),
-  ]);
+  Future<void> _close() async {
+    try {
+      await closeResources([
+        () => _ownership?.channel.close(),
+        () async {
+          _sourcePolicyTimer?.cancel();
+          await _sourcePolicyChanges?.cancel();
+          await _sourcePolicyRefresh;
+        },
+        () async {
+          await platform.radioTray?.dispose();
+        },
+        () async {
+          await _radioPlayer?.close();
+        },
+        () => radio.close(),
+        ..._closeHooks,
+        () => _closeHooks.clear(),
+        () => subscriptions.close(),
+        () => builtinLive.close(),
+        () => liveProbe.close(),
+        () => downloadScheduler.close(),
+        () => sourceMonitor.close(),
+        () => settings.removeListener(_applySettings),
+        () => contentFilter.close(),
+        () => offline.close(),
+        () => gateway.close(),
+        () => posters.close(),
+        () => synopses.close(),
+        () => http.close(),
+        () => lanAccess.close(),
+        () => platform.dispose(),
+        () => contentPolicy.dispose(),
+        () => settings.close(),
+        () => installationAccess.close(),
+        () => supervision.close(),
+        () => db.close(),
+      ]);
+    } catch (_) {
+      final ownership = _ownership;
+      if (ownership != null) _failedOwners.add(ownership);
+      rethrow;
+    }
+    await _ownership?.close();
+    _ownership = null;
+  }
 }

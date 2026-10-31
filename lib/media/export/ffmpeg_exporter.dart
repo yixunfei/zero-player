@@ -78,8 +78,10 @@ final class FfmpegExporter implements MediaExporter {
         input.scheme == 'file' ? 'file' : 'http,tcp,crypto',
         '-format_whitelist',
         input.scheme == 'file' ? 'mov,mpegts' : 'hls,mov,mpegts',
-        '-allowed_extensions',
-        'ALL',
+        if (input.path.toLowerCase().endsWith('.m3u8')) ...[
+          '-allowed_extensions',
+          'ALL',
+        ],
         '-i',
         input.scheme == 'file' ? input.toFilePath() : input.toString(),
         '-map',

@@ -1,3 +1,5 @@
+import '../application/player_exit.dart';
+import 'track_selector.dart';
 import 'feature_rule_dialog.dart';
 import 'feature_rules_dialog.dart';
 import 'dart:async';
@@ -78,7 +80,11 @@ final class _PlayerPageState extends State<PlayerPage>
     WidgetsBinding.instance.removeObserver(this);
     _removeCloseHook();
     if (!closed) unawaited(controller.close());
-    unawaited(widget.services.platform.fullscreen(false));
+    unawaited(
+      widget.services.platform.restorePlayerWindow().catchError(
+        _reportExitError,
+      ),
+    );
     super.dispose();
   }
 
@@ -95,15 +101,46 @@ final class _PlayerPageState extends State<PlayerPage>
     leaving = true;
     // Stop notifications before disposing the controller that builds this page.
     if (mounted) setState(() => closed = true);
-    await controller.close();
-    if (mounted) {
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go('/');
-      }
-    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final platform = widget.services.platform;
+    await finishPlayerExit(
+      close: controller.close,
+      restore: widget.services.platform.restorePlayerWindow,
+      report: (error, stack) {
+        _reportExitError(error, stack);
+        if (messenger?.mounted ?? false) {
+          messenger!.showSnackBar(
+            SnackBar(
+              content: const Text('已退出播放，部分资源或窗口清理失败'),
+              action: SnackBarAction(
+                label: '重试恢复窗口',
+                onPressed: () => unawaited(
+                  platform.restorePlayerWindow().catchError(_reportExitError),
+                ),
+              ),
+            ),
+          );
+        }
+      },
+      navigate: () {
+        if (!mounted) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
+      },
+    );
   }
+
+  void _reportExitError(Object error, StackTrace stack) =>
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'player exit',
+        ),
+      );
 
   Future<void> _fullscreen() async {
     if (locked) return;
@@ -291,6 +328,10 @@ final class _PlayerPageState extends State<PlayerPage>
       ),
       OutlinedButton(onPressed: _screenshot, child: const Text('截图')),
       OutlinedButton(
+        onPressed: () => selectTracks(context, engine.player),
+        child: const Text('音轨 / 字幕'),
+      ),
+      OutlinedButton(
         onPressed: () => showPlaybackDiagnostics(context, controller),
         child: const Text('播放诊断'),
       ),
@@ -310,8 +351,10 @@ final class _PlayerPageState extends State<PlayerPage>
           child: const Text('测速 / 画质'),
         ),
       if (!controller.isLive && controller.request != null) ...[
+        if (!controller.request!.supportsMarks)
+          const Text('本地和下载视频暂不支持特征采集与片段标记'),
         OutlinedButton(
-          onPressed: controller.busy
+          onPressed: controller.busy || !controller.request!.supportsMarks
               ? null
               : () {
                   controller.markFeatureStart();
@@ -322,13 +365,15 @@ final class _PlayerPageState extends State<PlayerPage>
           child: const Text('标记特征起点'),
         ),
         OutlinedButton(
-          onPressed: controller.busy
+          onPressed: controller.busy || !controller.request!.supportsMarks
               ? null
               : () => editFeatureRule(context, controller),
           child: const Text('标记特征终点 / 采集'),
         ),
         OutlinedButton(
-          onPressed: () => showFeatureRules(context, controller),
+          onPressed: controller.request!.supportsMarks
+              ? () => showFeatureRules(context, controller)
+              : null,
           child: const Text('特征管理'),
         ),
       ],

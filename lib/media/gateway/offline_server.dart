@@ -1,3 +1,4 @@
+import '../../core/platform/video_files.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -23,6 +24,21 @@ final class OfflineServer {
   int _generation = 0;
   final _sessions = <String, Map<String, File>>{};
   final _tasks = <String, String>{};
+  final _localFiles = <String, String>{};
+  Iterable<String> get activeLocalFiles => _localFiles.values.toList();
+  Future<void> _localQueue = Future.value();
+
+  Future<T> _localOperation<T>(Future<T> Function() action) {
+    final operation = _localQueue.then((_) => action());
+    _localQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> clearLocalCopies() =>
+      _localOperation(() => VideoFiles.clearLocalCopies(activeLocalFiles));
   bool isPlaying(String id) => _tasks.containsValue(id);
 
   bool isRegisteredResource(Uri uri) {
@@ -119,6 +135,40 @@ final class OfflineServer {
     );
   }
 
+  /// Expose only the selected file; adjacent files and playlists stay inaccessible.
+  Future<OfflineSession> openLocal(File file) =>
+      _localOperation(() => _openLocal(file));
+
+  Future<OfflineSession> _openLocal(File file) async {
+    if (!isLocalVideo(file.path)) {
+      throw const FormatException('不支持此视频格式');
+    }
+    if (!await file.exists()) {
+      throw const FileSystemException('视频文件不存在');
+    }
+    await _closing;
+    final generation = _generation;
+    await _ensureStarted();
+    if (generation != _generation || _server == null) {
+      throw StateError('播放器已关闭');
+    }
+    final token = base64Url.encode(
+      List.generate(24, (_) => Random.secure().nextInt(256)),
+    );
+    final name = 'video${p.extension(file.path).toLowerCase()}';
+    _sessions[token] = {name: file};
+    _localFiles[token] = file.path;
+    _tasks[token] = 'local:$token';
+    return OfflineSession(
+      Uri.parse('http://127.0.0.1:${_server!.port}/$token/$name'),
+      () {
+        _sessions.remove(token);
+        _tasks.remove(token);
+        _localFiles.remove(token);
+      },
+    );
+  }
+
   Future<void> _ensureStarted() {
     if (_server != null) return Future.value();
     return _starting ??= _start(
@@ -182,6 +232,7 @@ final class OfflineServer {
     _generation++;
     _sessions.clear();
     _tasks.clear();
+    _localFiles.clear();
     final server = _server;
     _server = null;
     await _starting;

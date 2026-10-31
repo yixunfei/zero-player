@@ -49,7 +49,12 @@ bool recordAllowed(ContentPolicy? policy, Map<String, Object?> row) {
 }
 
 Future<void> rememberContent(AppDatabase db, CatalogItem item) =>
-    db.write('INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)', [
-      'content_label:${item.sourceId}:${item.id}',
-      jsonEncode(contentRecord(item)),
-    ]);
+    db.atomic(() async {
+      await db.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [
+          'content_label:${item.sourceId}:${item.id}',
+          jsonEncode(contentRecord(item)),
+        ],
+      );
+    }, tables: const {'content_records'});

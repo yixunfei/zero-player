@@ -23,6 +23,8 @@ final class HistoryRepository {
   const HistoryRepository(this.db, {this.policy});
   final ContentPolicy? policy;
   final AppDatabase db;
+  Stream<void> get changes =>
+      db.changesFor(const {'watch_history', 'local_videos'});
   Future<List<WatchEntry>> recentWorks() async => (await db.rows(
     'SELECT * FROM (SELECT h.*, m.value AS content_record, ROW_NUMBER() OVER '
     '(PARTITION BY source_id,remote_id ORDER BY updated_at DESC) AS recent '

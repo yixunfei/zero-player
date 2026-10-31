@@ -1,9 +1,13 @@
+import '../core/persistence/local_open_channel.dart';
+import '../features/playback/application/local_video.dart';
+import 'package:window_manager/window_manager.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_services.dart';
 import 'product_app.dart';
 import 'installation_introduction.dart';
+import '../core/persistence/application_ownership.dart';
 
 /// Retries service construction without registering global bindings again.
 final class ApplicationBootstrap extends StatefulWidget {
@@ -17,7 +21,19 @@ final class _ApplicationBootstrapState extends State<ApplicationBootstrap> {
   AppServices? _services;
 
   Future<AppServices> _start() async {
-    final services = await AppServices.create();
+    final AppServices services;
+    try {
+      services = await AppServices.create();
+    } on ApplicationAlreadyRunning catch (error) {
+      final path = LocalVideo.startupPath;
+      if (error.directory != null &&
+          path != null &&
+          await LocalOpenChannel.forward(error.directory!, path)) {
+        LocalVideo.startupPath = null;
+        await windowManager.destroy();
+      }
+      rethrow;
+    }
     if (!mounted) {
       await services.close();
     } else {
@@ -53,7 +69,11 @@ final class _ApplicationBootstrapState extends State<ApplicationBootstrap> {
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('无法初始化本地数据，请检查可用空间后重试'),
+                      Text(
+                        snapshot.error is ApplicationAlreadyRunning
+                            ? '播放器已在运行，请在现有窗口打开视频；关闭后可重试。'
+                            : '无法初始化本地数据，请检查可用空间后重试',
+                      ),
                       FilledButton(
                         onPressed: () => setState(() {
                           _startup = _start();

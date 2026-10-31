@@ -7,6 +7,7 @@ final class FullscreenController {
   final application = ValueNotifier(false);
   final changing = ValueNotifier(false);
   bool _player = false;
+  bool _suspended = false;
   Future<void> _queue = Future.value();
 
   Future<void> setApplication(bool enabled) => _schedule(application: enabled);
@@ -26,7 +27,7 @@ final class FullscreenController {
       if (nextApp == this.application.value && nextPlayer == _player) return;
       changing.value = true;
       try {
-        await apply(nextApp, nextPlayer);
+        if (!_suspended) await apply(nextApp, nextPlayer);
         _player = nextPlayer;
         this.application.value = nextApp;
       } finally {
@@ -34,6 +35,24 @@ final class FullscreenController {
       }
     });
     // A failed transition is returned to its caller, but must not poison later requests.
+    _queue = operation.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return operation;
+  }
+
+  Future<void> suspend() => _setSuspended(true);
+  Future<void> resume() => _setSuspended(false);
+
+  Future<void> _setSuspended(bool value) {
+    final operation = _queue.then((_) async {
+      if (_suspended == value) return;
+      changing.value = true;
+      try {
+        await apply(value ? false : application.value, value ? false : _player);
+        _suspended = value;
+      } finally {
+        changing.value = false;
+      }
+    });
     _queue = operation.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return operation;
   }

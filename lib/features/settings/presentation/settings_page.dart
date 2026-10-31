@@ -83,10 +83,7 @@ final class SettingsPage extends StatelessWidget {
             for (final value in {128, 256, 512, 1024, 2048, settings.cacheMiB})
               '$value': '$value MiB',
           }, numeric: true),
-          _choice(context, '离线下载容量', 'downloadMiB', '${settings.downloadMiB}', {
-            for (final value in {1024, 4096, 8192, 16384, settings.downloadMiB})
-              '$value': '$value MiB',
-          }, numeric: true),
+          _downloadLimit(context, settings.downloadMiB),
           _toggle(
             context,
             '允许计费网络下载',
@@ -96,7 +93,7 @@ final class SettingsPage extends StatelessWidget {
           ),
           ListTile(
             title: const Text('清理可淘汰缓存'),
-            subtitle: const Text('保留下载任务和正在使用的媒体'),
+            subtitle: const Text('保留下载任务和正在使用的媒体；清理 Android 本地视频副本后需重新选择'),
             trailing: const Icon(Icons.cleaning_services_outlined),
             onTap: () => perform(context, _clearCache, success: '缓存已清理'),
           ),
@@ -109,6 +106,11 @@ final class SettingsPage extends StatelessWidget {
       );
     },
   );
+  Widget _downloadLimit(BuildContext context, int limit) =>
+      _choice(context, '离线下载及本地副本容量（分别计算）', 'downloadMiB', '$limit', {
+        for (final value in {1024, 4096, 8192, 16384, limit})
+          '$value': '$value MiB',
+      }, numeric: true);
   List<Widget> _appearanceOptions(BuildContext context) {
     final settings = services.settings.value;
     return [
@@ -174,6 +176,7 @@ final class SettingsPage extends StatelessWidget {
 
   Future<void> _clearCache() async {
     await services.store.clearUnused();
+    await services.offline.clearLocalCopies();
     services.posters.clear();
     PaintingBinding.instance.imageCache.clear();
   }

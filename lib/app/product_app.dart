@@ -1,3 +1,5 @@
+import '../features/playback/presentation/local_video_page.dart';
+import '../features/playback/application/local_video.dart';
 import 'dart:async';
 import '../features/supervision/presentation/supervision_page.dart';
 import 'dart:ui' show AppExitResponse;
@@ -36,6 +38,8 @@ final class _ProductAppState extends ConsumerState<ProductApp>
   late final AppServices services;
   late final GoRouter router;
   late final AppBackDispatcher backDispatcher;
+  StreamSubscription<String>? _localOpens;
+  int _openSequence = 0;
   @override
   void initState() {
     super.initState();
@@ -45,6 +49,9 @@ final class _ProductAppState extends ConsumerState<ProductApp>
       ..maximumSizeBytes = 64 * 1024 * 1024;
     WidgetsBinding.instance.addObserver(this);
     router = _createRouter();
+    _localOpens = services.localOpenRequests.listen((path) {
+      unawaited(_activateLocal(path));
+    });
     backDispatcher = AppBackDispatcher(
       router: router,
       platform: services.platform,
@@ -53,10 +60,46 @@ final class _ProductAppState extends ConsumerState<ProductApp>
     unawaited(services.subscriptions.refreshDue());
     services.sourceMonitor.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && LocalVideo.startupPath != null) {
+        final path = LocalVideo.startupPath!;
+        LocalVideo.startupPath = null;
+        router.go(
+          Uri(path: '/local', queryParameters: {'path': path}).toString(),
+        );
+      }
       if (mounted && services.settings.value.startFullscreen) {
         unawaited(_startFullscreen());
       }
     });
+  }
+
+  bool _exiting = false;
+  Future<void> _activateLocal(String path) async {
+    final sequence = ++_openSequence;
+    if (!mounted || _exiting) return;
+    try {
+      // Hidden applications cannot produce a frame until the native window wakes.
+      await services.platform.revealWindow();
+      if (!mounted || _exiting || sequence != _openSequence) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _exiting || sequence != _openSequence) return;
+        router.go(
+          Uri(
+            path: '/local',
+            queryParameters: {'path': path, 'open': '$sequence'},
+          ).toString(),
+        );
+      });
+      WidgetsBinding.instance.scheduleFrame();
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'file activation',
+        ),
+      );
+    }
   }
 
   GoRouter _createRouter() => GoRouter(
@@ -100,6 +143,15 @@ final class _ProductAppState extends ConsumerState<ProductApp>
             path: '/history',
             builder: (_, state) =>
                 PageListNavigation(child: HistoryPage(services: services)),
+          ),
+          GoRoute(
+            path: '/local',
+            builder: (_, state) => LocalVideoPage(
+              key: ValueKey(state.uri.toString()),
+              services: services,
+              path: state.uri.queryParameters['path'],
+              id: state.uri.queryParameters['id'],
+            ),
           ),
           GoRoute(
             path: '/downloads',
@@ -159,6 +211,7 @@ final class _ProductAppState extends ConsumerState<ProductApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached) {
+      _exiting = true;
       unawaited(services.closeSafely());
       return;
     }
@@ -170,12 +223,19 @@ final class _ProductAppState extends ConsumerState<ProductApp>
   }
 
   @override
-  Future<AppExitResponse> didRequestAppExit() =>
-      services.platform.requestAppExit(services.closeSafely);
+  Future<AppExitResponse> didRequestAppExit() async {
+    _exiting = true;
+    final response = await services.platform.requestAppExit(
+      services.closeSafely,
+    );
+    if (response == AppExitResponse.cancel) _exiting = false;
+    return response;
+  }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_localOpens?.cancel());
     router.dispose();
     super.dispose();
   }

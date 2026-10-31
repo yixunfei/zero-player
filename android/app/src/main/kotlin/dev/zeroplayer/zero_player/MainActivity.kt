@@ -15,14 +15,24 @@ import android.app.Activity
 import java.io.File
 
 class MainActivity : FlutterActivity() {
+    private val videoPicker by lazy { VideoFilePicker(this) }
+    private val videoDirectories by lazy { VideoDirectoryBridge(this) }
     private var saveResult: MethodChannel.Result? = null
     private var savePath: String? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        videoPicker.progress = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zero_player/local_video_progress")
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zero_player/platform")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "saveFile" -> requestSave(call, result)
+                    "chooseLocalVideo" -> videoPicker.choose(call, result)
+                    "cancelLocalVideo" -> { videoPicker.cancel(); result.success(null) }
+                    "clearLocalVideoCopies" -> videoPicker.clear(call, result)
+                    "chooseVideoDirectory" -> videoDirectories.choose(result)
+                    "verifyVideoInDirectory" -> videoDirectories.verify(call, result)
+                    "saveVideoToDirectory" -> videoDirectories.save(call, result)
+                    "cancelVideoSave" -> { videoDirectories.cancel(call.argument<String>("path")); result.success(null) }
                     "isTelevision" -> {
                         val mode = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
                         result.success(mode.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
@@ -80,6 +90,8 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         try {
+            videoPicker.close()
+            videoDirectories.close()
             saveResult?.let { finishSave(it) }
         } finally {
             super.onDestroy()
@@ -89,6 +101,8 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Uses the activity result bridge for Flutter file export")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (videoPicker.onResult(requestCode, resultCode, data)) return
+        if (videoDirectories.onResult(requestCode, resultCode, data)) return
         if (requestCode != 7201) return
         val pending = saveResult ?: return
         val path = savePath

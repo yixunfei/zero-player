@@ -56,5 +56,5 @@ Future<void> transferDownload({
     await repository.progress(task.id, job.completed, job.completed, job.bytes);
   }
   token.check();
-  await repository.complete(task.id, local);
+  await repository.cacheComplete(task.id, local);
 }

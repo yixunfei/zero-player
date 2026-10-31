@@ -20,7 +20,7 @@ final class _HistoryPageState extends State<HistoryPage> {
     super.initState();
     _load();
     widget.services.contentPolicy.addListener(_policyChanged);
-    subscription = widget.services.db.changes.listen((_) {
+    subscription = widget.services.history.changes.listen((_) {
       if (mounted) setState(_load);
     });
   }
@@ -69,9 +69,11 @@ final class _HistoryPageState extends State<HistoryPage> {
                       '${entry.line} · ${entry.episode}\n${clockText(entry.position)} / ${clockText(entry.duration)}',
                     ),
                     isThreeLine: true,
-                    onTap: () => context.push(
-                      '/detail/${entry.sourceId}/${Uri.encodeComponent(entry.remoteId)}',
-                    ),
+                    onTap: () => entry.sourceId == 'local'
+                        ? _playLocal(entry.remoteId)
+                        : context.push(
+                            '/detail/${entry.sourceId}/${Uri.encodeComponent(entry.remoteId)}',
+                          ),
                     trailing: IconButton(
                       tooltip: '删除记录',
                       icon: const Icon(Icons.close),
@@ -85,4 +87,9 @@ final class _HistoryPageState extends State<HistoryPage> {
             ],
           ),
   );
+  Future<void> _playLocal(String id) => perform(context, () async {
+    if (mounted) {
+      context.push(Uri(path: '/local', queryParameters: {'id': id}).toString());
+    }
+  });
 }

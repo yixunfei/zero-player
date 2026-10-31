@@ -41,7 +41,9 @@ final class ContinueWatching extends StatelessWidget {
                         ),
                         trailing: const Icon(Icons.play_circle_outline),
                         onTap: () => context.push(
-                          '/detail/${e.sourceId}/${Uri.encodeComponent(e.remoteId)}',
+                          e.sourceId == 'local'
+                              ? '/local?id=${Uri.encodeQueryComponent(e.remoteId)}'
+                              : '/detail/${e.sourceId}/${Uri.encodeComponent(e.remoteId)}',
                         ),
                       ),
                     ),

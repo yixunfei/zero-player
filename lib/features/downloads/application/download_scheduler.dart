@@ -1,3 +1,5 @@
+import '../../../media/export/media_exporter.dart';
+import 'download_output.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../supervision/domain/supervision_rules.dart';
@@ -25,6 +27,7 @@ final class DownloadScheduler {
     required this.validateMp4,
     this.resolve,
     this.failover,
+    this.exporter,
   }) {
     repository.policy?.addListener(_policyChanged);
   }
@@ -32,6 +35,7 @@ final class DownloadScheduler {
   final Future<bool> Function()? isMetered;
   final Future<DownloadTask> Function(DownloadTask, CancellationToken)? resolve;
   final DownloadFailover? failover;
+  final MediaExporter? exporter;
   final DownloadRepository repository;
   final SegmentFetcher fetcher;
   final MediaHttpClient http;
@@ -57,6 +61,7 @@ final class DownloadScheduler {
   Future<void> initialize() async {
     await repository.recover();
     await repository.cleanupPending();
+    kick();
   }
 
   Future<void> resume(String id) => _control(id, () async {
@@ -68,7 +73,12 @@ final class DownloadScheduler {
     final task = await repository.find(id);
     if (task == null) return;
     repository.requireAllowed(task);
-    await repository.status(id, DownloadStatus.queued);
+    await repository.status(
+      id,
+      task.localPath != null && await repository.output(id) != null
+          ? DownloadStatus.pendingSave
+          : DownloadStatus.queued,
+    );
     kick();
   });
 
@@ -139,7 +149,8 @@ final class DownloadScheduler {
           : 1;
       for (final task in all.reversed) {
         if (_jobs.length >= limit || _closed) break;
-        if (task.status != DownloadStatus.queued ||
+        if ((task.status != DownloadStatus.queued &&
+                task.status != DownloadStatus.pendingSave) ||
             _jobs.containsKey(task.id)) {
           continue;
         }
@@ -165,13 +176,18 @@ final class DownloadScheduler {
     try {
       final current = await repository.find(task.id);
       if (current == null ||
-          current.status != DownloadStatus.queued ||
+          (current.status != DownloadStatus.queued &&
+              current.status != DownloadStatus.pendingSave) ||
           token.isCancelled) {
         return;
       }
       repository.requireAllowed(task);
-      await repository.status(task.id, DownloadStatus.running);
-      if (!settings.value.allowMetered && (await isMetered?.call() ?? false)) {
+      if (task.localPath == null) {
+        await repository.status(task.id, DownloadStatus.running);
+      }
+      if (task.localPath == null &&
+          !settings.value.allowMetered &&
+          (await isMetered?.call() ?? false)) {
         await repository.status(
           task.id,
           DownloadStatus.paused,
@@ -180,7 +196,7 @@ final class DownloadScheduler {
         return;
       }
       token.check();
-      if (distribute && failover != null) {
+      if (distribute && task.localPath == null && failover != null) {
         final alternative = await failover!.find(
           task,
           token,
@@ -188,7 +204,29 @@ final class DownloadScheduler {
         );
         if (alternative != null) task = await _switch(task, alternative, token);
       }
-      await _attempt(task, token);
+      // Saving a completed cache can be retried without downloading again.
+      if (task.localPath == null) await _attempt(task, token);
+      final completed = await repository.find(task.id);
+      if (completed?.localPath != null &&
+          exporter == null &&
+          await repository.output(task.id) != null &&
+          await repository.output(task.id, saved: true) == null) {
+        throw StateError('无法保存到所选目录');
+      }
+      if (completed != null &&
+          exporter != null &&
+          await repository.output(task.id) != null &&
+          await repository.output(task.id, saved: true) == null) {
+        await saveDownloadOutput(
+          completed,
+          repository,
+          offline,
+          exporter!,
+          token,
+        );
+      } else if (completed?.localPath != null) {
+        await repository.complete(task.id, completed!.localPath!);
+      }
     } catch (error) {
       final message = error is FormatException
           ? error.message
