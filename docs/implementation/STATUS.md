@@ -1,10 +1,10 @@
 # 实施状态与需求矩阵
 
-更新：2026-10-30（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-10-31（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
 ## 当前交接
 
-- 当前源码版本为 `0.0.7+7`；v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 为后续源码更新。工作区已有未提交实现与测试，本轮保留，未提交或推送。
+- 当前源码版本为 `0.0.8+8`；v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 等后续源码更新已于 2026-10-31 作为提交 `acb4d81` 推送至 `origin/main`。
 - 系统恢复后的项目根为 `K:/zero-player`。Flutter 3.44.1 / Dart 3.12.1、JDK 21、Android SDK、VS 2022 C++ 工具链可用。本机信息见 [.codex/LOCAL_ENVIRONMENT.md](../../.codex/LOCAL_ENVIRONMENT.md)。
 - Android ARM64 debug APK 已在恢复阶段构建；本轮复核 SHA-256 与恢复记录一致：`f868082b7a3541a27077a4b8bac0d170c1c22642fb63487dd41858938f8b46e2`。此结论不代表 Release 或设备验收。
 - 恢复阶段全量单元/组件回归：483 通过、2 项公网测试跳过；真实 RFC1918 网卡授权/撤销测试执行通过。日志 `build/restore-20261030-tests.log`。发布工具 Python 回归 6 项通过，源码规模检查通过。
@@ -12,6 +12,15 @@
 - 首次 Windows 原生回归发现 CMake 缓存绑定旧 L:；已将旧目录保留在 `build/windows-before-restore-20261030`，按原摘要校验复用 mpv/ANGLE 压缩包，重新生成 Windows 构建目录。原生复验 3 项通过：安全配置/受控播放 1 项，MP4/HLS 的 FFprobe 与 FFmpeg 声画采样 2 项（不将 tearDownAll 计入用例）。日志 `.dart_tool/native-8c0bcc01/`；驱动有既有插件检测提示，但实际取得成功结果且退出码为 0。
 - 恢复阶段 `flutter analyze --no-pub` 无问题（`build/restore-20261030-final-analyze.log`）。
 - Windows x64 普通 Release 重新构建通过（退出码 0），产物 `build/windows/x64/runner/Release/zero_player.exe`，必须保留同目录 DLL/data。日志 `build/restore-20261030-windows-release.log`；插件注册与产物检查确认无 integration_test 插件。本轮未生成安装器、公开发布或验收真实用户媒体。
+
+## 播放器电视焦点与弹窗修复（2026-10-31）
+
+- 电视设备或大屏显示模式下，方向键从播放画面进入控件；控件隐藏时方向键或确认键先唤醒，锁定后可通过遥控器聚焦解锁。焦点位于进度、音量滑块时，左右调整数值，上下切换控件。桌面普通模式保留方向键快捷操作和通过 Tab 返回画面的能力；手机横屏不继承大屏方向键行为。
+- 控件间切换时根据真实焦点路径保持控件可见；设置等弹窗显示时，播放控件的隐藏定时器不抢走弹窗输入焦点。原生测试辅助器只将已注册的网关媒体资源加入信任判断，生产网络及媒体限制未变。
+- 全量单元/界面回归 529 项通过、2 项按既有配置跳过，日志 `build/tv-focus-20261031-complete-tests.log`；测试按职责拆分后相关回归 16 项通过。发布工具 Python 回归 12 项通过，源码/函数规模检查和最终静态分析通过（`build/tv-focus-20261031-final-analyze.log`）。
+- Windows 原生 1 项业务用例通过：合成 MP4 实际解码期间，模拟确认/方向键唤醒控件、进入设置并离开进度条；日志 `.dart_tool/native-e17f3d00/tv_playback_focus_test.log`。驱动仍有既有插件检测提示，业务用例与进程退出码均为成功。早期失败日志分别保留于 `.dart_tool/native-98abe285/`（测试辅助器未登记媒体资源）和 `.dart_tool/native-c15f5770/`（Windows 不支持模拟 Select，改用 Enter；Select 已由组件测试覆盖）。
+- Windows x64 普通 Release 构建通过，`build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data；日志 `build/tv-focus-20261031-windows.log`，普通插件注册无 integration_test。Android/TV 实机、硬件遥控器和真实用户媒体仍未验收。
+- Android ARM64 Debug 编译通过（`build/tv-focus-20261031-android.log`）；包体只含 arm64-v8a，Flutter/mpv 原生库、资源清单、ZIP CRC 和 v2 签名检查通过。`build/app/outputs/flutter-apk/app-debug.apk` 为普通调试包，包名 `dev.zeroplayer.zero_player`、版本 `0.0.8+8`，本轮未安装；不能与之前独立包名的测试 Release 混淆。恢复阶段原调试包已备份至同目录 `app-debug-before-tv-focus-20261031.apk`，SHA-256 仍为 `f868082b7a3541a27077a4b8bac0d170c1c22642fb63487dd41858938f8b46e2`。
 
 ## 搜索、线路与过滤增强（2026-10-30）
 

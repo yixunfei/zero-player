@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../app/app_layout.dart';
 import '../../../app/widgets.dart';
 import '../application/playback_controller.dart';
 import 'filter_playback_overlay.dart';
@@ -36,7 +37,6 @@ final class PlaybackSurface extends StatefulWidget {
 final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   bool visible = true;
   bool interacting = false;
-  bool controlsFocused = false;
   bool _keyboardInput = false;
   final _surfaceFocus = FocusNode();
   Timer? timer;
@@ -47,6 +47,15 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   bool volumeSide = true;
   String? hint;
   bool get canGesture => !widget.locked && widget.gestures;
+  bool get controlsFocused =>
+      _surfaceFocus.hasFocus && !_surfaceFocus.hasPrimaryFocus;
+  bool get _televisionControls {
+    final services = widget.controller.services;
+    return services.platform.television ||
+        (services.settings.value.mode == 'television' &&
+            !usesCompactNavigation(context, services.platform));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -80,7 +89,9 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
       return;
     }
     timer = Timer(const Duration(seconds: 3), () {
-      if (mounted) {
+      if (mounted &&
+          ModalRoute.of(context)?.isCurrent != false &&
+          !(controlsFocused && _keyboardInput)) {
         _surfaceFocus.requestFocus();
         setState(() => visible = false);
       }
@@ -99,14 +110,42 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   }
 
   @override
-  Widget build(BuildContext context) => Focus(
-    focusNode: _surfaceFocus,
-    autofocus: true,
-    onKeyEvent: _onKey,
-    child: _surface(),
-  );
+  Widget build(BuildContext context) {
+    final television = _televisionControls;
+    final surface = Focus(
+      focusNode: _surfaceFocus,
+      autofocus: true,
+      skipTraversal: television,
+      onKeyEvent: _onKey,
+      child: _surface(),
+    );
+    return television
+        ? MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(navigationMode: NavigationMode.directional),
+            child: surface,
+          )
+        : surface;
+  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        _televisionControls &&
+        _surfaceFocus.hasPrimaryFocus &&
+        ({
+          LogicalKeyboardKey.arrowDown,
+          LogicalKeyboardKey.arrowUp,
+          LogicalKeyboardKey.arrowLeft,
+          LogicalKeyboardKey.arrowRight,
+          if (!visible || widget.locked) LogicalKeyboardKey.select,
+          if (!visible || widget.locked) LogicalKeyboardKey.enter,
+        }.contains(event.logicalKey))) {
+      _keyboardInput = true;
+      _show();
+      _focusControls();
+      return KeyEventResult.handled;
+    }
     if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
         _surfaceFocus.hasPrimaryFocus &&
         !widget.locked) {
@@ -158,9 +197,7 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
             LogicalKeyboardKey.select,
             LogicalKeyboardKey.enter,
           }.contains(event.logicalKey)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) FocusScope.of(context).nextFocus();
-        });
+        _focusControls();
         return KeyEventResult.handled;
       }
       if (_surfaceFocus.hasPrimaryFocus &&
@@ -175,6 +212,22 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
       }
     }
     return KeyEventResult.ignored;
+  }
+
+  void _focusControls() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && visible && _surfaceFocus.hasPrimaryFocus) {
+        FocusScope.of(context).nextFocus();
+      }
+    });
+  }
+
+  void _controlsFocusChanged(bool _) {
+    if (controlsFocused && _keyboardInput) {
+      timer?.cancel();
+    } else {
+      _arm();
+    }
   }
 
   void _showHint(String value) {
@@ -261,13 +314,17 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
               Positioned(
                 right: 12,
                 top: 60,
-                child: IconButton.filledTonal(
-                  tooltip: widget.locked ? '解除防误触' : '锁定防误触',
-                  onPressed: () {
-                    widget.onLock(!widget.locked);
-                    _show();
-                  },
-                  icon: Icon(widget.locked ? Icons.lock : Icons.lock_open),
+                child: Focus(
+                  canRequestFocus: false,
+                  onFocusChange: _controlsFocusChanged,
+                  child: IconButton.filledTonal(
+                    tooltip: widget.locked ? '解除防误触' : '锁定防误触',
+                    onPressed: () {
+                      widget.onLock(!widget.locked);
+                      _show();
+                    },
+                    icon: Icon(widget.locked ? Icons.lock : Icons.lock_open),
+                  ),
                 ),
               ),
           ],
@@ -345,14 +402,8 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
                 ? Duration.zero
                 : const Duration(milliseconds: 180),
             child: Focus(
-              onFocusChange: (focused) {
-                controlsFocused = focused;
-                if (focused && _keyboardInput) {
-                  timer?.cancel();
-                } else {
-                  _arm();
-                }
-              },
+              canRequestFocus: false,
+              onFocusChange: _controlsFocusChanged,
               child: child,
             ),
           ),

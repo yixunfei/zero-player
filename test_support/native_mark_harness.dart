@@ -16,6 +16,7 @@ final fixtureProject = fixtureProjectRoot();
 final class NativeMarkHarness {
   NativeMarkHarness._(this.root, this.services, this.server)
     : engine = MediaKitEngine(
+        isTrustedResource: services.gateway.isRegisteredResource,
         isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
       ) {
     player = PlaybackController(services, engine);
