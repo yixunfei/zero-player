@@ -85,3 +85,5 @@ app.*.map.json
 /windows/flutter/generated_plugin_registrant.cc
 /windows/flutter/generated_plugin_registrant.h
 /windows/flutter/generated_plugins.cmake
+
+!/docs/implementation/RELEASE-0.0.8.md
