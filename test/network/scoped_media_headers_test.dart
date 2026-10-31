@@ -8,6 +8,31 @@ import 'package:zero_player/features/sources/domain/video_source.dart';
 import '../../test_support/http_test_server.dart';
 
 void main() {
+  test(
+    'website media referers exclude query credentials and cross-origin paths',
+    () {
+      final page = Uri.parse(
+        'https://source.test/private/account?auth=secret#fragment',
+      );
+      expect(
+        HeaderPolicy.publicReferer(
+          page,
+          Uri.parse('https://cdn.test/video.mp4'),
+        ),
+        {'Referer': 'https://source.test/'},
+      );
+      expect(
+        HeaderPolicy.publicReferer(
+          page,
+          Uri.parse('http://cdn.test/video.mp4'),
+        ),
+        isEmpty,
+      );
+      expect(HeaderPolicy.publicReferer(page, page.resolve('/video.mp4')), {
+        'Referer': 'https://source.test/private/account',
+      });
+    },
+  );
   test('CMS credentials are bound to the endpoint origin', () async {
     final http = MediaHttpClient(allowPrivateNetworks: true);
     addTearDown(http.close);

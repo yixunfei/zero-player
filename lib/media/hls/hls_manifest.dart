@@ -1,4 +1,5 @@
 import 'hls_variables.dart';
+import 'hls_resource_policy.dart';
 
 /// A lossless line model: unknown tags and discontinuities survive rewriting.
 /// URI attributes are handled separately from full-line playlist references.
@@ -66,6 +67,7 @@ final class HlsManifest {
     final original = text.replaceFirst('\uFEFF', '').split(RegExp(r'\r?\n'));
     final expanded = expandHlsVariables(original, baseUri, variables);
     final lines = expanded.lines;
+    validateHlsResources(lines, baseUri);
     if (lines.isEmpty || lines.first.trim() != '#EXTM3U') {
       throw const FormatException('Not an HLS manifest');
     }

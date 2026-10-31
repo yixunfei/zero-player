@@ -24,8 +24,12 @@ String? cctvIdentity(String name) {
   final compact = name
       .toUpperCase()
       .replaceAll('＋', '+')
+      .replaceFirst(
+        RegExp(r'^\s*[（(\[]\s*(?:SD|HD|标清|高清|720P|1080P)\s*[）)\]]\s*'),
+        '',
+      )
       .replaceAll(RegExp(r'[\s_\-（）()]'), '')
-      .replaceAll(RegExp(r'(?:超高清|高清|标清|HD|SD|1080P|720P)$'), '');
+      .replaceAll(RegExp(r'(?:超高清|高清|标清|HD|SD|1080P|720P)+$'), '');
   final match = RegExp(
     r'^(?:CCTV|央视|中央)(\d{1,2})(\+|PLUS)?(.*)$',
   ).firstMatch(compact);

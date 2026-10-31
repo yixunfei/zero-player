@@ -1,3 +1,4 @@
+import 'line_probe.dart';
 import '../../../app/app_version.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../media/content_filter/fingerprints/feature_capture.dart';
@@ -162,6 +163,88 @@ final class PlaybackController extends ChangeNotifier {
   bool _advancing = false;
   int _generation = 0;
   Duration? _resume;
+  String? routeWarning;
+  final _routeToken = CancellationToken();
+  bool _findingAlternative = false;
+  void dismissRouteWarning() {
+    routeWarning = null;
+    notifyListeners();
+  }
+
+  Future<bool> switchAlternativeLine({CatalogItem? refreshed}) async {
+    final current = request;
+    if (_closed ||
+        blocked ||
+        busy ||
+        _findingAlternative ||
+        current == null ||
+        current.live ||
+        current.offline != null) {
+      return false;
+    }
+    _findingAlternative = true;
+    cancelRecovery();
+    final generation = _generation;
+    final label = episode.label;
+    final candidate = refreshed ?? current.item;
+    if (candidate.sourceId != current.item.sourceId ||
+        candidate.id != current.item.id) {
+      _findingAlternative = false;
+      return false;
+    }
+    try {
+      var checked = 0;
+      for (var i = 0; i < candidate.lines.length && checked < 6; i++) {
+        if (_closed || generation != _generation) return false;
+        if (candidate.lines[i].name == line.name) continue;
+        final episodes = candidate.lines[i].episodes;
+        final matches = matchingEpisodes(label, episodes);
+        if (matches.length != 1) continue;
+        checked++;
+        try {
+          await probeEpisode(
+            services,
+            candidate,
+            episodes[matches.single],
+            _routeToken,
+          );
+        } catch (_) {
+          continue;
+        }
+        if (_closed || generation != _generation || !_allowed(current)) {
+          return false;
+        }
+        final saved = _resume ?? originalPosition;
+        final playing = !_userPaused;
+        final rate = state.rate;
+        final opening = open(
+          PlaybackRequest(
+            candidate,
+            line: i,
+            episode: matches.single,
+            position: saved,
+          ),
+          automatic: true,
+        );
+        final switchGeneration = _generation;
+        await opening;
+        if (_closed || switchGeneration != _generation) return false;
+        if (error != null) return false;
+        await engine.setRate(rate);
+        if (_closed || switchGeneration != _generation) return false;
+        if (!playing) await engine.pause();
+        return true;
+      }
+      if (!_closed && generation == _generation) {
+        routeWarning = '未找到通过检测的同集备用线路，请切换渠道或手动选线';
+        notifyListeners();
+      }
+      return false;
+    } finally {
+      _findingAlternative = false;
+    }
+  }
+
   String? error;
   String? notice;
   List<SkipMark> marks = [];
@@ -216,6 +299,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   bool get busy => _switching;
+  bool get userPaused => _userPaused;
   bool get isLive => request?.live ?? false;
 
   Future<void> open(PlaybackRequest next, {bool automatic = false}) {
@@ -242,6 +326,7 @@ final class PlaybackController extends ChangeNotifier {
     if (_closed || generation != _generation) return;
     _switching = true;
     error = null;
+    routeWarning = null;
     notifyListeners();
     try {
       await services.pauseRadioForVideo();
@@ -378,6 +463,12 @@ final class PlaybackController extends ChangeNotifier {
           !next.live &&
           (services.settings.value.cache ||
               services.settings.value.contentFilter);
+    final sessionGeneration = _generation;
+    _gateway!.prefetch.onUnavailable = () {
+      if (_closed || blocked || sessionGeneration != _generation) return;
+      routeWarning = '连续预缓存失败，后续播放可能中断。是否保留进度切换线路或渠道？';
+      notifyListeners();
+    };
     _gateway!.prefetch
       ..enabled = services.settings.value.cache && !next.live
       ..window = services.settings.value.prefetchSegments
@@ -1038,6 +1129,7 @@ final class PlaybackController extends ChangeNotifier {
     _saveTimer.cancel();
     _seekSettleTimer?.cancel();
     await save();
+    _routeToken.cancel();
     await _states.cancel();
     _captureToken?.cancel();
     await _errors.cancel();
@@ -1088,7 +1180,7 @@ final class PlaybackController extends ChangeNotifier {
 
   Future<void> _recover(int generation) async {
     final current = request!;
-    final saved = originalPosition;
+    final saved = _resume ?? originalPosition;
     final previousLine = line.name;
     final previousEpisode = episode.label;
     try {
@@ -1121,7 +1213,8 @@ final class PlaybackController extends ChangeNotifier {
         if (!_recoveryIsCurrent(generation)) return;
         var lineIndex = updated.lines.indexWhere((l) => l.name == previousLine);
         if (_recoveryAttempts == 2 && updated.lines.length > 1) {
-          lineIndex = (lineIndex + 1) % updated.lines.length;
+          await switchAlternativeLine(refreshed: updated);
+          return;
         }
         if (lineIndex < 0) throw StateError('播放线路已变化');
         final matches = matchingEpisodes(

@@ -12,11 +12,9 @@ import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/media/content_filter/fingerprints/feature_rule.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
+import '../test_support/fixture_project.dart';
 
-const project = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final project = fixtureProjectRoot();
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +34,7 @@ Future<void> _playback(WidgetTester tester) async {
     allowPrivateNetworks: true,
   );
   final engine = MediaKitEngine(
+    isTrustedResource: services.gateway.isRegisteredResource,
     isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
   );
   final controller = PlaybackController(services, engine);

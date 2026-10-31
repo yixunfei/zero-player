@@ -191,8 +191,7 @@ final class MediaGateway {
         request.response.statusCode = HttpStatus.methodNotAllowed;
         return;
       }
-      // Browsers must not turn the native player's capability URL into a
-      // cross-origin fetch endpoint. Native engines do not send Origin.
+      // Native capability URLs must not become a browser fetch endpoint.
       if (!_nativeRequest(request)) {
         request.response.statusCode = HttpStatus.forbidden;
         return;
@@ -204,12 +203,13 @@ final class MediaGateway {
         request.response.statusCode = HttpStatus.notFound;
         return;
       }
-      requests++;
-      request.response.headers.set('X-Content-Type-Options', 'nosniff');
-      request.response.headers.set(
-        'Content-Security-Policy',
-        "default-src 'none'; sandbox",
+      // Recheck revoked permissions even when serving an existing cache entry.
+      _client.targetPolicy.validateAccess(
+        uri,
+        originalOrigin: session.policy.containsOrigin(uri),
       );
+      requests++;
+      _secureResponse(request.response);
       final range = request.headers.value(HttpHeaders.rangeHeader);
       if (range != null && !RegExp(r'^bytes=(\d+-\d*|-\d+)$').hasMatch(range)) {
         request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
@@ -258,6 +258,7 @@ final class MediaGateway {
               resource.file.openRead(),
               inspectPrefix: startsMediaEntity(
                 resource.headers[HttpHeaders.contentRangeHeader],
+                requestedRange: range,
               ),
             ),
           );
@@ -289,6 +290,14 @@ final class MediaGateway {
       request.headers.value('sec-fetch-site') == null &&
       request.headers.value('host') == baseUri.authority;
 
+  void _secureResponse(HttpResponse response) {
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set(
+      'Content-Security-Policy',
+      "default-src 'none'; sandbox",
+    );
+  }
+
   Future<void> _passthrough(
     HttpRequest request,
     GatewaySession session,
@@ -306,6 +315,7 @@ final class MediaGateway {
         payload.body,
         inspectPrefix: startsMediaEntity(
           payload.response.headers.value(HttpHeaders.contentRangeHeader),
+          requestedRange: range,
         ),
       ),
     );
@@ -446,6 +456,7 @@ final class MediaGateway {
         payload.body,
         inspectPrefix: startsMediaEntity(
           response.headers.value(HttpHeaders.contentRangeHeader),
+          requestedRange: range,
         ),
       ),
       statusCode: response.statusCode,

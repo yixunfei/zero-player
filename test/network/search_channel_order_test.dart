@@ -66,6 +66,15 @@ void main() {
         ['entry', 'favorite', 'verified', 'unknown'].map((name) => ids[name]),
       );
       expect(search.sourceLabels[ids['favorite']], '收藏渠道');
+      requested.clear();
+      await search.search(
+        '电影',
+        preferredSourceId: ids['entry'],
+        onlyPreferred: true,
+      );
+      expect(requested, ['entry']);
+      expect(search.items.map((item) => item.sourceId).toSet(), {ids['entry']});
+
       await sources.favorite(ids['unknown']!, true);
       requested.clear();
       await search.search(

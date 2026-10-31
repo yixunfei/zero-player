@@ -7,19 +7,33 @@
 ) {
   final values = <String, String>{};
   final output = <String>[];
+  var expandedLength = 0;
+  if (input.length > 40000) {
+    throw const FormatException('HLS 清单行数超限');
+  }
   for (final raw in input) {
     final line = raw.trim();
     if (!line.startsWith('#EXT-X-DEFINE:')) {
+      var lineLength = raw.length;
+      if (lineLength > 65536) throw const FormatException('HLS 清单行过长');
       output.add(
         line.startsWith('#')
             ? line.startsWith('#EXT')
-                  ? raw.replaceAllMapped(
-                      RegExp(r'"[^"]*"'),
-                      (match) => _expand(match[0]!, values),
-                    )
+                  ? raw.replaceAllMapped(RegExp(r'"[^"]*"'), (match) {
+                      final result = _expand(match[0]!, values);
+                      lineLength += result.length - match[0]!.length;
+                      if (lineLength > 65536) {
+                        throw const FormatException('HLS 变量展开过长');
+                      }
+                      return result;
+                    })
                   : raw
             : _expand(raw, values),
       );
+      expandedLength += output.last.length + 1;
+      if (expandedLength > 2 * 1024 * 1024) {
+        throw const FormatException('HLS 变量展开后超过大小限制');
+      }
       continue;
     }
     final attributes = <String, String>{
@@ -42,18 +56,28 @@
         value.length > 8192) {
       throw const FormatException('Invalid or unavailable HLS variable');
     }
-    values[name] = _expand(value, values);
+    final expanded = _expand(value, values);
+    if (expanded.length > 8192 ||
+        RegExp(r'[\x00-\x1f\x7f"]').hasMatch(expanded)) {
+      throw const FormatException('HLS 变量包含不安全内容或超过大小限制');
+    }
+    values[name] = expanded;
     // All references are expanded before the native player sees the playlist.
     // Keeping DEFINE/IMPORT after rewriting would require its old parent scope.
   }
   return (lines: output, variables: Map.unmodifiable(values));
 }
 
-String _expand(String value, Map<String, String> variables) =>
-    value.replaceAllMapped(RegExp(r'\{\$([a-zA-Z0-9_-]+)\}'), (match) {
-      final resolved = variables[match[1]];
-      if (resolved == null) {
-        throw const FormatException('Undefined HLS variable');
-      }
-      return resolved;
-    });
+String _expand(String value, Map<String, String> variables) {
+  var length = value.length;
+  if (length > 65536) throw const FormatException('HLS 清单行过长');
+  return value.replaceAllMapped(RegExp(r'\{\$([a-zA-Z0-9_-]+)\}'), (match) {
+    final resolved = variables[match[1]];
+    if (resolved == null) {
+      throw const FormatException('Undefined HLS variable');
+    }
+    length += resolved.length - match[0]!.length;
+    if (length > 65536) throw const FormatException('HLS 变量展开过长');
+    return resolved;
+  });
+}

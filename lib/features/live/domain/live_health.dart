@@ -13,6 +13,8 @@ final class LiveHealth {
     this.preferredUrl,
     this.resolution,
     this.languages = const [],
+    this.verifiedUrls = const [],
+    this.verifiedOnly = false,
   });
   final bool enabled;
   final bool removed;
@@ -23,6 +25,8 @@ final class LiveHealth {
   final String? preferredUrl;
   final String? resolution;
   final List<String> languages;
+  final List<String> verifiedUrls;
+  final bool verifiedOnly;
   String get availabilityLabel => switch (availability) {
     LiveAvailability.unknown => '未检测',
     LiveAvailability.responding =>
@@ -38,9 +42,18 @@ final class LiveHealth {
   factory LiveHealth.decode(Object? value, List<Uri> urls) {
     try {
       final data = jsonDecode(value as String) as Map;
-      final valid = data['signature'] == urls.join('|');
+      final valid =
+          data['signature'] == urls.join('|') &&
+          data['pendingValidation'] != true;
       return LiveHealth(
-        enabled: data['enabled'] != false,
+        enabled:
+            data['enabled'] != false &&
+            (data['preflight'] != true ||
+                valid && data['pendingValidation'] != true),
+        verifiedOnly: data['preflight'] == true,
+        verifiedUrls: valid && data['verifiedUrls'] is List
+            ? (data['verifiedUrls'] as List).whereType<String>().toList()
+            : const [],
         removed: data['removed'] == true,
         availability: valid
             ? LiveAvailability.values.firstWhere(
@@ -54,7 +67,9 @@ final class LiveHealth {
         latencyMs: valid && data['latencyMs'] is int
             ? data['latencyMs'] as int
             : null,
-        message: valid && data['message'] is String
+        message: data['pendingValidation'] == true
+            ? '待媒体复检通过后恢复'
+            : valid && data['message'] is String
             ? data['message'] as String
             : '',
         preferredUrl: valid && data['preferredUrl'] is String

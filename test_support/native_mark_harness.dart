@@ -9,11 +9,9 @@ import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/features/playback/presentation/feature_rule_dialog.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
+import 'fixture_project.dart';
 
-const fixtureProject = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final fixtureProject = fixtureProjectRoot();
 
 final class NativeMarkHarness {
   NativeMarkHarness._(this.root, this.services, this.server)

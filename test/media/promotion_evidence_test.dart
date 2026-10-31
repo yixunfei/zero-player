@@ -3,6 +3,23 @@ import 'package:zero_player/media/content_filter/filter_types.dart';
 import 'package:zero_player/media/content_filter/promotion_evidence.dart';
 
 void main() {
+  test(
+    'all positive intervals are retained and overlapping intervals merged',
+    () {
+      final result = inspectPromotionEvidence([
+        for (final second in [0, 1, 10])
+          (
+            Duration(seconds: second),
+            const [ContentEvidence(text: '博·彩', source: EvidenceSource.screen)],
+          ),
+      ], const Duration(seconds: 2));
+      expect(result.ranges.length, 2);
+      expect(result.ranges.first.start, Duration.zero);
+      expect(result.ranges.first.end, const Duration(seconds: 3));
+      expect(result.ranges.last.start, const Duration(seconds: 10));
+    },
+  );
+
   for (final source in EvidenceSource.values) {
     test('uncertain OCR does not prevent a later ${source.name} match', () {
       final result = inspectPromotionEvidence([

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
+import 'package:zero_player/features/live/data/live_audit_defaults.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
 import 'package:zero_player/features/radio/data/radio_repository.dart';
 import 'package:zero_player/features/radio/presentation/radio_page.dart';
@@ -31,7 +32,12 @@ void main() {
 Future<void> _initialize() async {
   root = await Directory.systemTemp.createTemp('radio-background-');
   final db = AppDatabase.memory();
-  services = AppServices.scoped(root, db, radioEngine: () => engine);
+  services = AppServices.scoped(
+    root,
+    db,
+    radioEngine: () => engine,
+    channelAuditOverride: LiveAuditDefaults(() async => '{"results":[]}'),
+  );
   await services.settings.load();
   await db.write('INSERT INTO app_meta VALUES(?,?)', [
     'radio_snapshot:$builtinRadioUrl',
@@ -57,12 +63,25 @@ Future<void> _exercise(WidgetTester tester, double width) async {
         home: Scaffold(body: RadioPage(services: services)),
       ),
     );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.tap(find.widgetWithText(ListTile, '测试广播'));
     await tester.pumpAndSettle();
     expect(engine.snapshot.playing, isTrue);
     await tester.tap(find.byTooltip('收藏电台'));
+    for (
+      var i = 0;
+      i < 100 && find.byTooltip('取消收藏电台').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
     await tester.pumpAndSettle();
     expect(find.byTooltip('取消收藏电台'), findsOneWidget);
     await tester.pumpWidget(

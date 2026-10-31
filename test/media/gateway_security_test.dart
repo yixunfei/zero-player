@@ -18,6 +18,9 @@ void main() {
     await gateway.start();
     upstream = await HttpTestServer.start((request) {
       request.response.headers.contentType = ContentType('video', 'mp4');
+      if (request.uri.path == '/range.mp4') {
+        request.response.headers.set('Content-Range', 'bytes 1-65/66');
+      }
       request.response.write(
         '<html><script>location.href="https://evil.test"</script></html>',
       );
@@ -75,6 +78,19 @@ void main() {
       final body = await utf8.decoder.bind(response).join();
       expect(body, 'Media request failed');
       expect(gateway.failures, 1);
+    },
+  );
+  test(
+    'unsolicited partial range cannot bypass the gateway body guard',
+    () async {
+      final session = gateway.createSession(HeaderPolicy({}));
+      final uri = session.register(
+        upstream.baseUri.resolve('range.mp4'),
+        streaming: true,
+      );
+      final response = await (await client.getUrl(uri)).close();
+      expect(response.statusCode, HttpStatus.badGateway);
+      expect(await utf8.decoder.bind(response).join(), 'Media request failed');
     },
   );
 }

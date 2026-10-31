@@ -16,11 +16,9 @@ import 'package:zero_player/media/content_filter/offline_inspector.dart';
 import 'package:zero_player/media/content_filter/probe_sampler.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
 import 'package:zero_player/media/gateway/media_gateway.dart';
+import '../test_support/fixture_project.dart';
 
-const project = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final project = fixtureProjectRoot();
 const base = 'http://127.0.0.1:9763/content_filter';
 
 void main() {
@@ -60,6 +58,7 @@ Future<void> _native(WidgetTester tester, String format) async {
     skipSeconds: 10,
   );
   final engine = MediaKitEngine(
+    isTrustedResource: gateway.isRegisteredResource,
     isTrustedPlaylist: gateway.isRegisteredPlaylist,
   );
   try {
@@ -92,7 +91,8 @@ Future<void> _native(WidgetTester tester, String format) async {
     final decision = await inspector.inspect(slice, CancellationToken());
     if (format == 'voice.mp4') {
       expect(decision.verdict, FilterVerdict.block);
-      expect(decision.reason, contains('澳门'));
+      // A geographic keyword alone must not hide the following strong match.
+      expect(decision.reason, contains('新葡京'));
       expect(
         decision.ranges.single.start,
         greaterThan(const Duration(seconds: 4)),

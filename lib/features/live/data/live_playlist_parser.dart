@@ -2,6 +2,8 @@ import '../../sources/domain/video_source.dart';
 import '../domain/live_channel.dart';
 import 'm3u_parser.dart';
 import 'channel_urls.dart';
+import 'playlist_request_headers.dart';
+import 'playlist_channels.dart';
 
 List<LiveChannel> parseLivePlaylist(String input, Uri base, String listId) {
   final text = input.replaceFirst(String.fromCharCode(0xfeff), '').trim();
@@ -21,28 +23,34 @@ List<LiveChannel> parseLivePlaylist(String input, Uri base, String listId) {
       group = name;
       continue;
     }
-    final urls = <Uri>[];
     // A separator introduces another absolute URL; other hashes are fragments.
     for (final entry in address.split(
       RegExp(r'#(?=\s*https?://)', caseSensitive: false),
     )) {
-      final uri = Uri.tryParse(entry.trim());
+      final divider = entry.indexOf('|');
+      final headers = divider < 0
+          ? <String, String>{}
+          : encodedRequestHeaders(entry.substring(divider + 1));
+      final uri = Uri.tryParse(
+        (divider < 0 ? entry : entry.substring(0, divider)).trim(),
+      );
       if (uri != null &&
           {'http', 'https'}.contains(uri.scheme) &&
           uri.host.isNotEmpty &&
           uri.userInfo.isEmpty) {
-        urls.add(uri);
+        final id = stableId(
+          '$listId|$group|$name${headers.isEmpty ? '' : '|${channelHeaderKey(headers)}'}',
+        );
+        channels[id] = LiveChannel(
+          id: id,
+          listId: listId,
+          name: name,
+          group: group,
+          headers: headers,
+          urls: appendChannelUrls(channels[id]?.urls ?? const [], [uri]),
+        );
       }
     }
-    if (urls.isEmpty) continue;
-    final id = stableId('$listId|$group|$name');
-    channels[id] = LiveChannel(
-      id: id,
-      listId: listId,
-      name: name,
-      group: group,
-      urls: appendChannelUrls(channels[id]?.urls ?? const [], urls),
-    );
     if (channels.length > 10000) throw const FormatException('频道数量超过 10000');
   }
   if (channels.isEmpty) throw const FormatException('没有可导入的 HTTP(S) 直播频道');

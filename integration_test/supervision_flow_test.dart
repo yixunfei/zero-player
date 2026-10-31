@@ -20,11 +20,9 @@ import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 import 'package:zero_player/features/settings/presentation/adult_filter_setting.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
 import '../test_support/http_test_server.dart';
+import '../test_support/fixture_project.dart';
 
-const project = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final project = fixtureProjectRoot();
 const password = 'acceptance-password-only';
 late AppServices services;
 late Directory root;

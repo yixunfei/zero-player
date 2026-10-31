@@ -1,12 +1,54 @@
 # 构建与打包
 
+当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
+
+## 重装后开发入口（2026-10-30）
+
+本机路径与工具见 [.codex/LOCAL_ENVIRONMENT.md](../../.codex/LOCAL_ENVIRONMENT.md)。先运行 `flutter doctor -v`、`flutter analyze --no-pub`、`dart run tool/check_source_size.dart`、`flutter test --no-pub` 和 `python -m unittest discover -s tool -p 'test_*.py' -v`。
+
+Windows 原生测试推荐在 PowerShell 中使用统一入口：
+
+~~~powershell
+./tool/run_windows_native.ps1 -TestFiles @(
+    'integration_test/hardening_native_test.dart',
+    'integration_test/source_security_sampler_test.dart'
+)
+~~~
+
+脚本从自身位置确定仓库，设置 `PROJECT_ROOT`、`FFMPEGKIT_LOCAL_DIR`，每个文件使用独立短 TEMP/TMP，调用已有 integration driver 并在结束后恢复环境。日志与临时证据保存在 `.dart_tool/native-<随机ID>/`；失败即停止。合成素材及已校验 FFmpegKit 仍须按下文准备，不自动换用系统 DLL。直接运行旧命令时必须显式传入 `PROJECT_ROOT`，缺少配置会明确报错。
+
+盘符变更后不能复用旧 CMake 缓存。本轮将旧 `build/windows` 原位归档到 `build/windows-before-restore-20261030` 后重建，保留原产物；复用的 mpv/ANGLE 下载包经 `tool/prefetch_native.ps1 -Platform windows` 摘要检查。不要直接改 CMakeCache 内的路径或全局清理缓存。Android debug 包恢复证据与 Windows 原生验证分别记录，不能相互替代。
+
 ## 首次使用与过滤授权回归
 
 新增 `integration_test/installation_access_test.dart`，Windows 原生覆盖首次监管设置、隐藏密码错误与成功、取消、重启持久化、监管期间成人过滤锁定，以及恢复备份的双重验证。测试通过 `ADULT_ACCESS_TEST_PASSWORD` 编译参数读取由维护者提供的访问密码，未提供时仅运行不需要该密码的用例；不要把真实值提交到源码、日志或截图。建议用忽略目录下的临时 JSON 配合 `--dart-define-from-file`，完成后删除。
 
 本轮静态分析与源码长度检查通过；单元及界面回归 466 项通过、2 项公开网络测试跳过。新增原生用例 3 项、既有监管原生用例 1 项、窗口原生用例 2 项均通过。Windows Release 与 Android ARM64 Release 构建通过，APK 为 64.48 MiB，通过 ABI、可选资源排除、70 MiB 预算及 v2 签名校验。Android 未连接设备，编译与包体校验不能替代实机运行验收。发布的 v0.0.7 产物保持原样，本轮补充功能在新版本正式发布前仅属于源码更新。
 
-## v0.0.7 发布配置
+## 0.0.8+8 本地真机测试包
+
+当前本机缺少原正式 JKS；经用户确认，Android 使用独立包名 `dev.zeroplayer.zero_player.devtest`、名称「Zero Player 测试」和本机 Android debug 测试签名，构建类型仍为 Release，可与正式版并存、数据隔离。仅显式 Gradle 属性 `ZERO_PLAYER_DEVICE_TEST=true` 启用此模式；正常正式包保持原签名校验，不自动回退。属性名全大写，避免 Windows Flutter/Dart 进程的环境变量名称转换。测试签名不能用于替换正式版。
+
+平台测试和构建串行执行。Windows 使用已校验的本地 FFmpegKit（`FFMPEGKIT_LOCAL_DIR` 指向 `.tools/ffmpegkit/unpacked`），构建 `flutter build windows --release --no-pub`；Android 在 PowerShell 中执行：
+
+~~~powershell
+$previousDeviceTest = $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST
+try {
+    $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = 'true'
+    flutter build apk --release --no-pub --target-platform android-arm64
+    if ($LASTEXITCODE -ne 0) { throw 'Android build failed' }
+} finally {
+    $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = $previousDeviceTest
+}
+python tool/verify_apk.py build/app/outputs/flutter-apk/app-release.apk --abis arm64-v8a --max-mib 70 --compressed-native --version 0.0.8 --build-number 8 --application-id dev.zeroplayer.zero_player.devtest
+python tool/collect_native_sources.py
+python tool/collect_notices.py
+pwsh -File tool/package_release.ps1 -DeviceTest -AndroidArm64Only
+~~~
+
+另用 SDK 的 `apksigner verify --verbose --print-certs` 校验签名。测试打包输出 `artifacts/device-test/<version>-<timestamp>/`，包含 Windows 安装器/便携包、ARM64 APK、依赖声明/原生来源及 SHA256SUMS；不修改 Git 暂存区，也不要求生产发行的已暂存源码 ZIP。Windows 保留普通应用身份；Android 测试包独立，包中不含本机数据库或私钥。构建与包校验不能替代设备验收。
+
+## v0.0.7 发布配置（历史）
 
 本版本为 `0.0.7+7`，发布 Windows x64 与 Android ARM64。完成测试后依次执行 `flutter build windows --release`、`flutter build apk --release --target-platform android-arm64`；平台构建不可并发。随后校验 Android 签名，执行 `python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审查后的源文件并运行 `python tool/package_source.py`，最后 `pwsh -File tool/package_release.ps1 -AndroidArm64Only`。产物位于 `artifacts/release/0.0.7/`。此模式校验 ARM64、70 MiB 预算及 APK 内部版本，不混入其他旧 Android 包。
 
@@ -55,7 +97,7 @@ $testTemp = Join-Path ([IO.Path]::GetTempPath()) ('zero-player-native-' + [guid]
 New-Item -ItemType Directory -Path $testTemp | Out-Null
 $env:TEMP = $testTemp
 $env:TMP = $testTemp
-flutter test integration_test/supervision_flow_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
+flutter test integration_test/supervision_flow_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
 ~~~
 
 PROJECT_ROOT 应替换为实际仓库路径。监管用例仅写临时数据库，真实用户库不会写入测试密码；恢复码不输出到日志或截图。Release 不使用 media_kit 的调试指针持久化逻辑。
@@ -111,8 +153,8 @@ pwsh -File tool/build_phone.ps1 -SkipBuild
 以下用例自建回环服务和临时数据库；使用现有合成 HLS 分片，故意将四段 TS 时钟各自归零，验证原生播放连续、用户特征命中、撤销后重播再次命中及原生截图。按前文设置全新的 TEMP/TMP 与 FFMPEGKIT_LOCAL_DIR 后执行：
 
 ~~~powershell
-flutter test integration_test/discontinuous_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
-flutter test integration_test/audio_feature_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
+flutter test integration_test/discontinuous_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
+flutter test integration_test/audio_feature_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
 ~~~
 
 过滤开启时，网关对完整点播清单的分片进行 TS 字节校验，不依赖 .ts 后缀或 discontinuity 标签。仍不处理直播、加密、fMP4、字节区间或重复 URI 清单；无效、加密或超大 TS 返回原始内容。时间戳变化本身不用于判定广告，跳过仍需要特征、用户明确标记区间或显式清单标记。首次保存特征并开启过滤时，播放器保留位置、倍速和暂停状态重新打开媒体，使新时间轴立即生效。第二个原生用例验证默认音频模式、包含停顿的口播、跨影片特征匹配、非整秒 seek、撤销和再次命中。
@@ -124,8 +166,8 @@ flutter test integration_test/audio_feature_playback_test.dart -d windows --no-p
 dart run tool/prepare_keyword_models.dart
 dart run tool/check_keyword_native.dart
 # 保持 fixture_server 运行，并按上文设置全新 TEMP/TMP 和 FFMPEGKIT_LOCAL_DIR。
-flutter test integration_test/background_filter_native_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
-flutter test integration_test/background_playback_controller_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
+flutter test integration_test/background_filter_native_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
+flutter test integration_test/background_playback_controller_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
 ~~~
 
 原生测试模型固定放在 .tools/content-filter/kws-source/ 对应版本目录，运行库在 .tools/content-filter/runtime/；模型目录也可使用 prepare_keyword_models.dart 的位置参数指定。前一组验证 MP4/FLV/HLS 原流播放中的后台识别和恢复，后一组验证真实 PlaybackController 自动跳过及撤销。Windows 的结果不能代替 Android 模型加载与流畅度验收。
@@ -172,9 +214,9 @@ Windows 原生测试覆盖首页、搜索、直播/播放、广播及全屏窗�
 使用本机合成的 content_filter 素材。每次 Windows 原生测试使用全新 TEMP/TMP，并设置 FFMPEGKIT_LOCAL_DIR；三个文件顺序运行，不能与 release 构建并发：
 
 ~~~powershell
-flutter test integration_test/feature_capture_recovery_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
-flutter test integration_test/audio_feature_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
-flutter test integration_test/discontinuous_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=L:/zero-player
+flutter test integration_test/feature_capture_recovery_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
+flutter test integration_test/audio_feature_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
+flutter test integration_test/discontinuous_playback_test.dart -d windows --no-pub --dart-define=PROJECT_ROOT=K:/zero-player
 ~~~
 
 feature_capture_recovery 在临时目录生成静音、无音轨、短音轨和 355 秒口播素材，测试结束清理。原生测试完成后再执行 flutter build windows --release（含依赖解析），确保发布目录不带 integration_test 插件。历史交付目录 artifacts/local/20261029-mark-repair 对应旧构建标识 mark-repair-20261029。
@@ -189,4 +231,36 @@ feature_capture_recovery 在临时目录生成静音、无音轨、短音轨和 
 
 新增 `integration_test/feature_seek_resume_native_test.dart`：真实 MediaKit + AAC 素材验证下一集 310.5 秒续播、重复观看、暂停拖动、连续跳转和频道其他作品复用。与长片段、特征复用和不连续时间轴原生测试按顺序执行，每个文件使用独立 TEMP/TMP。
 
-当前运行的旧 Release 进程仍占用原目录，修复版使用进程专用 APPDATA 配置，将 Flutter 构建目录指向 `build/feature-seek-sync`，不会修改用户的全局 Flutter 设置。交付目录为 `artifacts/local/20261029-feature-seek-sync`，启动其中的 `zero_player.exe`；保留同目录 DLL 和 data。构建标识、测试结果与 app.so SHA256 写入 `BUILD-INFO.json`。
+2026-10-29 验证时旧 Release 进程占用原目录，修复版使用进程专用 APPDATA 配置，将 Flutter 构建目录指向 `build/feature-seek-sync`，不会修改用户的全局 Flutter 设置。交付目录为 `artifacts/local/20261029-feature-seek-sync`，启动其中的 `zero_player.exe`；保留同目录 DLL 和 data。构建标识、测试结果与 app.so SHA256 写入 `BUILD-INFO.json`。
+
+
+## 广播 / 直播专项验证（2026-10-30）
+
+~~~powershell
+flutter test --no-pub
+flutter analyze --no-pub
+dart run tool/check_source_size.dart
+./tool/run_windows_native.ps1 -TestFiles @('integration_test/live_radio_media_test.dart', 'integration_test/radio_flow_test.dart')
+$env:FFMPEGKIT_LOCAL_DIR = (Resolve-Path .tools/ffmpegkit/unpacked).Path
+flutter build windows --release --no-pub
+~~~
+
+显式公网抽样使用 `flutter test --no-pub tool/audit_live_radio.dart`，附加直播候选使用 `flutter test --no-pub tool/audit_live_radio.dart --dart-define=EXTRA=true`。每列表前 24 个频道、8 路工作并发、每路 5 秒网络预算，结果写入 build/live-radio-public-audit.json / live-radio-extra-audit.json；仅测试临时内存数据库，不修改用户库。报告隐藏流地址查询参数，仅保存名称、主机及诊断；公网结果属于当时网络的样本证据，不能代表整份列表或后续可用率。
+
+
+## 全量频道预检与冻结目录
+
+维护时依次运行，不与其他 Flutter 测试或构建并发（Windows 原生 SQLite 资源会被检测进程占用）：
+
+~~~powershell
+flutter test --no-pub tool/audit_channel_preflight.dart
+python tool/backup_database.py <本机数据库> build/preflight-user-before.sqlite
+flutter test --no-pub tool/audit_local_channels.dart --dart-define=PREFLIGHT_DATABASE=<一致性副本路径>
+python tool/finalize_channel_preflight.py
+~~~
+
+本轮文件名统一为 build/preflight-user-before-20261030.sqlite。本机缓存补测会复用同一轮且不足 24 小时的完全相同 URL/请求头证据，并保存检查点。源站 TCP/TLS 两次均无法连接时，共享该源站的连接失败证据，逐频道记录为未确定，不伪造 HTTP 状态。维护检测使用独立的 32 路工作队列、同源最多 16 条连接；应用默认连接限制不变。每个实际媒体请求仍有 128 KiB / 8 秒网络预算，未确认结果再试一次。
+
+冻结脚本校验每个频道全部线路证据，使用 ID + 请求摘要保留多版本，只把摘要与通过线路序号写进 assets/live_channel_audit.json；原始 URL/请求头不从本机副本发布。公开快照保存到 assets/catalogs/live/builtin.snapshots.json，广播快照保存到原有 cn.snapshot.json。
+
+向本机应用检测结果前再次运行 backup_database.py 创建新的一致性备份，之后显式调用 tool/apply_channel_preflight.dart，提供 PREFLIGHT_TARGET 与 PREFLIGHT_BACKUP。它只更新频道健康状态，不更改来源、收藏、监管或账户配置；变化后的请求重新进入待复检。已启用的监管仍限制恢复操作。最后串行运行完整测试、原生检查及普通 Release，详见上节入口。

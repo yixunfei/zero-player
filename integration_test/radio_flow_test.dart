@@ -10,6 +10,7 @@ import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/app/product_app.dart';
 import 'package:zero_player/app/shell.dart';
 import 'package:zero_player/core/network/file_response.dart';
+import 'package:zero_player/core/network/cancellation_token.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
 import 'package:zero_player/features/radio/data/radio_repository.dart';
 import 'package:zero_player/features/radio/presentation/radio_player_controls.dart';
@@ -56,6 +57,11 @@ void main() {
         await services.close();
         await root.delete(recursive: true);
       });
+      final initial = await services.radio.load();
+      await services.channelPreflight.refresh(
+        initial.stations.expand((c) => c.entries).toList(),
+        CancellationToken(),
+      );
       await tester.pumpWidget(
         ProviderScope(
           overrides: [servicesProvider.overrideWithValue(services)],

@@ -41,10 +41,11 @@ void main() {
         final builtinLive = BuiltinLiveSources(live);
         await builtinLive.initialize();
         final lists = await live.lists();
-        expect(lists.length, 11);
+        expect(lists.length, 12);
         expect(
           lists.map((r) => r['url']),
           containsAll([
+            'https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u',
             'https://m3u.ibert.me/cn.m3u',
             'https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u',
             'https://raw.githubusercontent.com/ssili126/tv/main/itvlist.m3u',
@@ -52,9 +53,9 @@ void main() {
         );
         await live.removeList(lists.first['id'] as String);
         await builtinLive.initialize();
-        expect((await live.lists()).length, 10);
-        await builtinLive.initialize(restore: true);
         expect((await live.lists()).length, 11);
+        await builtinLive.initialize(restore: true);
+        expect((await live.lists()).length, 12);
       } finally {
         http.close();
         await db.close();

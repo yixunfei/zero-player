@@ -16,6 +16,7 @@ import 'live_subscriptions_dialog.dart';
 import '../domain/channel_order.dart';
 import '../domain/live_health.dart';
 import 'live_channel_filters.dart';
+import 'live_schedule_dialog.dart';
 
 final class LivePage extends StatefulWidget {
   const LivePage({super.key, required this.services});
@@ -235,6 +236,26 @@ final class _LivePageState extends State<LivePage> {
     }
     if (!mounted) return;
     final enable = !channel.health.enabled || channel.health.removed;
+    if (enable && channel.health.verifiedOnly) {
+      if (channel.health.removed) {
+        await runSensitive(
+          context,
+          widget.services.supervision,
+          SensitiveOperation.channels,
+          () => widget.services.liveHealth.setRemoved(
+            channel.preferenceIds,
+            false,
+          ),
+        );
+      }
+      final ids = channel.preferenceIds.toSet();
+      final fresh = (await widget.services.live.channels())
+          .expand((c) => c.entries)
+          .where((c) => ids.contains(c.id))
+          .toList();
+      if (mounted) await _showProbe(fresh, enableResponding: true);
+      return;
+    }
     await runSensitive(
       context,
       widget.services.supervision,
@@ -308,7 +329,7 @@ final class _LivePageState extends State<LivePage> {
     if (!await confirm(
       context,
       '探测当前分组',
-      '将探测 ${channels.length} 个频道来源，每来源最多检查 3 条线路，上限约 ${(channels.length * .75).ceil()} MiB，可随时停止；未测完的备用线路不会判为无效。',
+      '将探测 ${channels.length} 个频道来源，默认 8 路并发，逐一尝试备用线路，有媒体响应即停止。每路最多 128 KiB / 8 秒网络时间，可随时停止。',
     )) {
       return;
     }
@@ -344,48 +365,11 @@ final class _LivePageState extends State<LivePage> {
       ),
     );
   }, success: '直播列表已保存');
-  Future<void> _epg(LiveChannel channel) => perform(context, () async {
-    var items = await widget.services.live.schedule(channel);
-    if (items.isEmpty) {
-      await widget.services.live.refreshSchedule(channel);
-      items = await widget.services.live.schedule(channel);
-    }
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${channel.name} · 节目单'),
-        content: SizedBox(
-          width: 480,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (items.isEmpty)
-                  const Text('当前没有节目单，请检查 XMLTV 地址与 tvg-id 匹配'),
-                if (items.isNotEmpty) Text('来源：${items.first.sourceUrl}'),
-                if (items.firstOrNull?.matchedByName == true)
-                  const Text('订阅缺少 tvg-id，按已有频道名称别名唯一匹配'),
-                for (final item in items)
-                  ListTile(
-                    title: Text(item.title),
-                    subtitle: Text(
-                      '${item.start.toLocal()} — ${item.end.toLocal()}\n节目时长：${item.duration.inMinutes} 分钟（节目表）',
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
-  });
+  Future<void> _epg(LiveChannel channel) => showDialog<void>(
+    context: context,
+    builder: (_) =>
+        LiveScheduleDialog(repository: widget.services.live, channel: channel),
+  );
   Future<void> _lists() => showDialog<void>(
     context: context,
     builder: (_) => LiveSubscriptionsDialog(services: widget.services),

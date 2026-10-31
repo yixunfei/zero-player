@@ -4,6 +4,7 @@ import '../domain/live_channel.dart';
 import '../domain/live_metadata.dart';
 import 'channel_urls.dart';
 import 'playlist_channels.dart';
+import 'playlist_request_headers.dart';
 
 List<LiveChannel> parseM3u(String input, Uri base, String listId) {
   if (!input.trimLeft().startsWith('#EXTM3U') ||
@@ -44,16 +45,16 @@ List<LiveChannel> parseM3u(String input, Uri base, String listId) {
       headers = {};
     } else if (line.startsWith('#EXTGRP:')) {
       group = displayText(line.substring(8));
-    } else if (line.startsWith('#EXTVLCOPT:http-user-agent=')) {
-      headers['User-Agent'] = line.substring(
-        '#EXTVLCOPT:http-user-agent='.length,
-      );
-    } else if (line.startsWith('#EXTVLCOPT:http-referrer=')) {
-      headers['Referer'] = line.substring('#EXTVLCOPT:http-referrer='.length);
+    } else if (line.startsWith('#')) {
+      headers.addAll(playlistRequestHeaders(line));
     } else if (line.isNotEmpty && !line.startsWith('#')) {
       Uri uri;
       try {
-        uri = base.resolve(line);
+        final divider = line.indexOf('|');
+        if (divider >= 0) {
+          headers.addAll(encodedRequestHeaders(line.substring(divider + 1)));
+        }
+        uri = base.resolve(divider < 0 ? line : line.substring(0, divider));
       } on FormatException {
         continue;
       }
@@ -112,6 +113,7 @@ String exportM3u(List<LiveChannel> channels) {
         final option = switch (header.key.toLowerCase()) {
           'user-agent' => 'http-user-agent',
           'referer' => 'http-referrer',
+          'origin' => 'http-origin',
           _ => null,
         };
         if (option != null) {

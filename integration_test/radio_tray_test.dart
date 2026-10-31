@@ -13,6 +13,8 @@ import 'package:zero_player/core/platform/platform_services.dart';
 import 'package:zero_player/features/live/domain/live_channel.dart';
 import 'package:zero_player/features/radio/application/radio_controller.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
+import 'package:zero_player/media/cache/segment_store.dart';
+import 'package:zero_player/media/gateway/media_gateway.dart';
 import '../test_support/http_test_server.dart';
 
 void main() {
@@ -26,7 +28,11 @@ void main() {
       final fixture = await HttpTestServer.start(
         (request) => serveLocalFile(request, audio, contentType: 'audio/wav'),
       );
-      final engine = MediaKitEngine(videoOutput: false);
+      final gateway = MediaGateway(
+        SegmentStore(Directory('${root.path}/cache')),
+        allowPrivateNetworks: true,
+      );
+      final engine = MediaKitEngine(videoOutput: false, gateway: gateway);
       final radio = RadioController(() => engine);
       final desktop = DesktopLifecycle(File('${root.path}/window.json'));
       final tray = DesktopRadioTray(radio, desktop);
@@ -96,6 +102,7 @@ void main() {
         await tray.show();
         await tray.dispose();
         await radio.close();
+        await gateway.close();
         await fixture.close();
         desktop.dispose();
         await root.delete(recursive: true);

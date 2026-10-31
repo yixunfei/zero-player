@@ -8,6 +8,8 @@
 
 ## 本轮新增（尚未发布）
 
+当前本地测试版本为 **0.0.8+8**，包含广播/直播全量预检目录和搜索默认全渠道（当前来源优先）。独立 Android 测试包名为 `dev.zeroplayer.zero_player.devtest`，可与正式版并存；构建及验收见 [实施状态](docs/implementation/STATUS.md)。上述 v0.0.7 链接仍指向原公开版本。
+
 全新安装提供可跳过的监管设置提示；首次在非监管状态关闭成人过滤需完成本机访问密码验证。新增默认关闭的“内容过滤设置需要监管验证”，修改该开关本身始终验证监管密码。监管开启期间仍禁止关闭成人过滤。已有安装升级免新增首次流程，普通备份不传递本机验证记录。详情见使用指南。
 
 ## 功能
@@ -15,10 +17,10 @@
 - 影院与明亮主题，首页频道和搜索同栏展示，支持单类浏览、分类聚合、分页与继续观看。
 - 可配置视频源与聚合搜索，标题纯文本清理、来源检查和失败提示。
 - 点播、直播、播放快捷键、Windows 沉浸全屏和窗口恢复。
-- 直播单击选中、双击播放，支持失败自动停用、未确定批量停用、停用项检测恢复及可验证元数据筛选。
-- 搜索优先当前浏览来源，支持仅当前来源、失败重试与逐源进度。
+- 直播单击选中、双击播放，随包预检通过目录、更新复检后恢复，4/8/16 路测活、健康优先排序、同台别名合并、备用线路与可配置 XMLTV 节目表。
+- 搜索默认查询全渠道，优先当前浏览来源；发现页推荐无当前来源，支持手动仅当前来源、失败重试与逐源进度。
 - 统一成人过滤，监管模式覆盖点播、直播和广播；支持频道/关键词屏蔽，每次敏感操作验证密码，恢复码由用户自行保管。
-- **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
+- **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、健康筛选/测活、失败换线、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
 - 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
 - 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
 - 播放中特征跳过（默认关闭）：原画质直接播放，后台优先检测音频；没有规则、资源缺失或检测失败时继续播放。支持频道/全剧声画样本、保守/积极/提示策略、离线关键词检测。关键词始终先确认，默认跳过时长 20 秒，可调整并撤销。轻量关键词、OCR / ASR 资源在设置中手动下载，不随基础包安装。Android 实机性能待设备验收。详见 [实施记录](docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md)。
@@ -39,6 +41,8 @@
 本次 v0.0.7 发布 Windows x64 安装器/便携包和 Android ARM64 签名 APK，文件以 zero-player-0.0.7 开头；本次不发布 Android x64、通用包或 AAB。SHA256SUMS.txt 提供校验和。不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。Android 使用独立项目签名；旧调试签名包不能直接覆盖安装。Windows 二进制未做商业代码签名。
 
 ## 开发
+
+当前实现、重装后的验证与待验收项统一见 [实施状态](docs/implementation/STATUS.md)；开发和原生测试命令见 [构建说明](docs/implementation/BUILD.md)。
 
 使用 Flutter 3.44.1 / Dart 3.12.1，锁定依赖见 pubspec.lock。Android 构建需要 JDK 21 和 Android SDK；Windows 构建需要 Visual Studio C++ 桌面工具链。
 
@@ -69,6 +73,7 @@ lib/features 按业务划分；lib/media 包含播放、HLS、回环网关、缓
 | [Dart html](https://github.com/dart-lang/tools/tree/main/pkgs/html)、[Dart XML](https://github.com/renggli/dart-xml) | HTML 与 XML 文档解析 |
 | [Flutter packages](https://github.com/flutter/packages)、[Dart core](https://github.com/dart-lang/core) | 文件选择、存储路径、路径处理与摘要计算 |
 | [awesome-m3u](https://github.com/popocoding/awesome-m3u) | 实验广播内置列表来源 |
+| [iptv-org/iptv](https://github.com/iptv-org/iptv) | 中国公开直播列表来源 |
 | [Xiaolai](https://github.com/lxgw/kose-font)、[Noto fonts](https://github.com/google/fonts) | 中文字体 |
 | [Inno Setup](https://jrsoftware.org/isinfo.php)、[Pillow](https://github.com/python-pillow/Pillow) | Windows 安装器和品牌素材构建工具 |
 

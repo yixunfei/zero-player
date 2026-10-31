@@ -20,17 +20,17 @@ def find_aapt(root):
     return max(candidates, key=lambda p: tuple(int(n) for n in re.findall(r'[0-9]+', p.parent.name)))
 
 
-def check_badging(text, version, build_number):
+def check_badging(text, version, build_number, application_id='dev.zeroplayer.zero_player'):
     match = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", text, re.M)
-    if not match or match[1] != 'dev.zeroplayer.zero_player':
+    if not match or match[1] != application_id:
         raise ValueError('APK application ID does not match Zero Player')
     if match[2] != str(build_number) or match[3] != version:
         raise ValueError(f'APK version {match[3]}+{match[2]} does not match {version}+{build_number}')
 
 
-def verify_apk_version(file, version, build_number, aapt=None):
+def verify_apk_version(file, version, build_number, aapt=None, application_id='dev.zeroplayer.zero_player'):
     command = aapt or find_aapt(Path(__file__).resolve().parent.parent)
     result = subprocess.run([str(command), 'dump', 'badging', str(file)],
                             capture_output=True, text=True, encoding='utf-8', check=True)
-    check_badging(result.stdout, version, build_number)
+    check_badging(result.stdout, version, build_number, application_id)
     print(f'Embedded APK version verified: {version}+{build_number}')

@@ -13,6 +13,7 @@ import '../../../app/navigation_guide.dart';
 import 'disclaimer_dialog.dart';
 import 'adult_filter_setting.dart';
 import 'content_filter_setting.dart';
+import 'lan_access_dialog.dart';
 
 final class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.services});
@@ -40,6 +41,13 @@ final class SettingsPage extends StatelessWidget {
             onTap: () => context.push('/supervision'),
           ),
           ..._appearanceOptions(context),
+          ListTile(
+            leading: const Icon(Icons.lan_outlined),
+            title: const Text('局域网访问授权'),
+            subtitle: const Text('仅允许明确授权的局域网媒体服务'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showLanAccess(context, services),
+          ),
           _choice(
             context,
             '发现页推荐',
@@ -209,9 +217,22 @@ final class SettingsPage extends StatelessWidget {
         s.backgroundProbe,
         subtitle: '低优先级异步检测，保存延迟和最后检测时间；播放请求优先',
       ),
-      _choice(context, '源检测并发数', 'probeConcurrency', '${s.probeConcurrency}', {
-        for (var i = 1; i <= 6; i++) '$i': '$i 路',
-      }, numeric: true),
+      _choice(
+        context,
+        '渠道接口检测并发数',
+        'probeConcurrency',
+        '${s.probeConcurrency}',
+        {for (var i = 1; i <= 16; i++) '$i': '$i 路'},
+        numeric: true,
+      ),
+      _choice(
+        context,
+        '片内线路检测并发数',
+        'lineProbeConcurrency',
+        '${s.lineProbeConcurrency}',
+        {for (var i = 1; i <= 16; i++) '$i': '$i 路'},
+        numeric: true,
+      ),
       _toggle(
         context,
         '下载失败自动换源',

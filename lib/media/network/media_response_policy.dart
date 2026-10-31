@@ -44,8 +44,18 @@ Stream<List<int>> guardMediaBody(
   }
 }
 
-bool startsMediaEntity(String? contentRange) =>
-    contentRange == null || contentRange.startsWith('bytes 0-');
+bool startsMediaEntity(String? contentRange, {String? requestedRange}) {
+  // An unsolicited or malformed Content-Range must not disable inspection.
+  final response = RegExp(
+    r'^bytes (\d+)-(\d+)/(?:\d+|\*)$',
+  ).firstMatch(contentRange ?? '');
+  if (response == null || requestedRange == null) return true;
+  final start = int.tryParse(response[1]!);
+  if (start == null || start == 0) return true;
+  final request = RegExp(r'^bytes=(\d+)-\d*$').firstMatch(requestedRange);
+  if (request != null) return int.tryParse(request[1]!) != start;
+  return !RegExp(r'^bytes=-[1-9]\d*$').hasMatch(requestedRange);
+}
 
 void _validatePrefix(List<int> bytes) {
   final text = utf8

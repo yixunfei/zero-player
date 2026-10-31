@@ -23,6 +23,10 @@ final class SegmentFetcher {
     if (cancellation != null && cachePartition == null) {
       throw ArgumentError('Cancellation requires a task-owned cache partition');
     }
+    http.targetPolicy.validateAccess(
+      uri,
+      originalOrigin: policy.containsOrigin(uri),
+    );
     final key = resourceIdentity(uri, {
       ...policy.identityHeaders,
       'zero-player-cache-partition': ?cachePartition,

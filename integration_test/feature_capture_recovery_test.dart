@@ -257,7 +257,7 @@ Future<FeatureRule> _capture(
 
 Future<void> _fixtures(NativeMarkHarness h) async {
   final command = NativeMediaCommands();
-  const folder = '$fixtureProject/test_support/generated/content_filter';
+  final folder = '$fixtureProject/test_support/generated/content_filter';
   await command.run([
     '-stream_loop',
     '-1',

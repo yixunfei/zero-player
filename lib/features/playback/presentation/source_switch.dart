@@ -17,7 +17,10 @@ Future<void> switchPlaybackSource(
   if (request == null) return;
   final currentSource = await services.sources.find(request.item.sourceId);
   if (!context.mounted) return;
-  final position = player.originalPosition;
+  final position =
+      player.request!.position > player.originalPosition && player.error != null
+      ? player.request!.position
+      : player.originalPosition;
   final label = player.episode.label;
   final search = SearchController(
     services.sources,
@@ -68,14 +71,27 @@ Future<void> switchPlaybackSource(
     position,
   );
   if (choice != null) {
+    if (player.request != request || !context.mounted) return;
+    final playing = !player.userPaused;
+    final rate = player.state.rate;
     await player.open(
       PlaybackRequest(
         detail,
         line: choice.$1,
         episode: choice.$2,
-        position: matches.contains(choice) ? position : Duration.zero,
+        position: matches.contains(choice)
+            ? player.error != null && player.originalPosition == Duration.zero
+                  ? position
+                  : player.originalPosition
+            : Duration.zero,
       ),
     );
+    if (context.mounted &&
+        player.request?.item == detail &&
+        player.error == null) {
+      await player.engine.setRate(rate);
+      if (!playing) await player.engine.pause();
+    }
   }
 });
 

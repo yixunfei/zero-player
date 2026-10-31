@@ -18,11 +18,9 @@ import 'package:zero_player/features/playback/presentation/player_transport.dart
 import 'package:zero_player/media/content_filter/fingerprints/feature_rule.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
 import 'package:zero_player/media/hls/ts_timestamps.dart';
+import '../test_support/fixture_project.dart';
 
-const project = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final project = fixtureProjectRoot();
 final _playerView = GlobalKey();
 
 void main() {
@@ -49,6 +47,7 @@ Future<void> _playback(WidgetTester tester, {bool unmarked = false}) async {
   );
   final server = await _server(root, unmarked: unmarked);
   final engine = MediaKitEngine(
+    isTrustedResource: services.gateway.isRegisteredResource,
     isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
   );
   final controller = PlaybackController(services, engine);

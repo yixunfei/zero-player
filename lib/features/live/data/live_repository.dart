@@ -24,6 +24,7 @@ final class LiveRepository {
     this.policy,
     this.authorize,
     this.canEnable,
+    this.verifyUpdates,
   });
   final AppDatabase db;
   final DocumentClient network;
@@ -31,6 +32,8 @@ final class LiveRepository {
   final ContentPolicy? policy;
   final void Function()? authorize;
   final bool Function()? canEnable;
+  final Future<void> Function(List<LiveChannel>, CancellationToken?)?
+  verifyUpdates;
 
   Future<List<Map<String, Object?>>> lists() => db.rows(
     '''SELECT l.*, CASE WHEN m.value='false' THEN 0 ELSE 1 END AS enabled
@@ -47,6 +50,20 @@ final class LiveRepository {
 
   Future<void> removeList(String id) =>
       db.write('DELETE FROM live_lists WHERE id=?', [id]);
+
+  Future<void> setGuide(String id, Uri? url) async {
+    authorize?.call();
+    if (url != null &&
+        (!{'http', 'https'}.contains(url.scheme) ||
+            url.host.isEmpty ||
+            url.userInfo.isNotEmpty)) {
+      throw const FormatException('节目表需要有效的 HTTP(S) XMLTV 地址');
+    }
+    await db.write('UPDATE live_lists SET epg_url=? WHERE id=?', [
+      url?.toString() ?? '',
+      id,
+    ]);
+  }
 
   Future<void> import(
     String name,
@@ -78,7 +95,7 @@ final class LiveRepository {
         cancellation: cancellation,
         maxBytes: 8 * 1024 * 1024,
       );
-      epg ??= await _guide(id) ?? playlistEpg(doc.text, doc.uri);
+      epg ??= await _importGuide(id, doc.text, doc.uri);
       await importText(
         name,
         url,
@@ -120,12 +137,14 @@ final class LiveRepository {
     Map<String, String> headers = const {},
     bool existingOnly = false,
     CancellationToken? cancellation,
+    bool verify = true,
   }) async {
     final id = stableId(url.toString());
     final channels = parseLivePlaylist(text, base ?? url, id);
     if (channels.isEmpty) throw const FormatException('频道列表为空，保留旧列表');
-    epg ??= await _guide(id) ?? playlistEpg(text, base ?? url);
+    epg ??= await _importGuide(id, text, base ?? url);
     final audit = await defaults?.entries;
+    var imported = <LiveChannel>[];
     await db.atomic(() async {
       cancellation?.check();
       if (!existingOnly) authorize?.call();
@@ -157,7 +176,26 @@ final class LiveRepository {
         [id],
       );
       final prepared = preparePlaylistChannels(channels, previous, headers);
-      if (audit != null) await defaults!.apply(db, prepared, audit);
+      imported = [
+        for (final c in prepared)
+          LiveChannel(
+            id: c.id,
+            listId: c.listId,
+            name: c.name,
+            urls: c.urls,
+            headers: c.headers,
+            headerOrigin: url,
+          ),
+      ];
+      if (audit != null) {
+        await defaults!.apply(
+          db,
+          imported,
+          audit,
+          includeUnlisted: verifyUpdates != null,
+          canEnable: canEnable?.call() ?? true,
+        );
+      }
       await db.customStatement('DELETE FROM live_channels WHERE list_id=?', [
         id,
       ]);
@@ -185,11 +223,12 @@ final class LiveRepository {
         );
       }
     });
+    if (verify) await verifyUpdates?.call(imported, cancellation);
   }
 
   Future<List<LiveChannel>> channels({bool includeBlocked = false}) async {
     final rows = await db.rows(
-      '''SELECT c.*,p.favorite,p.watched_at,l.name AS list_name,m.value AS health,d.value AS metadata FROM live_channels c
+      '''SELECT c.*,p.favorite,p.watched_at,l.name AS list_name,l.url AS list_url,m.value AS health,d.value AS metadata FROM live_channels c
       JOIN live_lists l ON l.id=c.list_id
       LEFT JOIN channel_preferences p ON c.id=p.channel_id
       LEFT JOIN app_meta m ON m.key='live_state:'||c.id
@@ -197,11 +236,12 @@ final class LiveRepository {
       LEFT JOIN app_meta s ON s.key='live_list_enabled:'||l.id
       WHERE s.value IS NULL OR s.value!='false' ''',
     );
-    final available = rows
+    var available = rows
         .map(
           (r) => LiveChannel(
             id: r['id'] as String,
             listId: r['list_id'] as String,
+            headerOrigin: Uri.parse(r['list_url'] as String),
             name: r['name'] as String,
             group: r['group_name'] as String,
             logo: r['logo'] as String,
@@ -233,6 +273,27 @@ final class LiveRepository {
           ),
         )
         .toList();
+    if (defaults != null) {
+      final audit = await defaults!.entries;
+      await db.transaction(
+        () => defaults!.apply(
+          db,
+          available,
+          audit,
+          canEnable: canEnable?.call() ?? true,
+        ),
+      );
+      final health = {
+        for (final r in await db.rows(
+          "SELECT key,value FROM app_meta WHERE key GLOB 'live_state:*'",
+        ))
+          (r['key'] as String).substring(11): r['value'],
+      };
+      available = [
+        for (final c in available)
+          c.withHealth(LiveHealth.decode(health[c.id], c.urls)),
+      ];
+    }
     final missing = await db.rows(
       '''SELECT p.*,m.value AS health FROM channel_preferences p
       LEFT JOIN app_meta m ON m.key='live_state:'||p.channel_id
@@ -286,12 +347,17 @@ final class LiveRepository {
       gzip: url.path.endsWith('.gz'),
       cancellation: cancellation,
     );
-    final programs = await parseEpgInBackground(
+    final guide = await parseEpgGuideInBackground(
       doc.text,
       DateTime.now().toUtc(),
     );
+    final programs = guide.programs;
     await db.atomic(() async {
       cancellation?.check();
+      await db.customStatement('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+        'epg_names:${stableId(url.toString())}',
+        jsonEncode(guide.names),
+      ]);
       await db.customStatement('DELETE FROM epg_programs WHERE source=?', [
         url.toString(),
       ]);
@@ -336,7 +402,20 @@ final class LiveRepository {
     return value is String && value.isNotEmpty ? Uri.tryParse(value) : null;
   }
 
-  Future<void> refreshSchedule(LiveChannel channel) async {
+  Future<Uri?> _importGuide(String id, String text, Uri base) async {
+    final rows = await db.rows('SELECT epg_url FROM live_lists WHERE id=?', [
+      id,
+    ]);
+    final saved = rows.firstOrNull?['epg_url'];
+    // An empty value is an explicit removal; NULL means no publisher guide yet.
+    if (saved is String) return saved.isEmpty ? null : Uri.tryParse(saved);
+    return playlistEpg(text, base);
+  }
+
+  Future<void> refreshSchedule(
+    LiveChannel channel, {
+    CancellationToken? cancellation,
+  }) async {
     final urls = <Uri>{};
     for (final entry in channel.entries) {
       final guide = await _guide(entry.listId);
@@ -348,12 +427,14 @@ final class LiveRepository {
     var found = false;
     Future<void> worker() async {
       while (cursor < queue.length && !found) {
+        cancellation?.check();
         final uri = queue[cursor++];
         try {
-          await refreshEpg(uri);
+          await refreshEpg(uri, cancellation: cancellation);
           successes++;
           found = (await schedule(channel)).isNotEmpty;
         } catch (error) {
+          cancellation?.check();
           errors.add(error);
         }
       }
@@ -369,7 +450,20 @@ final class LiveRepository {
     ]);
     if (list.isEmpty || list.first['epg_url'] == null) return [];
     var id = channel.tvgId;
-    if (id.isEmpty) {
+    if (id.isNotEmpty) {
+      final ids = await db.rows(
+        'SELECT DISTINCT channel_id FROM epg_programs WHERE source=?',
+        [list.first['epg_url']],
+      );
+      id =
+          matchEpgChannel(
+            id,
+            channel.name,
+            ids.map((r) => r['channel_id'] as String),
+          ) ??
+          '';
+      if (id.isEmpty) return [];
+    } else {
       final ids = await db.rows(
         'SELECT DISTINCT channel_id FROM epg_programs WHERE source=?',
         [list.first['epg_url']],
@@ -381,6 +475,26 @@ final class LiveRepository {
             ids.map((r) => r['channel_id'] as String),
           ) ??
           '';
+      if (id.isEmpty) {
+        final aliases = await db.rows(
+          'SELECT value FROM app_meta WHERE key=?',
+          ['epg_names:${stableId(list.first['epg_url'] as String)}'],
+        );
+        if (aliases.isNotEmpty) {
+          final names = jsonDecode(aliases.first['value'] as String) as Map;
+          final matches = names.entries
+              .where(
+                (entry) => (entry.value as List).any(
+                  (name) =>
+                      matchEpgChannel('', channel.name, [name as String]) !=
+                      null,
+                ),
+              )
+              .map((entry) => entry.key as String)
+              .toSet();
+          if (matches.length == 1) id = matches.single;
+        }
+      }
       if (id.isEmpty) return [];
     }
     final rows = await db.rows(

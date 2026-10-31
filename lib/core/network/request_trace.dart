@@ -18,27 +18,31 @@ String safeDiagnosticUrl(Uri uri) => uri
     .removeFragment()
     .replace(
       userInfo: '',
+      path: uri.path.isEmpty || uri.path == '/' ? uri.path : '/[已隐藏路径]',
       queryParameters: uri.hasQuery
           ? {
               for (final entry in uri.queryParametersAll.entries)
-                entry.key: _secret(entry.key) ? ['[已隐藏]'] : entry.value,
+                entry.key: ['[已隐藏]'],
             }
           : null,
     )
     .toString();
 
-bool _secret(String name) => RegExp(
-  r'authorization|cookie|token|key|secret|password|passwd|signature|^sign$|session|credential',
-  caseSensitive: false,
-).hasMatch(name);
-
 Map<String, String> safeDiagnosticHeaders(Map<String, String> headers) => {
   for (final entry in headers.entries)
-    entry.key: _secret(entry.key)
-        ? '[已隐藏]'
-        : {'referer', 'location'}.contains(entry.key.toLowerCase())
+    entry.key: {'referer', 'location'}.contains(entry.key.toLowerCase())
         ? safeDiagnosticUrl(Uri.tryParse(entry.value) ?? Uri())
-        : entry.value,
+        : {
+            'accept',
+            'accept-encoding',
+            'content-type',
+            'content-length',
+            'range',
+            'content-range',
+            'user-agent',
+          }.contains(entry.key.toLowerCase())
+        ? entry.value.substring(0, entry.value.length.clamp(0, 512))
+        : '[已隐藏]',
 };
 
 void recordRequestTrace({

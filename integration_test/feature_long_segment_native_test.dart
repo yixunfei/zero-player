@@ -82,7 +82,7 @@ Future<void> _expectRelocatedSkip(NativeMarkHarness h) async {
 }
 
 Future<void> _fixtures(NativeMarkHarness h) async {
-  const folder = '$fixtureProject/test_support/generated/content_filter';
+  final folder = '$fixtureProject/test_support/generated/content_filter';
   final commands = NativeMediaCommands();
   await commands.run([
     '-stream_loop',

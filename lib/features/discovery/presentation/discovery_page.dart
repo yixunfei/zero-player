@@ -48,6 +48,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     super.initState();
     final settings = widget.services.settings.value;
     _channel = settings.homeChannel;
+    widget.services.searchSourceId = _channel.isEmpty ? null : _channel;
     _aggregate = settings.homeLayout == 'aggregate';
     _provider = settings.recommendation;
     _filterAdult = widget.services.contentPolicy.filterAdult;
@@ -260,10 +261,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   void _search(Recommendation item) => context.push(
     Uri(
       path: '/search',
-      queryParameters: {
-        'q': item.title,
-        if (_channel.isNotEmpty) 'source': _channel,
-      },
+      queryParameters: {'q': item.title, 'source': _channel},
     ).toString(),
   );
 

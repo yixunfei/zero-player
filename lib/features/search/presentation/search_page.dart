@@ -1,3 +1,5 @@
+import '../application/search_options.dart';
+import 'advanced_search_dialog.dart';
 import 'dart:async';
 import 'package:flutter/material.dart' hide SearchController;
 import 'package:go_router/go_router.dart';
@@ -32,6 +34,7 @@ final class _SearchPageState extends State<SearchPage> {
   String? _preferredId;
   late Future<String?> _preferredName;
   bool _onlyPreferred = false;
+  SearchOptions _options = const SearchOptions();
   @override
   void initState() {
     super.initState();
@@ -58,8 +61,10 @@ final class _SearchPageState extends State<SearchPage> {
   }
 
   void _readPreferred() {
-    _preferredId = widget.preferredSourceId ?? widget.services.searchSourceId;
-    if (_preferredId == null) _onlyPreferred = false;
+    final preferred =
+        widget.preferredSourceId ?? widget.services.searchSourceId;
+    _preferredId = preferred == null || preferred.isEmpty ? null : preferred;
+    _onlyPreferred = false;
     _preferredName = _preferredId == null
         ? Future.value(null)
         : widget.services.sources
@@ -75,6 +80,7 @@ final class _SearchPageState extends State<SearchPage> {
       concurrency: widget.services.settings.value.searchConcurrency,
       preferredSourceId: _preferredId,
       onlyPreferred: _onlyPreferred,
+      options: _options,
     );
     if (mounted) {
       final updatedHistory = widget.services.history.searches();
@@ -97,7 +103,7 @@ final class _SearchPageState extends State<SearchPage> {
               for (final only in [false, true])
                 ChoiceChip(
                   label: Text(
-                    only ? '仅当前来源' : '全站 · 优先 ${snapshot.data}',
+                    only ? '仅当前来源' : '全渠道 · 优先 ${snapshot.data}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -195,6 +201,13 @@ final class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  Future<void> _advanced() async {
+    final value = await showAdvancedSearch(context, _options);
+    if (value == null || !mounted) return;
+    setState(() => _options = value);
+    if (text.text.trim().isNotEmpty) unawaited(_search());
+  }
+
   Widget _searchBar() {
     final compact = MediaQuery.sizeOf(context).width < 600;
     return Padding(
@@ -214,7 +227,7 @@ final class _SearchPageState extends State<SearchPage> {
               onSubmitted: (_) => _search(),
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: '输入影片名称',
+                hintText: _preferredId == null ? '输入影片名称（全渠道）' : '输入影片名称',
                 prefixIcon: compact ? null : const Icon(Icons.search),
                 suffixIcon: IconButton(
                   tooltip: '清空输入',
@@ -227,6 +240,11 @@ final class _SearchPageState extends State<SearchPage> {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: '高级搜索',
+            icon: const Icon(Icons.tune),
+            onPressed: controller.loading ? null : _advanced,
           ),
           SizedBox(width: compact ? 4 : 12),
           if (compact)

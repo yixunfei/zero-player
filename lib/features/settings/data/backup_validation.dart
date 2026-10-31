@@ -40,6 +40,7 @@ void validateBackupRecord(String table, Map row) {
     }
   }
   for (final key in ['url', 'endpoint', 'epg_url']) {
+    if (table == 'live_lists' && key == 'epg_url' && row[key] == '') continue;
     if (row[key] != null) _url(row[key]);
   }
   if (table == 'sources' &&
@@ -79,6 +80,12 @@ void _liveState(Object? value) {
           'signature',
           'resolution',
           'languages',
+          'preflight',
+          'userDisabled',
+          'autoDisabled',
+          'pendingValidation',
+          'requestSignature',
+          'verifiedUrls',
         }.contains(key),
       ) ||
       (value.containsKey('enabled') && value['enabled'] is! bool) ||
@@ -103,6 +110,32 @@ void _liveState(Object? value) {
     }
   }
   if (value['preferredUrl'] != null) _url(value['preferredUrl']);
+  for (final key in [
+    'preflight',
+    'userDisabled',
+    'autoDisabled',
+    'pendingValidation',
+  ]) {
+    if (value.containsKey(key) && value[key] is! bool) {
+      throw const FormatException('频道预检状态无效');
+    }
+  }
+  if (value['requestSignature'] != null &&
+      (value['requestSignature'] is! String ||
+          !RegExp(
+            r'^[a-f0-9]{64}$',
+          ).hasMatch(value['requestSignature'] as String))) {
+    throw const FormatException('频道请求摘要无效');
+  }
+  if (value['verifiedUrls'] != null) {
+    if (value['verifiedUrls'] is! List ||
+        (value['verifiedUrls'] as List).length > 100) {
+      throw const FormatException('已验证线路无效');
+    }
+    for (final url in value['verifiedUrls'] as List) {
+      _url(url);
+    }
+  }
   _mediaMetadata(value);
 }
 

@@ -15,6 +15,10 @@ final class SegmentPrefetcher {
   bool whilePaused = false;
   bool enabled = false;
   bool playing = false;
+  void Function()? onUnavailable;
+  int _failures = 0;
+  DateTime? _retryAfter;
+  bool _reported = false;
   bool _closed = false;
   bool _running = false;
   int _index = 0;
@@ -63,7 +67,8 @@ final class SegmentPrefetcher {
   }
 
   void kick() {
-    if (_running ||
+    if ((_retryAfter != null && DateTime.now().isBefore(_retryAfter!)) ||
+        _running ||
         _closed ||
         !enabled ||
         (!playing && !whilePaused) ||
@@ -85,12 +90,22 @@ final class SegmentPrefetcher {
         final lease = await fetcher.fetch(uri, policy);
         try {
           _seen[key] = lease.resource.length;
+          _failures = 0;
+          _retryAfter = null;
         } finally {
           lease.release();
         }
       }
     } catch (_) {
-      /* Cache warming must never fail active playback. */
+      // Report repeated failures without interrupting buffered playback.
+      if (!_closed) {
+        _failures++;
+        _retryAfter = DateTime.now().add(const Duration(seconds: 10));
+        if (_failures >= 2 && !_reported) {
+          _reported = true;
+          onUnavailable?.call();
+        }
+      }
     } finally {
       _running = false;
     }

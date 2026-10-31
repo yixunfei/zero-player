@@ -11,8 +11,10 @@ void main() {
         '#EXT-X-MAP:uri="https://other.test/init.mp4"',
         '#EXT-X-CONTENT-STEERING:SERVER-URI="https://other.test/redirect"',
       ]) {
-        final manifest = HlsManifest.parse('#EXTM3U\n$tag', base);
-        expect(() => manifest.rewrite((uri) => uri), throwsFormatException);
+        expect(
+          () => HlsManifest.parse('#EXTM3U\n$tag', base),
+          throwsFormatException,
+        );
       }
     },
   );

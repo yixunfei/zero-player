@@ -4,6 +4,11 @@
   "source": "https://bbs.qiqiv.cn/thread-5210-1-1.html",
   "lists": [
     {
+      "name": "iptv-org · 中国公开频道",
+      "url": "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u",
+      "origin": "https://github.com/iptv-org/iptv"
+    },
+    {
       "name": "fanmingming · 综合电视",
       "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
       "origin": "https://github.com/fanmingming/live"

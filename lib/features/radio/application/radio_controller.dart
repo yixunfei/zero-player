@@ -64,6 +64,16 @@ final class RadioController extends ChangeNotifier
     _errors = engine.errors.listen((_) {
       if (_closed || !identical(_engine, engine)) return;
       error = '电台暂时无法播放，请重试或选择其他线路/电台。';
+      if (loading) {
+        notifyListeners();
+        return;
+      }
+      if (!loading &&
+          selected != null &&
+          line + 1 < selected!.playbackUrls.length) {
+        unawaited(select(selected!, lineIndex: line + 1));
+        return;
+      }
       loading = false;
       notifyListeners();
     });
@@ -77,17 +87,17 @@ final class RadioController extends ChangeNotifier
   }
 
   Future<void> select(LiveChannel station, {int lineIndex = 0}) {
-    if (_closed || station.urls.isEmpty) return Future<void>.value();
+    if (_closed || station.playbackUrls.isEmpty) return Future<void>.value();
     if (!(policy?.channelAllowed(station, radio: true) ?? true)) {
       return Future.error(const ContentBlocked());
     }
-    final retire = loading && _engine != null;
+    final retire = (loading || error != null) && _engine != null;
     final generation = ++_generation;
     _interruptSelection();
     final interrupt = _selectionInterrupt = Completer<void>();
     selected = station;
-    line = lineIndex.clamp(0, station.urls.length - 1);
-    final uri = station.urls[line];
+    line = lineIndex.clamp(0, station.playbackUrls.length - 1);
+    final uri = station.playbackUrls[line];
     loading = true;
     playing = false;
     error = null;
@@ -121,6 +131,9 @@ final class RadioController extends ChangeNotifier
         if (!_closed && generation == _generation) {
           loading = false;
           notifyListeners();
+          if (error != null && line + 1 < station.playbackUrls.length) {
+            unawaited(select(station, lineIndex: line + 1));
+          }
         }
       }
     });

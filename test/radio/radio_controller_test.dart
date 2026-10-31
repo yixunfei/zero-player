@@ -33,7 +33,13 @@ void main() {
     'rapid station changes discard stale opens and support pause/stop',
     () async {
       final engine = FakePlayerEngine();
-      final controller = RadioController(() => engine);
+      final replacement = FakePlayerEngine();
+      var created = false;
+      final controller = RadioController(() {
+        if (created) return replacement;
+        created = true;
+        return engine;
+      });
       addTearDown(controller.close);
       final first = controller.select(station('first'));
       final last = controller.select(station('last'));
@@ -49,6 +55,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(controller.error, contains('暂时无法播放'));
       await controller.select(station('retry'));
+      expect(replacement.opens, 1);
       expect(controller.error, isNull);
       await controller.stop();
       expect(controller.loading, isFalse);

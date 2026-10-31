@@ -7,12 +7,14 @@ import '../../core/network/header_policy.dart';
 import '../../core/network/network_target_policy.dart';
 import '../../core/platform/close_resources.dart';
 import '../gateway/media_gateway.dart';
+import 'native_input_policy.dart';
 
 final class MediaKitEngine implements PlayerEngine {
   MediaKitEngine({
     bool videoOutput = true,
     this.gateway,
     this.isTrustedPlaylist,
+    this.isTrustedResource,
     this.isFilteredPlaylist,
   }) {
     if (videoOutput) video = VideoController(player);
@@ -45,6 +47,7 @@ final class MediaKitEngine implements PlayerEngine {
   final _subscriptions = <StreamSubscription<dynamic>>[];
   final MediaGateway? gateway;
   final bool Function(Uri)? isTrustedPlaylist;
+  final bool Function(Uri)? isTrustedResource;
   final bool Function(Uri)? isFilteredPlaylist;
   GatewaySession? _session;
   Future<void>? _securityReady;
@@ -111,7 +114,7 @@ final class MediaKitEngine implements PlayerEngine {
     if (_disposing != null) return;
     _session?.close();
     final transport = gateway;
-    if (transport != null) {
+    if (transport != null && !transport.isRegisteredResource(uri)) {
       await transport.start();
       if (_disposing != null) return;
       final session = _session = transport.createSession(
@@ -121,6 +124,13 @@ final class MediaKitEngine implements PlayerEngine {
       headers = const {};
     }
     if (_disposing != null) return;
+    validateNativeInput(
+      uri,
+      registered:
+          gateway?.isRegisteredResource(uri) == true ||
+          isTrustedResource?.call(uri) == true ||
+          isTrustedPlaylist?.call(uri) == true,
+    );
     // media_kit.open writes a temporary playlist. A single trusted media item
     // can use add/loadfile directly, keeping external playlist access disabled.
     await player.stop();

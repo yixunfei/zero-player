@@ -6,17 +6,14 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 import 'keyword_models.dart';
 import 'keyword_audio_context.dart';
 
-/// Fixed phonetic lexicon for the quantized bilingual KWS model.
+/// Standalone speech uses strong terms only. Contextual words remain in the
+/// OCR/ASR policy; resetting a stream to discard weak KWS hits loses timing.
 const commonKeywordTokens = '''
-ào m én @澳门
 x īn p ú j īng @新葡京
-m iǎn b ěi @缅北
 d ǔ ch ǎng @赌场
-zh ēn r én @真人
 b ó c ǎi @博彩
 b ǎi j iā l è @百家乐
 x iàn j īn w ǎng @现金网
-D AH1 B AH0 L Y UW0 D AH1 B AH0 L Y UW0 D AH1 B AH0 L Y UW0 @www
 ''';
 
 final class KeywordDetection {

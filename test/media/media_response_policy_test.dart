@@ -3,6 +3,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/media/network/media_response_policy.dart';
 
 void main() {
+  test('forged Content-Range cannot disable entity prefix validation', () {
+    expect(startsMediaEntity('bytes 1-512/513'), isTrue);
+    expect(
+      startsMediaEntity('bytes 1-512/513', requestedRange: 'bytes=0-'),
+      isTrue,
+    );
+    expect(startsMediaEntity('invalid', requestedRange: 'bytes=20-'), isTrue);
+    expect(
+      startsMediaEntity('bytes 20-512/513', requestedRange: 'bytes=20-'),
+      isFalse,
+    );
+    expect(
+      startsMediaEntity('bytes 20-512/513', requestedRange: 'bytes=-493'),
+      isFalse,
+    );
+  });
   test('document and executable MIME types are rejected', () {
     for (final type in [
       'text/html',

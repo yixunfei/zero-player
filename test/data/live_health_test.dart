@@ -243,26 +243,23 @@ void _probeTests() {
     expect(result.preferredUrl, server.baseUri.resolve('ok.ts').toString());
     expect(result.latencyMs, isNonNegative);
   });
-  test(
-    'all explicit failures unavailable; untested alternatives inconclusive',
-    () async {
-      final token = CancellationToken();
-      final result = await probe.check(
-        _channel('gone', urls: [server.baseUri.resolve('404')]),
-        token,
-      );
-      expect(result.availability, LiveAvailability.unavailable);
-      final partial = await probe.check(
-        _channel(
-          'partial',
-          urls: List.generate(4, (i) => server.baseUri.resolve('gone$i')),
-        ),
-        token,
-      );
-      expect(partial.availability, LiveAvailability.inconclusive);
-      expect(server.calls['/gone3'], isNull);
-    },
-  );
+  test('all alternatives are tested before declaring unavailable', () async {
+    final token = CancellationToken();
+    final result = await probe.check(
+      _channel('gone', urls: [server.baseUri.resolve('404')]),
+      token,
+    );
+    expect(result.availability, LiveAvailability.unavailable);
+    final partial = await probe.check(
+      _channel(
+        'partial',
+        urls: List.generate(4, (i) => server.baseUri.resolve('gone$i')),
+      ),
+      token,
+    );
+    expect(partial.availability, LiveAvailability.unavailable);
+    expect(server.calls['/gone3'], 1);
+  });
   test('transient failures remain uncertain', () async {
     for (final path in ['slow', 'busy', 'rate']) {
       final result = await probe.check(

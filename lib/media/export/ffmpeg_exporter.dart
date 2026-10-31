@@ -76,6 +76,8 @@ final class FfmpegExporter implements MediaExporter {
         '-n',
         '-protocol_whitelist',
         input.scheme == 'file' ? 'file' : 'http,tcp,crypto',
+        '-format_whitelist',
+        input.scheme == 'file' ? 'mov,mpegts' : 'hls,mov,mpegts',
         '-allowed_extensions',
         'ALL',
         '-i',

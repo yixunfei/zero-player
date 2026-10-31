@@ -33,8 +33,9 @@ final class UserSettings {
     this.homeChannel = '',
     this.homeLayout = 'single',
     this.allowMetered = false,
-    this.searchConcurrency = 6,
-    this.probeConcurrency = 3,
+    this.searchConcurrency = 8,
+    this.probeConcurrency = 8,
+    this.lineProbeConcurrency = 8,
     this.backgroundProbe = true,
     this.autoDownloadFallback = true,
     this.multiSourceDownload = false,
@@ -68,6 +69,7 @@ final class UserSettings {
   final bool allowMetered;
   final int searchConcurrency;
   final int probeConcurrency;
+  final int lineProbeConcurrency;
   final bool backgroundProbe;
   final bool autoDownloadFallback;
   final bool multiSourceDownload;
@@ -103,6 +105,7 @@ final class UserSettings {
     'allowMetered': allowMetered,
     'searchConcurrency': searchConcurrency,
     'probeConcurrency': probeConcurrency,
+    'lineProbeConcurrency': lineProbeConcurrency,
     'backgroundProbe': backgroundProbe,
     'autoDownloadFallback': autoDownloadFallback,
     'multiSourceDownload': multiSourceDownload,
@@ -169,14 +172,16 @@ final class UserSettings {
         ? map['homeChannel'] as String
         : '',
     homeLayout: map['homeLayout'] == 'aggregate' ? 'aggregate' : 'single',
-    searchConcurrency: ((map['searchConcurrency'] as num?)?.toInt() ?? 6).clamp(
+    searchConcurrency: ((map['searchConcurrency'] as num?)?.toInt() ?? 8).clamp(
       1,
       16,
     ),
-    probeConcurrency: ((map['probeConcurrency'] as num?)?.toInt() ?? 3).clamp(
+    probeConcurrency: ((map['probeConcurrency'] as num?)?.toInt() ?? 8).clamp(
       1,
-      6,
+      16,
     ),
+    lineProbeConcurrency: ((map['lineProbeConcurrency'] as num?)?.toInt() ?? 8)
+        .clamp(1, 16),
     backgroundProbe: map['backgroundProbe'] != false,
     autoDownloadFallback: map['autoDownloadFallback'] != false,
     multiSourceDownload: map['multiSourceDownload'] == true,

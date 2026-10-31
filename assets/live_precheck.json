@@ -3,6 +3,22 @@
   "scope": "Playlist retrieval/parsing only; media availability depends on the user network.",
   "results": [
     {
+      "name": "iptv-org · 中国公开频道",
+      "url": "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u",
+      "origin": "https://github.com/iptv-org/iptv",
+      "status": "available",
+      "defaultEnabled": true,
+      "channels": 355,
+      "checkedAt": "2026-10-30",
+      "mediaSample": {
+        "tested": 24,
+        "responding": 12,
+        "unavailable": 1,
+        "inconclusive": 11
+      },
+      "scope": "列表与前 24 个频道媒体抽样；并非全部频道可用性或解码保证"
+    },
+    {
       "name": "fanmingming · 综合电视",
       "url": "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
       "origin": "https://github.com/fanmingming/live",

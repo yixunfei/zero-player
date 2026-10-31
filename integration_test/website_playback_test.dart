@@ -33,6 +33,7 @@ void main() {
         allowPrivateNetworks: true,
       );
       final engine = MediaKitEngine(
+        isTrustedResource: services.gateway.isRegisteredResource,
         isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
       );
       final controller = PlaybackController(services, engine);

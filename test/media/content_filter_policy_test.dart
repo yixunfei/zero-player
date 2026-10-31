@@ -20,6 +20,20 @@ void main() {
       expect(screen(word).verdict, FilterVerdict.block, reason: word);
     }
   });
+  test(
+    'isolated contextual speech and invalid confidence cannot trigger a strong block',
+    () {
+      for (final word in ['澳门', '真人', '缅北']) {
+        expect(
+          policy.evaluate([
+            ContentEvidence(text: word, source: EvidenceSource.speech),
+          ]).allowed,
+          isTrue,
+        );
+      }
+      expect(screen('赌场', confidence: 1.2).verdict, FilterVerdict.uncertain);
+    },
+  );
   test('ordinary geographic dialogue is not an advertisement', () {
     final result = policy.evaluate([
       const ContentEvidence(text: '明天去澳门参观博物馆', source: EvidenceSource.speech),

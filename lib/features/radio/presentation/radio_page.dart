@@ -12,6 +12,10 @@ import 'radio_subscriptions_dialog.dart';
 import 'radio_toolbar.dart';
 import 'radio_mini_player.dart';
 import '../domain/radio_category.dart';
+import '../../live/presentation/live_probe_dialog.dart';
+import '../../live/domain/channel_identity.dart';
+import '../../live/domain/live_channel.dart';
+import '../../live/domain/live_health.dart';
 
 final class RadioPage extends StatefulWidget {
   const RadioPage({super.key, required this.services});
@@ -30,6 +34,7 @@ final class _RadioPageState extends State<RadioPage> {
   String? _error;
   String _group = '';
   bool _favoritesOnly = false;
+  String _health = '全部状态';
   RadioCategory? _category;
   bool _playerExpanded = true;
   late final void Function() _removeCloseHook;
@@ -124,6 +129,9 @@ final class _RadioPageState extends State<RadioPage> {
     onFavorites: (value) => setState(() => _favoritesOnly = value),
     onSearch: () => setState(() {}),
     onSubscriptions: _subscriptions,
+    onProbe: _probe,
+    health: _health,
+    onHealth: (value) => setState(() => _health = value),
     onInfo: _sourceInfo,
     onRefresh: () => _load(refresh: true),
     category: _category,
@@ -156,7 +164,7 @@ final class _RadioPageState extends State<RadioPage> {
           ),
   );
 
-  Widget _stations() {
+  List<LiveChannel> _filteredStations() {
     final query = _query.text.trim().toLowerCase();
     final stations = (_catalog?.stations ?? [])
         .where(
@@ -166,11 +174,43 @@ final class _RadioPageState extends State<RadioPage> {
                 radio: true,
               ) &&
               (!_favoritesOnly || station.favorite) &&
+              (_health == '全部状态' ||
+                  _health == '已停用' && !station.health.enabled ||
+                  _health == '有媒体响应' &&
+                      station.health.enabled &&
+                      station.health.availability ==
+                          LiveAvailability.responding ||
+                  _health == '未检测' &&
+                      station.health.availability == LiveAvailability.unknown ||
+                  _health == '待处理' &&
+                      {
+                        LiveAvailability.inconclusive,
+                        LiveAvailability.unavailable,
+                      }.contains(station.health.availability)) &&
               (_category == null || radioCategory(station) == _category) &&
               (_group.isEmpty || station.group == _group) &&
-              (query.isEmpty || station.name.toLowerCase().contains(query)),
+              channelMatchesQuery(station.name, query),
         )
         .toList();
+    return stations;
+  }
+
+  Future<void> _probe() async {
+    final stations = _filteredStations();
+    if (stations.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => LiveProbeDialog(
+        services: widget.services,
+        channels: stations,
+        enableResponding: _health == '已停用',
+      ),
+    );
+    if (mounted) await _load();
+  }
+
+  Widget _stations() {
+    final stations = _filteredStations();
     if (stations.isEmpty) {
       return Center(
         child: Text(
@@ -211,6 +251,7 @@ final class _RadioPageState extends State<RadioPage> {
                 [
                   radioCategory(station).label,
                   if (station.group.isNotEmpty) station.group,
+                  station.health.label,
                 ].join(' · '),
               ),
               trailing: IconButton(
@@ -239,6 +280,10 @@ final class _RadioPageState extends State<RadioPage> {
                 }),
               ),
               onTap: () {
+                if (!station.health.enabled || station.health.removed) {
+                  message(context, '此电台已停用，请检测并恢复后播放');
+                  return;
+                }
                 setState(() => _playerExpanded = true);
                 unawaited(_controller.select(station));
               },

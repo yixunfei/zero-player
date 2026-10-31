@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/document_client.dart';
+import '../core/network/cancellation_token.dart';
 import '../core/network/media_http_client.dart';
 import '../core/network/poster_repository.dart';
 import '../core/persistence/app_database.dart';
@@ -38,10 +39,12 @@ import '../features/playback/domain/player_engine.dart';
 import '../media/engine/media_kit_engine.dart';
 import '../features/live/data/live_health_repository.dart';
 import '../features/live/application/live_probe.dart';
+import '../features/live/application/channel_preflight.dart';
 import '../features/live/application/builtin_live_sources.dart';
 import '../features/playback/data/skip_repository.dart';
 import '../features/settings/application/settings_controller.dart';
 import '../features/settings/data/backup_service.dart';
+import '../features/settings/data/lan_access_store.dart';
 import '../features/sources/application/subscription_service.dart';
 import '../features/sources/data/source_repository.dart';
 import '../media/cache/segment_fetcher.dart';
@@ -61,9 +64,11 @@ final class AppServices {
     this.db, {
     this.radioEngine,
     PlatformServices? platform,
-    bool allowPrivateNetworks = false,
-  }) : platform = platform ?? PlatformServices(),
-       http = MediaHttpClient(allowPrivateNetworks: allowPrivateNetworks);
+    this.allowPrivateNetworks = false,
+    this.channelAuditOverride,
+  }) : platform = platform ?? PlatformServices();
+  final bool allowPrivateNetworks;
+  final LiveAuditDefaults? channelAuditOverride;
   final PlayerEngine Function()? radioEngine;
   RadioController? _radioPlayer;
   RadioController get radioPlayer => _radioPlayer ??= RadioController(
@@ -77,7 +82,15 @@ final class AppServices {
   String? searchSourceId;
   final AppDatabase db;
   final PlatformServices platform;
-  final MediaHttpClient http;
+  late final MediaHttpClient http = MediaHttpClient(
+    allowPrivateNetworks: allowPrivateNetworks,
+    allowLanOrigin: lanAccess.allows,
+  );
+  late final lanAccess = LanAccessStore(
+    db,
+    authorize: () => supervision.require(SensitiveOperation.settings),
+    onChanged: () => http.resetConnections(),
+  );
   late final network = DocumentClient(http);
   late final posters = PosterRepository(network);
   late final SupervisionController supervision = SupervisionController(
@@ -125,7 +138,11 @@ final class AppServices {
   late final live = LiveRepository(
     db,
     network,
-    defaults: LiveAuditDefaults.bundled(),
+    defaults: channelAudit,
+    verifyUpdates: (channels, token) => channelPreflight.refresh(
+      channels.where((c) => contentPolicy.channelAllowed(c)).toList(),
+      token,
+    ),
     policy: contentPolicy,
     authorize: _authorizeChannels,
     canEnable: _canEnableChannels,
@@ -134,6 +151,7 @@ final class AppServices {
     db,
     network,
     snapshotDirectory: Directory(p.join(root.path, 'radio_snapshots')),
+    preflight: channelPreflight,
     policy: contentPolicy,
     authorize: _authorizeChannels,
   );
@@ -143,6 +161,12 @@ final class AppServices {
     canEnable: _canEnableChannels,
   );
   late final liveProbe = LiveProbe(http, liveHealth);
+  late final channelAudit = channelAuditOverride ?? LiveAuditDefaults.bundled();
+  late final channelPreflight = ChannelPreflight(
+    channelAudit,
+    liveHealth,
+    liveProbe,
+  );
   late final builtinLive = BuiltinLiveSources(live);
   late final synopses = SynopsisRepository(network, db);
   late final recommendations = RecommendationRepository(network, db);
@@ -235,6 +259,7 @@ final class AppServices {
   Future<void> _initialize() async {
     final services = this;
     await services.supervision.load();
+    await services.lanAccess.load();
     await services.settings.load();
     await services.builtins.initialize();
     await services.sources.all(includeSuppressed: true);
@@ -270,8 +295,13 @@ final class AppServices {
   void _applySettings() =>
       store.maxBytes = settings.value.cacheMiB * 1024 * 1024;
 
-  Future<CatalogItem> detail(String sourceId, String remoteId) async {
+  Future<CatalogItem> detail(
+    String sourceId,
+    String remoteId, {
+    CancellationToken? cancellation,
+  }) async {
     final source = await sources.find(sourceId);
+    cancellation?.check();
     if (source == null) throw const FormatException('此来源已移除，请重新搜索作品');
     final watch = Stopwatch()..start();
     try {
@@ -279,7 +309,12 @@ final class AppServices {
         source,
         network,
         policy: contentPolicy,
+        cancellation: cancellation,
       ).detail(remoteId);
+      cancellation?.check();
+      if (item.sourceId != sourceId || item.id != remoteId) {
+        throw const FormatException('返回的影片或渠道与所选详情不一致');
+      }
       await sources.health(
         sourceId,
         null,
@@ -289,6 +324,7 @@ final class AppServices {
       contentPolicy.requireItem(item);
       return item;
     } on RemoteFailure catch (failure) {
+      cancellation?.check();
       await sources.health(sourceId, failure);
       rethrow;
     }
@@ -337,6 +373,7 @@ final class AppServices {
     () => posters.close(),
     () => synopses.close(),
     () => http.close(),
+    () => lanAccess.close(),
     () => platform.dispose(),
     () => contentPolicy.dispose(),
     () => settings.close(),

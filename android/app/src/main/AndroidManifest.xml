@@ -7,7 +7,7 @@
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:label="Zero Player"
+        android:label="${appLabel}"
         android:banner="@drawable/tv_banner"
         android:usesCleartextTraffic="true"
         android:name="${applicationName}"

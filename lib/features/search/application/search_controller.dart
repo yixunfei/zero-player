@@ -1,3 +1,4 @@
+import 'search_options.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
@@ -48,6 +49,7 @@ final class SearchController extends ChangeNotifier {
   final _sourceOrder = <String, int>{};
   final failedSources = <String>{};
   final latencies = <String, int>{};
+  SearchOptions options = const SearchOptions();
   bool loading = false;
   String query = '';
   String? error;
@@ -80,6 +82,16 @@ final class SearchController extends ChangeNotifier {
     if (_groupsCache != null) return _groupsCache!;
     final sorted = List<CatalogItem>.of(items)
       ..sort((a, b) {
+        if (options.sort == SearchSort.relevance) {
+          final rank = _rank(a.title).compareTo(_rank(b.title));
+          if (rank != 0) return rank;
+        }
+        if (options.sort == SearchSort.newest) {
+          final year = (int.tryParse(b.year) ?? 0).compareTo(
+            int.tryParse(a.year) ?? 0,
+          );
+          if (year != 0) return year;
+        }
         final priority = (_sourceOrder[a.sourceId] ?? 999999).compareTo(
           _sourceOrder[b.sourceId] ?? 999999,
         );
@@ -121,7 +133,9 @@ final class SearchController extends ChangeNotifier {
     Set<String> excluded = const {},
     String? preferredSourceId,
     bool onlyPreferred = false,
+    SearchOptions options = const SearchOptions(),
   }) async {
+    this.options = options;
     this.preferredSourceId = preferredSourceId;
     _filterAdult = filterAdult;
     _concurrency = concurrency.clamp(1, 16);
@@ -289,6 +303,8 @@ final class SearchController extends ChangeNotifier {
     int generation,
     bool filterAdult,
   ) async {
+    final searchOptions = options;
+    final pageLimit = searchOptions.maxPages.clamp(1, 10);
     final token = CancellationToken();
     final remove = parent.listen(token.cancel);
     final timeout = Timer(const Duration(seconds: 10), token.cancel);
@@ -315,12 +331,13 @@ final class SearchController extends ChangeNotifier {
           return;
         }
         if (page == 1) latencies[source.id] = clock.elapsedMilliseconds;
-        pages = result.pageCount.clamp(1, 5);
-        limited |= result.pageCount > 5;
+        pages = result.pageCount.clamp(1, pageLimit);
+        limited |= result.pageCount > pageLimit;
         for (final item in result.items) {
           if (filterAdult && adultContent('${item.title} ${item.category}')) {
             continue;
           }
+          if (!searchOptions.accepts(item, query)) continue;
           if (_seen.add('${item.sourceId}/${item.id}')) {
             items.add(item);
             count++;
@@ -333,7 +350,7 @@ final class SearchController extends ChangeNotifier {
       if (generation == _generation) {
         statuses[source.id] = count == 0
             ? '无结果'
-            : '$count 条结果${limited ? '（前 5 页）' : ''}';
+            : '$count 条结果${limited ? '（前 $pageLimit 页）' : ''}';
       }
     } catch (e) {
       if (parent.isCancelled &&

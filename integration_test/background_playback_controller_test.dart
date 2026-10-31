@@ -10,11 +10,9 @@ import 'package:zero_player/features/catalog/domain/catalog_item.dart';
 import 'package:zero_player/features/playback/application/playback_controller.dart';
 import 'package:zero_player/media/content_filter/keyword_models.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
+import '../test_support/fixture_project.dart';
 
-const project = String.fromEnvironment(
-  'PROJECT_ROOT',
-  defaultValue: 'L:/zero-player',
-);
+final project = fixtureProjectRoot();
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +32,7 @@ Future<void> _playback(WidgetTester tester) async {
     allowPrivateNetworks: true,
   );
   final engine = MediaKitEngine(
+    isTrustedResource: services.gateway.isRegisteredResource,
     isTrustedPlaylist: services.gateway.isRegisteredPlaylist,
   );
   final player = PlaybackController(services, engine);
@@ -76,7 +75,8 @@ Future<void> _playback(WidgetTester tester) async {
     player.confirmFeatureSkip();
     await _until(() => player.canUndoSkip);
     expect(player.error, isNull);
-    expect(player.notice, contains('澳门'));
+    expect(player.notice, anyOf(contains('赌场'), contains('新葡京')));
+    expect(player.notice, isNot(contains('命中常见词：澳门')));
     await _until(() => player.originalPosition >= target);
     final afterSkip = player.originalPosition;
     await player.undoSkip();

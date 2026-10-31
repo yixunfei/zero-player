@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../../settings/application/settings_controller.dart';
 import 'source_probe.dart';
+import '../../../core/network/request_scheduler.dart';
 
 /// Background means asynchronous application work, not an Android OS service.
 final class BackgroundSourceMonitor {
@@ -54,6 +55,7 @@ final class BackgroundSourceMonitor {
     await probe.run(
       due,
       concurrency: settings.value.probeConcurrency,
+      priority: RequestPriority.background,
       applyPolicy: true,
     );
   }

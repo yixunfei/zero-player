@@ -11,7 +11,7 @@ final class LiveProbe {
   LiveProbe(
     this.http,
     this.repository, {
-    this.networkTimeout = const Duration(seconds: 20),
+    this.networkTimeout = const Duration(seconds: 8),
   });
   final MediaHttpClient http;
   final LiveHealthRepository repository;
@@ -60,9 +60,13 @@ final class LiveProbe {
     CancellationToken token,
     bool enableResponding,
   ) async {
-    var uncertain = channel.urls.length > 3;
+    var uncertain = false;
     var message = '频道没有可播放线路';
-    for (final uri in channel.urls.take(3)) {
+    final preferred = channel.health.preferredUrl;
+    for (final uri in [
+      ...channel.urls.where((u) => '$u' == preferred),
+      ...channel.urls.where((u) => '$u' != preferred),
+    ]) {
       token.check();
       try {
         final result = await probeMedia(
@@ -71,7 +75,7 @@ final class LiveProbe {
           HeaderPolicy({uri: channel.headersFor(uri)}),
           token,
           availabilityOnly: true,
-          maxBytes: 256 * 1024,
+          maxBytes: 128 * 1024,
           networkTimeout: networkTimeout,
         );
         token.check();

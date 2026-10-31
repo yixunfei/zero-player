@@ -28,6 +28,10 @@ LiveChannel _merge(List<LiveChannel> members) {
     final aOk = a.health.availability == LiveAvailability.responding;
     final bOk = b.health.availability == LiveAvailability.responding;
     if (aOk != bOk) return aOk ? -1 : 1;
+    final latency = (a.health.latencyMs ?? 999999).compareTo(
+      b.health.latencyMs ?? 999999,
+    );
+    if (latency != 0) return latency;
     return a.id.compareTo(b.id);
   });
   final first = members.first;
@@ -79,6 +83,12 @@ LiveChannel _merge(List<LiveChannel> members) {
       preferredUrl: first.health.preferredUrl,
       resolution: first.health.resolution,
       languages: first.health.languages,
+      verifiedOnly: health.any((h) => h.verifiedOnly),
+      verifiedUrls: [
+        for (final c in available)
+          if (c.health.availability == LiveAvailability.responding)
+            ...c.playbackUrls.map((u) => '$u'),
+      ],
     ),
     members: List.unmodifiable(members),
   );

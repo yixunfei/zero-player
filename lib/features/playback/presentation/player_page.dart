@@ -46,6 +46,9 @@ final class _PlayerPageState extends State<PlayerPage>
   void initState() {
     super.initState();
     engine = MediaKitEngine(
+      isTrustedResource: (uri) =>
+          widget.services.gateway.isRegisteredResource(uri) ||
+          widget.services.offline.isRegisteredResource(uri),
       isTrustedPlaylist: (uri) =>
           widget.services.gateway.isRegisteredPlaylist(uri) ||
           widget.services.offline.isRegisteredPlaylist(uri) ||
@@ -173,15 +176,44 @@ final class _PlayerPageState extends State<PlayerPage>
       gestures: widget.services.settings.value.gestures,
       errorAction:
           controller.request?.offline == null && controller.request != null
-          ? BlockSourceButton(
-              name: '当前播放来源',
-              onBlock: () => widget.services.sources.setEnabled(
-                controller.request!.item.sourceId,
-                false,
-              ),
-            )
+          ? _failureActions()
           : null,
     ),
+  );
+
+  Widget _failureActions() => Wrap(
+    spacing: 8,
+    children: [
+      if (!controller.isLive && !controller.blocked) ...[
+        TextButton(
+          onPressed: controller.busy
+              ? null
+              : () async {
+                  final changed = await controller.switchAlternativeLine();
+                  if (!changed && mounted) {
+                    message(context, '没有可自动切换的可用同集线路，请切换渠道或手动选线');
+                  }
+                },
+          child: const Text('检测并切换线路'),
+        ),
+        TextButton(
+          onPressed: controller.busy
+              ? null
+              : () {
+                  controller.cancelRecovery();
+                  switchPlaybackSource(context, widget.services, controller);
+                },
+          child: const Text('切换渠道'),
+        ),
+      ],
+      BlockSourceButton(
+        name: '当前播放来源',
+        onBlock: () => widget.services.sources.setEnabled(
+          controller.request!.item.sourceId,
+          false,
+        ),
+      ),
+    ],
   );
 
   Future<void> _showOptions() => showModalBottomSheet<void>(
@@ -335,7 +367,7 @@ final class _PlayerPageState extends State<PlayerPage>
     children: [
       LineSelector(
         key: ValueKey(
-          '${controller.request!.item.sourceId}/${controller.request!.item.id}',
+          '${controller.request!.item.sourceId}/${controller.request!.item.id}/${controller.episode.label}',
         ),
         services: widget.services,
         item: controller.request!.item,

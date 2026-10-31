@@ -1,5 +1,4 @@
 import '../../supervision/presentation/sensitive_action.dart';
-import 'dart:async';
 import '../../../app/widgets.dart';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
@@ -24,41 +23,27 @@ final class LiveProbeDialog extends StatefulWidget {
 }
 
 final class _LiveProbeDialogState extends State<LiveProbeDialog> {
-  final cancellation = CancellationToken();
+  var cancellation = CancellationToken();
   final statuses = <String, String>{};
-  bool running = true;
+  bool running = false;
   final unavailable = <String>{};
   final inconclusive = <String>{};
   int completed = 0, responding = 0;
   final names = <String, String>{};
+  int concurrency = 8;
   late final channels = {
     for (final group in widget.channels)
       for (final entry in group.entries)
         if (!entry.health.removed) entry.id: entry,
   }.values.toList();
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(
-        perform(
-          context,
-          () => runSensitive(
-            context,
-            widget.services.supervision,
-            SensitiveOperation.channels,
-            _run,
-            needed: widget.enableResponding,
-          ),
-        ).whenComplete(() {
-          if (mounted) setState(() => running = false);
-        }),
-      );
-    });
-  }
 
   Future<void> _run() async {
+    cancellation = CancellationToken();
+    statuses.clear();
+    unavailable.clear();
+    inconclusive.clear();
+    completed = responding = 0;
+    if (mounted) setState(() => running = true);
     var index = 0;
     Future<void> worker() async {
       while (index < channels.length && !cancellation.isCancelled) {
@@ -87,7 +72,7 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
       }
     }
 
-    await Future.wait([worker(), worker()]);
+    await Future.wait(List.generate(concurrency, (_) => worker()));
     if (mounted) setState(() => running = false);
   }
 
@@ -99,33 +84,65 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.enableResponding ? '检测并启用停用频道' : '直播测活'),
+    title: Text(widget.enableResponding ? '检测并启用停用频道' : '频道测活'),
     content: SizedBox(
       width: 600,
       height: 400,
-      child: ListView(
-        children: [
-          if (running) const LinearProgressIndicator(),
-          Text(
-            '已完成 $completed/${channels.length} · 响应 $responding · 已停用无效 ${unavailable.length} · 未确定 ${inconclusive.length}',
-          ),
-          const Text(
-            '并发 2；每频道最多尝试 3 条线路，每路 256 KiB / 20 秒网络时间。只要一条响应即通过；超时及未测完为未确定。',
-          ),
-          Text(
-            widget.enableResponding
-                ? '仅有媒体响应的频道自动启用；未确定保持停用，已移除频道不参与。'
-                : '明确不可用的频道自动停用；未确定保持原状态，可在检测结束后一键停用。',
-          ),
-          for (final entry in statuses.entries)
-            ListTile(
-              title: Text(names[entry.key] ?? entry.key),
-              subtitle: Text(entry.value),
-            ),
-        ],
+      child: ListView.builder(
+        itemCount: statuses.length + 1,
+        itemBuilder: (_, index) {
+          if (index == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (running) const LinearProgressIndicator(),
+                Text(
+                  '已完成 $completed/${channels.length} · 响应 $responding · 已停用无效 ${unavailable.length} · 未确定 ${inconclusive.length}',
+                ),
+                DropdownButton<int>(
+                  value: concurrency,
+                  items: [
+                    for (final count in [4, 8, 16])
+                      DropdownMenuItem(value: count, child: Text('$count 路并发')),
+                  ],
+                  onChanged: running
+                      ? null
+                      : (value) => setState(() => concurrency = value!),
+                ),
+                const Text(
+                  '同源最多 2 路连接；逐一尝试备用线路，每路最多 128 KiB / 8 秒网络时间，有媒体响应即停止。超时保留为未确定。',
+                ),
+                Text(
+                  widget.enableResponding
+                      ? '仅有媒体响应的频道自动启用；未确定保持停用，已移除频道不参与。'
+                      : '内置频道仅保留有媒体响应的项；失败或未确认先停用，复检通过后恢复。手动停用项请使用“检测并启用”。',
+                ),
+              ],
+            );
+          }
+          final channel = channels[index - 1];
+          return ListTile(
+            title: Text(names[channel.id] ?? channel.name),
+            subtitle: Text(statuses[channel.id] ?? '等待检测'),
+          );
+        },
       ),
     ),
     actions: [
+      if (!running)
+        TextButton(
+          onPressed: () => perform(
+            context,
+            () => runSensitive(
+              context,
+              widget.services.supervision,
+              SensitiveOperation.channels,
+              _run,
+              needed: widget.enableResponding,
+            ),
+          ),
+          child: Text(completed == 0 ? '开始检测' : '重新检测'),
+        ),
       if (!running && inconclusive.isNotEmpty)
         TextButton(
           onPressed: () async {

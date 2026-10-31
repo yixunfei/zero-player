@@ -19,6 +19,9 @@ final class RadioToolbar extends StatelessWidget {
     required this.onCategory,
     this.category,
     this.updatedAt,
+    this.onProbe,
+    this.health = '全部状态',
+    this.onHealth,
   });
   final TextEditingController query;
   final Iterable<String> groups;
@@ -31,6 +34,9 @@ final class RadioToolbar extends StatelessWidget {
   final ValueChanged<RadioCategory?> onCategory;
   final VoidCallback onCollapse;
   final VoidCallback onSearch, onSubscriptions, onInfo, onRefresh;
+  final VoidCallback? onProbe;
+  final String health;
+  final ValueChanged<String>? onHealth;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -59,6 +65,11 @@ final class RadioToolbar extends StatelessWidget {
           '在线广播 · 实验阶段',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
+      ),
+      IconButton(
+        tooltip: '检测当前广播分组',
+        onPressed: loading ? null : onProbe,
+        icon: const Icon(Icons.network_check),
       ),
       IconButton(
         tooltip: '管理广播订阅',
@@ -98,6 +109,15 @@ final class RadioToolbar extends StatelessWidget {
         selected: favoritesOnly,
         onSelected: onFavorites,
       ),
+      if (onHealth != null)
+        DropdownButton<String>(
+          value: health,
+          items: [
+            for (final value in ['全部状态', '有媒体响应', '未检测', '待处理', '已停用'])
+              DropdownMenuItem(value: value, child: Text(value)),
+          ],
+          onChanged: (value) => onHealth!(value!),
+        ),
       if (updatedAt != null)
         Text('本地快照：${updatedAt!.toLocal().toString().substring(0, 16)}'),
     ],

@@ -30,6 +30,7 @@ final class _SourceChoicesState extends State<SourceChoices> {
   final _tested = <String>{};
   final _blocked = <String>{};
   bool _loading = false;
+  bool _selected = false;
   @override
   void initState() {
     super.initState();
@@ -44,14 +45,14 @@ final class _SourceChoicesState extends State<SourceChoices> {
   }
 
   Future<void> _probeNew() async {
-    if (_loading) return;
+    if (_loading || _selected || !mounted) return;
     final ids = widget.items.map((i) => i.sourceId).toSet().difference(_tested);
     if (ids.isEmpty) return;
     _loading = true;
     _tested.addAll(ids);
     try {
       final sources = await widget.services.sources.all();
-      if (!mounted) return;
+      if (!mounted || _selected) return;
       await _probe.run(
         sources
             .where(
@@ -61,6 +62,7 @@ final class _SourceChoicesState extends State<SourceChoices> {
             )
             .toList(),
         preserveStatuses: true,
+        concurrency: widget.services.settings.value.probeConcurrency,
       );
     } catch (_) {
       if (mounted) {
@@ -80,6 +82,13 @@ final class _SourceChoicesState extends State<SourceChoices> {
   void dispose() {
     _probe.dispose();
     super.dispose();
+  }
+
+  void _select(CatalogItem item) {
+    if (_selected || !widget.services.contentPolicy.itemAllowed(item)) return;
+    _selected = true;
+    _probe.cancel();
+    widget.onSelected(item);
   }
 
   @override
@@ -111,11 +120,7 @@ final class _SourceChoicesState extends State<SourceChoices> {
                     maxLines: compact ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  onTap: () {
-                    if (widget.services.contentPolicy.itemAllowed(item)) {
-                      widget.onSelected(item);
-                    }
-                  },
+                  onTap: () => _select(item),
                   trailing: BlockSourceButton(
                     name: '此来源',
                     compact: compact,

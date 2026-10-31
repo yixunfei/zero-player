@@ -1,6 +1,7 @@
 import '../../live/data/live_playlist_parser.dart';
 import '../../live/domain/channel_identity.dart';
 import '../../live/domain/live_channel.dart';
+import '../../live/data/playlist_channels.dart';
 import '../../sources/domain/video_source.dart';
 import '../domain/radio_subscription.dart';
 
@@ -18,10 +19,11 @@ final class RadioSnapshot {
     final parsed = parseLivePlaylist(text, base, 'radio:${subscription.id}');
     if (parsed.isEmpty) throw const FormatException('广播列表为空');
     return [
-      for (final entry in parsed)
+      for (final entry in preparePlaylistChannels(parsed, const [], const {}))
         LiveChannel(
           id: stableId(
-            'radio|${subscription.id}|${channelIdentity(entry.name)}',
+            'radio|${subscription.id}|${channelIdentity(entry.name)}'
+            '${entry.headers.isEmpty ? '' : '|${channelHeaderKey(entry.headers)}'}',
           ),
           listId: subscription.id,
           listName: subscription.name,
@@ -29,6 +31,8 @@ final class RadioSnapshot {
           urls: entry.urls,
           group: entry.group,
           headers: entry.headers,
+          headerOrigin: base,
+          metadata: entry.metadata,
           logo: entry.logo,
           tvgId: entry.tvgId,
         ),

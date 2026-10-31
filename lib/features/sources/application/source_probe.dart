@@ -23,6 +23,7 @@ final class SourceProbe extends ChangeNotifier {
   final SourceConnectivity connectivity;
   final Duration apiTimeout;
   bool _applyPolicy = false;
+  RequestPriority _priority = RequestPriority.interactive;
   final SourceRepository repository;
   final DocumentClient network;
   CancellationToken? _token;
@@ -38,7 +39,8 @@ final class SourceProbe extends ChangeNotifier {
 
   Future<void> run(
     List<VideoSource> sources, {
-    int concurrency = 3,
+    int concurrency = 8,
+    RequestPriority priority = RequestPriority.interactive,
     bool preserveStatuses = false,
     bool applyPolicy = false,
   }) async {
@@ -47,6 +49,7 @@ final class SourceProbe extends ChangeNotifier {
     _token = token;
     running = true;
     _applyPolicy = applyPolicy;
+    _priority = priority;
     total = sources.length;
     results.clear();
     if (!preserveStatuses) statuses.clear();
@@ -61,7 +64,7 @@ final class SourceProbe extends ChangeNotifier {
     try {
       await Future.wait(
         List.generate(
-          sources.length.clamp(0, concurrency.clamp(1, 6)),
+          sources.length.clamp(0, concurrency.clamp(1, 16)),
           (_) => worker(),
         ),
       );
@@ -133,7 +136,7 @@ final class SourceProbe extends ChangeNotifier {
         source,
         network,
         cancellation: token,
-        priority: RequestPriority.background,
+        priority: _priority,
         onActivity: (active) => active ? clock.start() : clock.stop(),
       ).browse();
       clock.stop();

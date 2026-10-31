@@ -5,12 +5,14 @@ import '../../../core/network/document_client.dart';
 import '../../../core/persistence/app_database.dart';
 import '../../live/domain/live_channel.dart';
 import '../../live/domain/channel_merge.dart';
+import '../../live/domain/live_health.dart';
 import '../domain/radio_subscription.dart';
 import '../domain/radio_category.dart';
 import 'radio_snapshot.dart';
 import 'radio_snapshot_store.dart';
 import 'radio_subscription_store.dart';
 import '../../supervision/application/content_policy.dart';
+import '../../live/application/channel_preflight.dart';
 
 export '../domain/radio_subscription.dart';
 
@@ -35,12 +37,14 @@ final class RadioRepository {
     Directory? snapshotDirectory,
     this.policy,
     this.authorize,
+    this.preflight,
   }) : source = source ?? Uri.parse(builtinRadioUrl),
        snapshots = RadioSnapshotStore(db, directory: snapshotDirectory);
   final AppDatabase db;
   final DocumentClient network;
   final ContentPolicy? policy;
   final void Function()? authorize;
+  final ChannelPreflight? preflight;
   final Uri source;
   final RadioSnapshotStore snapshots;
   late final _configuration = RadioSubscriptionStore(db, source);
@@ -118,7 +122,13 @@ final class RadioRepository {
         base: document.uri,
         updatedAt: DateTime.now(),
       );
-      snapshot.stations(subscription);
+      await preflight?.refresh(
+        snapshot
+            .stations(subscription)
+            .where((c) => policy?.channelAllowed(c, radio: true) ?? true)
+            .toList(),
+        token,
+      );
       token.check();
       await snapshots.save(
         subscription,
@@ -198,6 +208,7 @@ final class RadioRepository {
   }) => _track(() => _loadOne(subscription, true, cancellation));
 
   Future<List<LiveChannel>> withFavorites(List<LiveChannel> stations) async {
+    await preflight?.prepare(stations.expand((c) => c.entries).toList());
     final rows = await db.rows(
       "SELECT key FROM app_meta WHERE key GLOB 'radio_favorite:*' AND value='true'",
     );
@@ -211,10 +222,20 @@ final class RadioRepository {
         for (final entry in station.entries)
           entry.withFavorite(ids.contains(entry.id)),
     ];
+    final states = {
+      for (final row in await db.rows(
+        "SELECT key,value FROM app_meta WHERE key GLOB 'live_state:*'",
+      ))
+        (row['key'] as String).substring('live_state:'.length): row['value'],
+    };
+    final healthy = [
+      for (final entry in entries)
+        entry.withHealth(LiveHealth.decode(states[entry.id], entry.urls)),
+    ];
     return [
       for (final category in RadioCategory.values)
         ...mergeChannelAliases(
-          entries.where((s) => radioCategory(s) == category).toList(),
+          healthy.where((s) => radioCategory(s) == category).toList(),
         ),
     ]..sort(compareRadioStations);
   }

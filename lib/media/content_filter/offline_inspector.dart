@@ -1,3 +1,4 @@
+import 'keyword_policy.dart';
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
@@ -296,6 +297,10 @@ FilterDecision _inspectRequest(
   if (keywords != null && audio != null) {
     final hit = keywords.inspect(audio, startMs: start.inMilliseconds);
     if (hit != null &&
+        const KeywordPolicy().evaluate([
+              ContentEvidence(text: hit.word, source: EvidenceSource.speech),
+            ]).verdict ==
+            FilterVerdict.block &&
         hit.offset.inMilliseconds < (request['durationMs'] as int)) {
       return FilterDecision(
         FilterVerdict.block,

@@ -1,3 +1,4 @@
+import '../../../core/network/header_policy.dart';
 import '../domain/catalog_item.dart';
 import '../domain/vod_provider.dart';
 import 'mac_cms_html_parser.dart';
@@ -61,9 +62,13 @@ final class MacCmsHtmlProvider implements VodProvider {
       throw const FormatException('不是支持的播放页');
     }
     final doc = await transport.get(episode.uri);
+    final media = parseMacCmsPlayer(doc.text, doc.uri);
     return ResolvedMedia(
-      parseMacCmsPlayer(doc.text, doc.uri),
-      headers: {'Referer': episode.uri.toString(), 'User-Agent': 'Mozilla/5.0'},
+      media,
+      headers: {
+        ...HeaderPolicy.publicReferer(episode.uri, media),
+        'User-Agent': 'Mozilla/5.0',
+      },
     );
   }
 }

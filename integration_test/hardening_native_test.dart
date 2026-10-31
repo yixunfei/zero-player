@@ -8,6 +8,7 @@ import 'package:zero_player/media/cache/segment_store.dart';
 import 'package:zero_player/media/engine/media_kit_engine.dart';
 import 'package:zero_player/media/gateway/media_gateway.dart';
 import '../test_support/http_test_server.dart';
+import '../test_support/fixture_project.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -16,10 +17,7 @@ void main() {
     tester,
   ) async {
     final root = await Directory.systemTemp.createTemp('zero-native-security-');
-    const project = String.fromEnvironment(
-      'PROJECT_ROOT',
-      defaultValue: 'L:/zero-player',
-    );
+    final project = fixtureProjectRoot();
     final fixture = await HttpTestServer.start(
       (request) => serveLocalFile(
         request,
@@ -52,6 +50,7 @@ void main() {
         engine.open(Uri.parse('javascript:alert(1)')),
         throwsFormatException,
       );
+      await _checkUnregisteredInput(fixture);
       final started = Stopwatch()..start();
       await engine.open(fixture.baseUri.resolve('radio.wav'));
       final native = engine.player.platform as NativePlayer;
@@ -96,6 +95,20 @@ void main() {
       await root.delete(recursive: true);
     }
   });
+}
+
+Future<void> _checkUnregisteredInput(HttpTestServer fixture) async {
+  final engine = MediaKitEngine(videoOutput: false);
+  final before = fixture.calls.values.fold(0, (sum, count) => sum + count);
+  try {
+    await expectLater(
+      engine.open(fixture.baseUri.resolve('radio.wav')),
+      throwsFormatException,
+    );
+    expect(fixture.calls.values.fold(0, (sum, count) => sum + count), before);
+  } finally {
+    await engine.dispose();
+  }
 }
 
 Future<void> _checkReferenceReset(MediaKitEngine engine, Uri base) async {

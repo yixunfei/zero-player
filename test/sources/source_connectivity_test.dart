@@ -7,6 +7,39 @@ import 'package:zero_player/features/sources/application/source_connectivity.dar
 import '../../test_support/http_test_server.dart';
 
 void main() {
+  test(
+    'private and special hostnames are never sent to external DNS services',
+    () async {
+      final server = await HttpTestServer.start(
+        (request) => request.response.write('{}'),
+      );
+      final http = MediaHttpClient(allowPrivateNetworks: true);
+      addTearDown(http.close);
+      addTearDown(server.close);
+      final connectivity = NetworkSourceConnectivity(
+        DocumentClient(http),
+        lookup: (_) async => [],
+        resolvers: [server.baseUri.toString()],
+      );
+      for (final host in [
+        'nas.local',
+        'nas.lan',
+        'nas.home.arpa',
+        'nas.internal',
+        'nas.intranet',
+        'nas.home',
+        'NAS.LOCAL.',
+        'home.arpa',
+        'localhost',
+      ]) {
+        await connectivity.inspect(
+          Uri.parse('https://$host/api'),
+          CancellationToken(),
+        );
+      }
+      expect(server.calls, isEmpty);
+    },
+  );
   test('only two matching NXDOMAIN answers confirm a missing domain', () async {
     var secondStatus = 0;
     var mismatch = false;

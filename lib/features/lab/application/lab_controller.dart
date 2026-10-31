@@ -22,6 +22,7 @@ final class LabController extends ChangeNotifier {
   }
 
   late final engine = MediaKitEngine(
+    isTrustedResource: (uri) => gateway?.isRegisteredResource(uri) == true,
     isTrustedPlaylist: (uri) => gateway?.isRegisteredPlaylist(uri) == true,
   );
   final bool allowPrivateNetworks;

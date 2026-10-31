@@ -16,6 +16,12 @@ class AndroidVersionTest(unittest.TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 check_badging(text, '0.0.7', 7)
 
+    def test_device_test_identity_requires_explicit_selection(self):
+        text = "package: name='dev.zeroplayer.zero_player.devtest' versionCode='8' versionName='0.0.8'"
+        with self.assertRaises(ValueError):
+            check_badging(text, '0.0.8', 8)
+        check_badging(text, '0.0.8', 8, 'dev.zeroplayer.zero_player.devtest')
+
 
 if __name__ == '__main__':
     unittest.main()

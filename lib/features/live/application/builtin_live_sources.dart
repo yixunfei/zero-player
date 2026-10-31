@@ -67,6 +67,33 @@ final class BuiltinLiveSources {
         );
       }
     });
+    await _seedSnapshots();
+  }
+
+  Future<void> _seedSnapshots() async {
+    final text = await rootBundle.loadString(
+      'assets/catalogs/live/builtin.snapshots.json',
+    );
+    final snapshots = (jsonDecode(text) as Map)['lists'] as List;
+    final lists = {for (final row in await repository.lists()) row['url']: row};
+    for (final snapshot in snapshots.cast<Map>()) {
+      final row = lists[snapshot['url']];
+      if (row == null || row['snapshot'] != null) continue;
+      await repository.importText(
+        snapshot['name'] as String,
+        Uri.parse(snapshot['url'] as String),
+        snapshot['text'] as String,
+        base: Uri.parse(snapshot['base'] as String),
+        headers: await headersFor(Uri.parse(snapshot['url'] as String)),
+        existingOnly: true,
+        verify: false,
+        cancellation: _token,
+      );
+      await repository.db.write(
+        'UPDATE live_lists SET updated_at=? WHERE id=?',
+        [snapshot['updatedAt'], row['id']],
+      );
+    }
   }
 
   Future<Map<String, String>> headersFor(Uri uri) async {
@@ -90,7 +117,11 @@ final class BuiltinLiveSources {
           (e) =>
               rows.containsKey(e['url']) &&
               rows[e['url']]!['enabled'] == 1 &&
-              (!onlyMissing || rows[e['url']]!['snapshot'] == null),
+              (!onlyMissing ||
+                  rows[e['url']]!['snapshot'] == null ||
+                  DateTime.now().millisecondsSinceEpoch -
+                          (rows[e['url']]!['updated_at'] as int? ?? 0) >
+                      const Duration(hours: 24).inMilliseconds),
         )
         .toList();
     var cursor = 0;

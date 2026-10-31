@@ -67,7 +67,7 @@ final class NetworkSourceConnectivity implements SourceConnectivity {
       Socket? socket;
       final clock = Stopwatch()..start();
       try {
-        network.http.targetPolicy.validateAddress(address);
+        network.http.targetPolicy.validateAddress(address, uri: uri);
         socket = await Socket.connect(
           address,
           uri.port,
@@ -91,16 +91,23 @@ final class NetworkSourceConnectivity implements SourceConnectivity {
     );
   }
 
-  bool _publicHostname(String host) =>
-      InternetAddress.tryParse(host) == null &&
-      host.contains('.') &&
-      ![
-        '.local',
-        '.localhost',
-        '.test',
-        '.invalid',
-        '.example',
-      ].any(host.endsWith);
+  bool _publicHostname(String host) {
+    final name = host.toLowerCase().replaceFirst(RegExp(r'\.$'), '');
+    return InternetAddress.tryParse(name) == null &&
+        name.contains('.') &&
+        ![
+          '.local',
+          '.localhost',
+          '.lan',
+          '.home',
+          '.home.arpa',
+          '.internal',
+          '.intranet',
+          '.test',
+          '.invalid',
+          '.example',
+        ].any((suffix) => name == suffix.substring(1) || name.endsWith(suffix));
+  }
 
   Future<bool> _missingAt(
     String resolver,

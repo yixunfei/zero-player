@@ -1,10 +1,15 @@
 import 'dart:io';
+import 'lan_access_policy.dart';
 
-/// External source data cannot reach local services, credentials or file URLs.
-/// Tests must explicitly opt in to private fixture servers.
+/// Block non-HTTP resources and private targets unless a LAN origin is granted.
+/// The blanket private-network bypass is only for explicit test fixtures.
 final class NetworkTargetPolicy {
-  const NetworkTargetPolicy({this.allowPrivateNetworks = false});
+  const NetworkTargetPolicy({
+    this.allowPrivateNetworks = false,
+    this.allowLanOrigin,
+  });
   final bool allowPrivateNetworks;
+  final bool Function(Uri)? allowLanOrigin;
 
   static void validateUri(Uri uri) {
     if (!{'http', 'https'}.contains(uri.scheme) ||
@@ -18,10 +23,26 @@ final class NetworkTargetPolicy {
     }
   }
 
-  void validateAddress(InternetAddress address) {
-    if (!allowPrivateNetworks && isPrivate(address)) {
+  void validateAddress(InternetAddress address, {Uri? uri}) {
+    final approved =
+        uri != null &&
+        isLanAddress(address) &&
+        InternetAddress.tryParse(uri.host)?.address == address.address &&
+        allowLanOrigin?.call(uri) == true;
+    if (!allowPrivateNetworks && !approved && isPrivate(address)) {
       throw const FormatException('已拦截来源对本机或私有网络的访问');
     }
+  }
+
+  void validateAccess(Uri uri, {required bool originalOrigin}) {
+    validateUri(uri);
+    if (allowPrivateNetworks) return;
+    final address = InternetAddress.tryParse(uri.host);
+    if (address == null || !isPrivate(address)) return;
+    if (!originalOrigin) {
+      throw const FormatException('渠道重定向或跨站资源不能获得局域网权限');
+    }
+    validateAddress(address, uri: uri);
   }
 
   static bool isPrivate(InternetAddress address) {
@@ -66,7 +87,7 @@ final class NetworkTargetPolicy {
       throw const SocketException('DNS returned no address');
     }
     for (final address in addresses) {
-      validateAddress(address);
+      validateAddress(address, uri: uri);
     }
     // Connect to the checked address, never resolve the host a second time.
     final address =

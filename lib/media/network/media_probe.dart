@@ -113,6 +113,17 @@ Future<ProbeResult> _probe(
     bytes += sample.content.length;
     if (!sample.manifest) {
       if (sample.content.isEmpty) throw const FormatException('媒体响应为空');
+      if (!_mediaSignature(sample.content)) {
+        final prefix = utf8
+            .decode(sample.content.take(128).toList(), allowMalformed: true)
+            .trimLeft();
+        if (prefix.startsWith('<') ||
+            prefix.startsWith('{') ||
+            prefix.startsWith('[')) {
+          throw const FormatException('地址返回了网页或错误信息');
+        }
+        throw const ProbeInconclusive('收到数据但无法确认媒体格式，仍可尝试播放');
+      }
       return ProbeResult(
         sample.firstByte,
         bytes,
@@ -130,7 +141,7 @@ Future<ProbeResult> _probe(
       resolution = variant.resolution ?? resolution;
       if (variant.languages.isNotEmpty) languages = variant.languages;
     } else {
-      final media = parsed.lines.firstWhere(
+      final media = parsed.lines.lastWhere(
         (l) => l.isNotEmpty && !l.startsWith('#'),
         orElse: () => '',
       );
@@ -139,6 +150,27 @@ Future<ProbeResult> _probe(
     }
   }
   throw const ProbeInconclusive('清单层级超过探测限制');
+}
+
+bool _mediaSignature(List<int> bytes) {
+  final head = latin1.decode(bytes.take(16).toList());
+  if (head.startsWith('FLV') ||
+      head.startsWith('ID3') ||
+      head.startsWith('OggS') ||
+      head.startsWith('fLaC') ||
+      head.startsWith('RIFF') ||
+      head.contains('ftyp') ||
+      head.contains('styp') ||
+      head.contains('moof') ||
+      head.contains('mdat')) {
+    return true;
+  }
+  if (bytes.length >= 188 && bytes[0] == 0x47) return true;
+  // MPEG audio / ADTS sync; accept an audio frame after an ICY prefix too.
+  for (var i = 0; i + 1 < bytes.length && i < 4096; i++) {
+    if (bytes[i] == 0xff && (bytes[i + 1] & 0xe0) == 0xe0) return true;
+  }
+  return false;
 }
 
 Future<({List<int> content, bool manifest, Duration firstByte})> _readSample(
@@ -168,7 +200,10 @@ Future<({List<int> content, bool manifest, Duration firstByte})> _readSample(
         throw const FormatException('地址返回了网页或错误信息');
       }
     }
-    if (content.length >= remaining || (quick && manifest == false)) break;
+    if (content.length >= remaining ||
+        (quick && manifest == false && content.length >= 188)) {
+      break;
+    }
   }
   manifest ??= utf8
       .decode(content, allowMalformed: true)

@@ -215,6 +215,11 @@ final class LiveBrowser extends StatelessWidget {
           ),
         ),
         IconButton(
+          tooltip: '查看节目单',
+          onPressed: () => onEpg(channel),
+          icon: const Icon(Icons.event_note),
+        ),
+        IconButton(
           tooltip: '频道详情',
           onPressed: () => _info(context, channel),
           icon: const Icon(Icons.info_outline),

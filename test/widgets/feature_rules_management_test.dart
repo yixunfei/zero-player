@@ -121,6 +121,7 @@ void _passwordSessionTest(_Fixture Function() fixture) {
       expect(find.text('内容特征管理'), findsNothing);
       await tester.enterText(find.byType(TextField), 'management-password');
       await _tap(tester, find.text('验证并继续'));
+      await _waitForManagement(tester);
       expect(find.text('内容特征管理'), findsOneWidget);
       await _tap(tester, find.text('预览 / 编辑'));
       await tester.enterText(find.widgetWithText(TextField, '测试特征'), '已修改名称');
@@ -138,6 +139,18 @@ void _passwordSessionTest(_Fixture Function() fixture) {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+}
+
+// Password verification runs in a real isolate; fixed sleeps race under load.
+Future<void> _waitForManagement(WidgetTester tester) async {
+  final watch = Stopwatch()..start();
+  while (find.text('内容特征管理').evaluate().isEmpty &&
+      watch.elapsed < const Duration(seconds: 5)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pumpAndSettle();
+  }
 }
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {

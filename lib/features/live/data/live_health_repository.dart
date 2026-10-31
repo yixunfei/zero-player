@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../core/persistence/app_database.dart';
 import '../domain/live_channel.dart';
 import '../domain/live_health.dart';
+import '../domain/channel_probe_signature.dart';
 
 /// Personal enable choices and probe results survive playlist refreshes.
 final class LiveHealthRepository {
@@ -13,7 +14,12 @@ final class LiveHealthRepository {
       db.atomic(() async {
         if (enabled) authorize?.call();
         for (final id in ids.toSet()) {
-          await _patch(id, {'enabled': enabled, if (enabled) 'removed': false});
+          await _patch(id, {
+            'enabled': enabled,
+            'userDisabled': !enabled,
+            'autoDisabled': false,
+            if (enabled) 'removed': false,
+          });
         }
       }, tables: const {'app_meta'});
   Future<void> setRemoved(Iterable<String> ids, bool removed) =>
@@ -38,9 +44,21 @@ final class LiveHealthRepository {
       'resolution': result.resolution,
       'languages': result.languages,
       'signature': channel.urls.join('|'),
+      'requestSignature': channelProbeSignature(channel),
+      'pendingValidation': false,
+      'verifiedUrls': result.preferredUrl == null
+          ? <String>[]
+          : [result.preferredUrl!],
+      if (enableResponding &&
+          result.availability == LiveAvailability.responding &&
+          (canEnable?.call() ?? true))
+        'userDisabled': false,
       if (disableUnavailable &&
           result.availability == LiveAvailability.unavailable)
         'enabled': false,
+      if (disableUnavailable &&
+          result.availability == LiveAvailability.unavailable)
+        'autoDisabled': true,
       if (enableResponding &&
           (canEnable?.call() ?? true) &&
           result.availability == LiveAvailability.responding)
@@ -60,6 +78,22 @@ final class LiveHealthRepository {
       /* Discard malformed optional state. */
     }
     // An overlapping probe must never resurrect a removed entry.
+    if (changes['enabled'] == true &&
+        changes['removed'] == false &&
+        old['preflight'] == true &&
+        (old['availability'] != 'responding' ||
+            old['pendingValidation'] == true)) {
+      throw const FormatException('频道需要媒体复检通过后才能恢复');
+    }
+    if (changes.containsKey('availability') && old['preflight'] == true) {
+      final passed = changes['availability'] == 'responding';
+      changes['autoDisabled'] = !passed;
+      changes['enabled'] =
+          passed &&
+          (changes['userDisabled'] ?? old['userDisabled']) != true &&
+          old['removed'] != true &&
+          (canEnable?.call() ?? true);
+    }
     if (old['removed'] == true &&
         changes['enabled'] == true &&
         changes['removed'] != false) {

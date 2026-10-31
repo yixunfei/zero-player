@@ -7,6 +7,35 @@ import '../../test_support/http_test_server.dart';
 
 void main() {
   test(
+    'diagnostics hide arbitrary query values, URL paths and custom headers',
+    () {
+      final uri = Uri.parse(
+        'https://user:secret@media.test/live/account/private/123?auth=secret&jwt=private&x=unknown#fragment',
+      );
+      final safe = safeDiagnosticUrl(uri);
+      for (final secret in [
+        'account',
+        'private',
+        'secret',
+        'unknown',
+        'fragment',
+      ]) {
+        expect(safe, isNot(contains(secret)));
+      }
+      final headers = safeDiagnosticHeaders({
+        'X-Account': 'sensitive',
+        'X-Device-Id': 'unique',
+        'Referer': uri.toString(),
+        'Location': '/private?x=secret',
+        'Content-Type': 'video/mp4',
+      });
+      expect(headers['X-Account'], '[已隐藏]');
+      expect(headers['X-Device-Id'], '[已隐藏]');
+      expect(headers['Content-Type'], 'video/mp4');
+      expect(jsonEncode(headers), isNot(contains('secret')));
+    },
+  );
+  test(
     'trace records real redirects and hides authorization, cookies and URL tokens',
     () async {
       final server = await HttpTestServer.start((request) {

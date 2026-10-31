@@ -32,9 +32,64 @@ final class HeaderPolicy {
     };
   }
 
-  static String origin(Uri uri) => '${uri.scheme}://${uri.host}:${uri.port}';
+  static String origin(Uri uri) {
+    final host = uri.host.contains(':') ? '[${uri.host}]' : uri.host;
+    return '${uri.scheme}://$host:${uri.port}';
+  }
 
   Map<String, String> forUri(Uri uri) => _origins[origin(uri)] ?? const {};
+
+  bool containsOrigin(Uri uri) => _origins.containsKey(origin(uri));
+
+  /// Resolved media hosts must not receive source account paths or URL tokens.
+  static Map<String, String> publicReferer(Uri page, Uri target) {
+    if (page.scheme == 'https' && target.scheme != 'https') return const {};
+    return {
+      'Referer': Uri(
+        scheme: page.scheme,
+        host: page.host,
+        port: page.hasPort ? page.port : null,
+        path: origin(page) == origin(target) ? page.path : '/',
+      ).toString(),
+    };
+  }
+
+  /// A list's credentials authorize its own origin, not URLs in its payload.
+  static Map<String, String> playlistHeaders(
+    Uri? listOrigin,
+    Uri target,
+    Map<String, String> headers,
+  ) {
+    if (listOrigin == null || origin(listOrigin) == origin(target)) {
+      return sanitize(headers);
+    }
+    final result = <String, String>{};
+    for (final entry in sanitize(headers).entries) {
+      if (entry.key.toLowerCase() == 'user-agent') {
+        result[entry.key] = entry.value;
+      } else if (entry.key.toLowerCase() == 'origin') {
+        final page = Uri.tryParse(entry.value);
+        if (page != null &&
+            {'http', 'https'}.contains(page.scheme) &&
+            page.host.isNotEmpty &&
+            page.userInfo.isEmpty) {
+          result['Origin'] = Uri(
+            scheme: page.scheme,
+            host: page.host,
+            port: page.hasPort ? page.port : null,
+          ).toString().replaceFirst(RegExp(r'/$'), '');
+        }
+      } else if (entry.key.toLowerCase() == 'referer') {
+        final page = Uri.tryParse(entry.value);
+        if (page != null &&
+            {'http', 'https'}.contains(page.scheme) &&
+            page.host.isNotEmpty) {
+          result.addAll(publicReferer(page, target));
+        }
+      }
+    }
+    return result;
+  }
 
   /// An endpoint's credentials never authorize an arbitrary resolved media host.
   static Map<String, String> scopedHeaders(

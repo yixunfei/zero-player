@@ -7,6 +7,8 @@ plugins {
 }
 
 val releaseKeys = Properties()
+// Uppercase survives Windows environment normalization through Flutter/Dart.
+val deviceTestBuild = providers.gradleProperty("ZERO_PLAYER_DEVICE_TEST").orNull == "true"
 val releaseKeyFile = rootProject.file("key.properties")
 if (releaseKeyFile.exists()) {
     releaseKeyFile.inputStream().use { releaseKeys.load(it) }
@@ -32,6 +34,8 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "dev.zeroplayer.zero_player"
+        if (deviceTestBuild) applicationIdSuffix = ".devtest"
+        manifestPlaceholders["appLabel"] = if (deviceTestBuild) "Zero Player 测试" else "Zero Player"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
@@ -67,7 +71,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = if (deviceTestBuild) signingConfigs.getByName("debug") else signingConfigs.findByName("release")
         }
     }
 }
@@ -76,7 +80,7 @@ android {
 tasks.configureEach {
     if (name == "validateSigningRelease" || name == "packageRelease" || name == "packageReleaseBundle") {
         doFirst {
-            check(releaseKeyFile.exists()) {
+            check(deviceTestBuild || releaseKeyFile.exists()) {
                 "Release signing is missing. See docs/implementation/BUILD.md."
             }
         }

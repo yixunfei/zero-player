@@ -1,5 +1,21 @@
 import 'live_channel.dart';
 import 'channel_identity.dart';
+import 'live_health.dart';
+
+/// Keep measured streams ahead of untested and failed entries.
+int channelHealthRank(LiveChannel channel) {
+  if (channel.health.removed ||
+      !channel.health.enabled ||
+      channel.urls.isEmpty) {
+    return 5;
+  }
+  return switch (channel.health.availability) {
+    LiveAvailability.responding => 0,
+    LiveAvailability.unknown => 1,
+    LiveAvailability.inconclusive => 2,
+    LiveAvailability.unavailable => 3,
+  };
+}
 
 int? cctvNumber(String name) => int.tryParse(
   RegExp(
@@ -18,6 +34,8 @@ String channelGroup(LiveChannel channel) {
 }
 
 int compareChannels(LiveChannel a, LiveChannel b) {
+  final health = channelHealthRank(a).compareTo(channelHealthRank(b));
+  if (health != 0) return health;
   int rank(LiveChannel c) => switch (channelGroup(c)) {
     '央视' => 0,
     '卫视' => 1,

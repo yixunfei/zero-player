@@ -231,6 +231,9 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
               ),
             FilterPlaybackOverlay(controller: widget.controller),
             if (widget.controller.error != null) _errorPanel(),
+            if (widget.controller.error == null &&
+                widget.controller.routeWarning != null)
+              _routeWarningPanel(),
             if (hint != null)
               Center(
                 child: DecoratedBox(
@@ -268,6 +271,33 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
                 ),
               ),
           ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _routeWarningPanel() => Positioned(
+    top: 56,
+    left: 16,
+    right: 16,
+    child: SafeArea(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.controller.routeWarning!),
+              if (!widget.locked && widget.errorAction != null)
+                widget.errorAction!,
+              TextButton(
+                onPressed: widget.locked
+                    ? null
+                    : widget.controller.dismissRouteWarning,
+                child: const Text('继续当前播放'),
+              ),
+            ],
+          ),
         ),
       ),
     ),

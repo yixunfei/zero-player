@@ -53,13 +53,13 @@ final class RadioPlayerControls extends StatelessWidget {
                           ),
                     icon: const Icon(Icons.refresh),
                   ),
-                  if (station != null && station.urls.length > 1)
+                  if (station != null && station.playbackUrls.length > 1)
                     PopupMenuButton<int>(
                       tooltip: '切换广播线路',
                       onSelected: (value) =>
                           controller.select(station, lineIndex: value),
                       itemBuilder: (_) => [
-                        for (var i = 0; i < station.urls.length; i++)
+                        for (var i = 0; i < station.playbackUrls.length; i++)
                           CheckedPopupMenuItem(
                             value: i,
                             checked: i == controller.line,

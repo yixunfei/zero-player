@@ -19,27 +19,44 @@ final class HttpPayload {
 final class MediaHttpClient {
   MediaHttpClient({
     this.timeout = const Duration(seconds: 15),
+    this.maxConnectionsPerHost = 4,
     RequestScheduler? scheduler,
     bool allowPrivateNetworks = false,
+    bool Function(Uri)? allowLanOrigin,
   }) : _scheduler =
            scheduler ?? RequestScheduler(globalLimit: 20, playbackReserve: 2),
        _ownsScheduler = scheduler == null,
        targetPolicy = NetworkTargetPolicy(
          allowPrivateNetworks: allowPrivateNetworks,
+         allowLanOrigin: allowLanOrigin,
        ) {
+    _configureClient();
+  }
+
+  void _configureClient() {
     _client.connectionTimeout = timeout;
     _client.connectionFactory = targetPolicy.connect;
     _client.findProxy = (_) => 'DIRECT';
     _client.autoUncompress = false;
-    _client.maxConnectionsPerHost = 4;
+    _client.maxConnectionsPerHost = maxConnectionsPerHost;
     _client.idleTimeout = const Duration(seconds: 20);
     _client.userAgent = 'ZeroPlayer/0.1';
   }
+
   final Duration timeout;
+  final int maxConnectionsPerHost;
   final NetworkTargetPolicy targetPolicy;
   final RequestScheduler _scheduler;
   final bool _ownsScheduler;
-  final HttpClient _client = HttpClient();
+  HttpClient _client = HttpClient();
+  bool _closed = false;
+
+  void resetConnections() {
+    if (_closed) return;
+    _client.close(force: true);
+    _client = HttpClient();
+    _configureClient();
+  }
 
   Future<HttpPayload> open(
     Uri uri, {
@@ -53,7 +70,12 @@ final class MediaHttpClient {
     final initialOrigin = HeaderPolicy.origin(uri);
     for (var redirects = 0; redirects <= 5; redirects++) {
       cancellation?.check();
-      NetworkTargetPolicy.validateUri(uri);
+      targetPolicy.validateAccess(
+        uri,
+        originalOrigin:
+            HeaderPolicy.origin(uri) == initialOrigin &&
+            policy.containsOrigin(uri),
+      );
       onActivity?.call(false);
       final permit = await _scheduler.acquire(
         uri,
@@ -223,6 +245,7 @@ final class MediaHttpClient {
   }
 
   void close() {
+    _closed = true;
     _client.close(force: true);
     if (_ownsScheduler) _scheduler.close();
   }

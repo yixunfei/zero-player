@@ -107,6 +107,29 @@ final class _LiveSubscriptionsDialogState
               spacing: 8,
               children: [
                 TextButton.icon(
+                  onPressed: () => perform(context, () async {
+                    final values = await inputDialog(
+                      context,
+                      '设置 XMLTV / XMLTV.GZ（留空移除）',
+                      ['节目表 URL'],
+                    );
+                    if (values == null || !mounted) return;
+                    await runSensitive(
+                      context,
+                      widget.services.supervision,
+                      SensitiveOperation.channels,
+                      () => widget.services.live.setGuide(
+                        id,
+                        values.single.trim().isEmpty
+                            ? null
+                            : Uri.parse(values.single.trim()),
+                      ),
+                    );
+                  }),
+                  icon: const Icon(Icons.event_note),
+                  label: const Text('设置节目表'),
+                ),
+                TextButton.icon(
                   onPressed: _refreshing.contains(id)
                       ? null
                       : () => _refresh(row),
@@ -147,7 +170,7 @@ final class _LiveSubscriptionsDialogState
           cancellation: _token,
           existingOnly: true,
           headers: await widget.services.builtinLive.headersFor(uri),
-          epg: row['epg_url'] == null
+          epg: row['epg_url'] == null || row['epg_url'] == ''
               ? null
               : Uri.parse(row['epg_url'] as String),
         );

@@ -2,6 +2,15 @@ import 'dart:isolate';
 import 'package:xml/xml_events.dart';
 import '../domain/live_channel.dart';
 
+Future<({List<EpgProgram> programs, Map<String, List<String>> names})>
+parseEpgGuideInBackground(String input, DateTime now) => Isolate.run(
+  () => _readGuide(
+    input,
+    now.subtract(const Duration(days: 1)),
+    now.add(const Duration(days: 7)),
+  ),
+);
+
 Future<List<EpgProgram>> parseEpgInBackground(String input, DateTime now) =>
     Isolate.run(
       () => parseEpg(
@@ -12,6 +21,14 @@ Future<List<EpgProgram>> parseEpgInBackground(String input, DateTime now) =>
     );
 
 List<EpgProgram> parseEpg(String input, {DateTime? from, DateTime? until}) {
+  return _readGuide(input, from, until).programs;
+}
+
+({List<EpgProgram> programs, Map<String, List<String>> names}) _readGuide(
+  String input,
+  DateTime? from,
+  DateTime? until,
+) {
   if (input.contains('<!DOCTYPE') || input.contains('<!ENTITY')) {
     throw const FormatException('EPG 不允许文档类型与外部实体');
   }
@@ -23,7 +40,7 @@ List<EpgProgram> parseEpg(String input, {DateTime? from, DateTime? until}) {
   )) {
     reader.add(event);
   }
-  return reader.programs;
+  return (programs: reader.programs, names: reader.names);
 }
 
 final class _EpgReader {
@@ -37,10 +54,28 @@ final class _EpgReader {
   int? _titleDepth;
   Map<String, String>? _attributes;
   StringBuffer? _title;
+  final names = <String, List<String>>{};
+  String? _channelId;
+  int? _channelDepth, _displayDepth;
+  StringBuffer? _display;
 
   void add(XmlEvent event) {
     if (event is XmlStartElementEvent) {
       _depth++;
+      if (event.name == 'channel' &&
+          _channelDepth == null &&
+          _programmeDepth == null) {
+        if (names.length >= 10000) throw const FormatException('EPG 频道数量超过限制');
+        _channelId = event.attributes
+            .where((a) => a.name == 'id')
+            .firstOrNull
+            ?.value;
+        _channelDepth = _depth;
+      } else if (event.name == 'display-name' &&
+          _depth == (_channelDepth ?? -2) + 1) {
+        _displayDepth = _depth;
+        _display = StringBuffer();
+      }
       if (event.name == 'programme' && _programmeDepth == null) {
         if (++_count > 100000) throw const FormatException('EPG 节目数量超过限制');
         _programmeDepth = _depth;
@@ -57,6 +92,9 @@ final class _EpgReader {
       if (event.isSelfClosing) _end();
     } else if (event is XmlEndElementEvent) {
       _end();
+    } else if (_displayDepth != null) {
+      if (event is XmlTextEvent) _display!.write(event.value);
+      if (event is XmlCDATAEvent) _display!.write(event.value);
     } else if (_titleDepth != null) {
       if (event is XmlTextEvent) _title!.write(event.value);
       if (event is XmlCDATAEvent) _title!.write(event.value);
@@ -64,6 +102,19 @@ final class _EpgReader {
   }
 
   void _end() {
+    if (_depth == _displayDepth) {
+      if (_channelId != null && _display!.isNotEmpty) {
+        names
+            .putIfAbsent(_channelId!, () => [])
+            .add(_display.toString().trim());
+      }
+      _displayDepth = null;
+      _display = null;
+    }
+    if (_depth == _channelDepth) {
+      _channelDepth = null;
+      _channelId = null;
+    }
     if (_depth == _titleDepth) _titleDepth = null;
     if (_depth == _programmeDepth) {
       _complete();

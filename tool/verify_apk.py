@@ -15,13 +15,14 @@ def main():
     parser.add_argument('--version', help='Expected embedded release version')
     parser.add_argument('--build-number', type=int, help='Expected Android versionCode')
     parser.add_argument('--aapt', help='Android SDK aapt executable')
+    parser.add_argument('--application-id', default='dev.zeroplayer.zero_player')
     args = parser.parse_args()
     if (args.version is None) != (args.build_number is None):
         parser.error('--version and --build-number must be supplied together')
     if args.version is not None:
         if args.file.endswith('.aab'):
             parser.error('Embedded version verification requires an APK')
-        verify_apk_version(args.file, args.version, args.build_number, args.aapt)
+        verify_apk_version(args.file, args.version, args.build_number, args.aapt, args.application_id)
     prefix = 'base/lib/' if args.file.endswith('.aab') else 'lib/'
     with ZipFile(args.file) as archive:
         payload_bytes = sum(entry.compress_size for entry in archive.infolist())

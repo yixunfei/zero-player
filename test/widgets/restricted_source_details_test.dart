@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
+import 'package:zero_player/core/network/request_trace.dart';
 import 'package:zero_player/features/sources/domain/video_source.dart';
 import 'package:zero_player/features/sources/presentation/source_card.dart';
 import 'package:zero_player/features/sources/presentation/source_details_dialog.dart';
@@ -70,7 +71,7 @@ void main() {
           home: SourceDetailsDialog(services: services, source: ordinary),
         ),
       );
-      expect(find.text('https://restricted.test/api'), findsOneWidget);
+      expect(find.text(safeDiagnosticUrl(ordinary.endpoint)), findsOneWidget);
       services.contentPolicy.rememberSource(
         VideoSource(
           id: ordinary.id,

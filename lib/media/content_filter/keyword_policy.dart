@@ -38,7 +38,9 @@ final class KeywordPolicy {
               : null) ??
           (prominent && address ? '推广网址' : null);
       if (matched == null) continue;
-      if (!item.confidence.isFinite || item.confidence < 0.72) {
+      if (!item.confidence.isFinite ||
+          item.confidence < 0.72 ||
+          item.confidence > 1) {
         uncertain = const FilterDecision(
           FilterVerdict.uncertain,
           reason: '发现疑似推广内容，识别置信度不足，已停止放行',
@@ -64,6 +66,13 @@ final class KeywordPolicy {
         .replaceAll('賭場', '赌场')
         .replaceAll('賭城', '赌城')
         .replaceAll('娛樂', '娱乐')
-        .replaceAll('現金', '现金');
+        .replaceAll('現金', '现金')
+        .replaceAll('百家樂', '百家乐')
+        .replaceAll('開戶', '开户')
+        .replaceAll('線上', '在线')
+        .replaceAll(
+          RegExp(r'(?<=[\u4e00-\u9fff])[·•._-]+(?=[\u4e00-\u9fff])'),
+          '',
+        );
   }
 }

@@ -1,5 +1,6 @@
 import 'live_health.dart';
 import 'live_metadata.dart';
+import '../../../core/network/header_policy.dart';
 
 final class LiveChannel {
   const LiveChannel({
@@ -11,6 +12,7 @@ final class LiveChannel {
     this.logo = '',
     this.tvgId = '',
     this.headers = const {},
+    this.headerOrigin,
     this.favorite = false,
     this.recent = false,
     this.health = const LiveHealth(),
@@ -27,6 +29,7 @@ final class LiveChannel {
   final String logo;
   final String tvgId;
   final Map<String, String> headers;
+  final Uri? headerOrigin;
   final bool favorite;
   final bool recent;
   final LiveHealth health;
@@ -53,9 +56,11 @@ final class LiveChannel {
   List<LiveChannel> get entries => members.isEmpty ? [this] : members;
   List<String> get preferenceIds => entries.map((c) => c.id).toList();
 
-  Map<String, String> headersFor(Uri uri) =>
-      entries.where((c) => c.urls.contains(uri)).firstOrNull?.headers ??
-      headers;
+  Map<String, String> headersFor(Uri uri) {
+    final entry = entries.where((c) => c.urls.contains(uri)).firstOrNull;
+    if (entry == null) return const {};
+    return HeaderPolicy.playlistHeaders(entry.headerOrigin, uri, entry.headers);
+  }
 
   LiveChannel withFavorite(bool value) => LiveChannel(
     id: id,
@@ -66,6 +71,7 @@ final class LiveChannel {
     logo: logo,
     tvgId: tvgId,
     headers: headers,
+    headerOrigin: headerOrigin,
     favorite: value,
     recent: recent,
     health: health,
@@ -75,12 +81,39 @@ final class LiveChannel {
     metadata: metadata,
   );
 
+  LiveChannel withHealth(LiveHealth value) => LiveChannel(
+    id: id,
+    listId: listId,
+    name: name,
+    urls: urls,
+    group: group,
+    logo: logo,
+    tvgId: tvgId,
+    headers: headers,
+    headerOrigin: headerOrigin,
+    favorite: favorite,
+    recent: recent,
+    health: value,
+    listName: listName,
+    watchedAt: watchedAt,
+    members: members,
+    metadata: metadata,
+  );
+
   /// A successful probe only reorders this channel's own alternatives.
   List<Uri> get playbackUrls {
     final preferred = health.preferredUrl;
+    final eligible =
+        health.verifiedOnly &&
+            health.availability == LiveAvailability.responding
+        ? urls.where(
+            (uri) =>
+                health.verifiedUrls.contains('$uri') || '$uri' == preferred,
+          )
+        : urls;
     return [
-      ...urls.where((u) => u.toString() == preferred),
-      ...urls.where((u) => u.toString() != preferred),
+      ...eligible.where((u) => u.toString() == preferred),
+      ...eligible.where((u) => u.toString() != preferred),
     ];
   }
 }

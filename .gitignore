@@ -49,12 +49,14 @@ migrate_working_dir/
 !/docs/implementation/
 /docs/implementation/*
 !/docs/implementation/BUILD.md
+!/docs/implementation/STATUS.md
 !/docs/implementation/USER-GUIDE.md
 !/docs/implementation/RELEASE-0.0.1.md
 !/docs/implementation/RELEASE-0.0.6.md
 !/docs/implementation/CHANNEL-RADIO-2026-10-28.md
 !/docs/implementation/SOURCE-CURATION-2026-10-28.md
 !/docs/implementation/HARDENING-2026-10-28.md
+!/docs/implementation/SOURCE-SECURITY-2026-10-29.md
 !/docs/implementation/LIVE-SEARCH-2026-10-28.md
 !/docs/implementation/SUPERVISION-2026-10-28.md
 !/docs/implementation/SUPERVISION-DISPLAY-FIX-2026-10-28.md

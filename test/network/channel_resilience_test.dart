@@ -68,7 +68,7 @@ void main() {
           request.response.headers.contentType = ContentType.html;
           request.response.write('<html>error</html>');
         } else if (request.uri.path == '/video') {
-          request.response.add(List.filled(512 * 1024, 1));
+          request.response.add(List.filled(512 * 1024, 0x47));
         }
       });
       final http = MediaHttpClient(allowPrivateNetworks: true);

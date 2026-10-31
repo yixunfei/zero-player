@@ -1,4 +1,5 @@
 import '../../live/domain/live_channel.dart';
+import '../../live/domain/channel_order.dart';
 
 enum RadioCategory {
   radio('广播电台'),
@@ -32,6 +33,8 @@ RadioCategory radioCategory(LiveChannel station) {
 }
 
 int compareRadioStations(LiveChannel a, LiveChannel b) {
+  final health = channelHealthRank(a).compareTo(channelHealthRank(b));
+  if (health != 0) return health;
   final category = radioCategory(a).index.compareTo(radioCategory(b).index);
   if (category != 0) return category;
   if (a.favorite != b.favorite) return a.favorite ? -1 : 1;

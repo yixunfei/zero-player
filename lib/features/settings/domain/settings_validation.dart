@@ -22,13 +22,10 @@ void validateSetting(String key, Object? value) {
   } else if ({
     'searchConcurrency',
     'probeConcurrency',
+    'lineProbeConcurrency',
     'downloadConcurrency',
   }.contains(key)) {
-    final max = key == 'searchConcurrency'
-        ? 16
-        : key == 'probeConcurrency'
-        ? 6
-        : 4;
+    final max = key == 'downloadConcurrency' ? 4 : 16;
     if (value is! int || value < 1 || value > max) {
       throw const FormatException('并发设置无效');
     }
