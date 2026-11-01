@@ -15,6 +15,32 @@ import 'media_exporter.dart';
 final class FfmpegExporter implements MediaExporter {
   final _active = <String>{};
 
+  Future<void> validateAudio(File file, CancellationToken token) async {
+    final session = await _execute([
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-nostdin',
+      '-xerror',
+      '-protocol_whitelist',
+      'file',
+      '-format_whitelist',
+      'mp3,aac,flac,ogg,wav,mov',
+      '-i',
+      file.path,
+      '-map',
+      '0:a:0',
+      '-vn',
+      '-f',
+      'null',
+      '-',
+    ], token);
+    token.check();
+    if (!ReturnCode.isSuccess(await session.getReturnCode())) {
+      throw const FormatException('文件未通过音频完整性检查');
+    }
+  }
+
   Future<void> validate(File file, CancellationToken token) async {
     final session = await _execute([
       '-hide_banner',

@@ -140,9 +140,9 @@ void RadioTray::ShowMenu() {
   if (menu == nullptr) return;
   AppendMenuW(menu, MF_STRING, kShow, L"\u663e\u793a\u4e3b\u7a97\u53e3");
   AppendMenuW(menu, MF_STRING | (active_ && !loading_ ? 0 : MF_GRAYED), kToggle,
-              playing_ ? L"\u6682\u505c\u5e7f\u64ad" : L"\u7ee7\u7eed\u5e7f\u64ad");
+              playing_ ? L"\u6682\u505c\u97f3\u9891" : L"\u7ee7\u7eed\u97f3\u9891");
   AppendMenuW(menu, MF_STRING | (active_ ? 0 : MF_GRAYED), kStop,
-              L"\u505c\u6b62\u5e7f\u64ad");
+              L"\u505c\u6b62\u97f3\u9891");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING, kExit, L"\u9000\u51fa Zero Player");
   SetMenuDefaultItem(menu, kShow, FALSE);

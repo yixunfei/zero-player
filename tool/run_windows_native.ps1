@@ -1,6 +1,7 @@
 # Run each native test in isolation, preserving caller environment and logs.
 param(
-    [Parameter(Mandatory = $true)][string[]]$TestFiles
+    [Parameter(Mandatory = $true)][string[]]$TestFiles,
+    [string[]]$DartDefines = @()
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
@@ -33,7 +34,8 @@ try {
         $env:TMP = $testTemp
         $log = Join-Path $runRoot ([IO.Path]::GetFileNameWithoutExtension($target) + '.log')
         Write-Output "Running $target; log: $log"
-        & flutter drive --driver=test_support/integration_driver.dart "--target=$target" -d windows --no-pub "--dart-define=PROJECT_ROOT=$projectRoot" *> $log
+        $defineArguments = @($DartDefines | ForEach-Object { "--dart-define=$_" })
+        & flutter drive --driver=test_support/integration_driver.dart "--target=$target" -d windows --no-pub "--dart-define=PROJECT_ROOT=$projectRoot" @defineArguments *> $log
         $code = $LASTEXITCODE
         Get-Content -LiteralPath $log -Tail 20
         if ($code -ne 0) { throw "Native test failed (exit $code): $log" }

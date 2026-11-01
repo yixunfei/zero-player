@@ -346,7 +346,7 @@ final class PlaybackController extends ChangeNotifier {
     routeWarning = null;
     notifyListeners();
     try {
-      await services.pauseRadioForVideo();
+      await services.pauseAudioForVideo();
       if (_closed || generation != _generation) return;
       await _seekQueue?.catchError((Object _) {});
       if (_closed || generation != _generation) return;

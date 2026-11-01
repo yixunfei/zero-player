@@ -11,10 +11,12 @@ final class PosterImage extends ConsumerStatefulWidget {
     required this.url,
     this.width = 440,
     this.fit = BoxFit.cover,
+    this.placeholderIcon = Icons.movie_outlined,
   });
   final String url;
   final int width;
   final BoxFit fit;
+  final IconData placeholderIcon;
   @override
   ConsumerState<PosterImage> createState() => _PosterImageState();
 }
@@ -73,7 +75,7 @@ final class _PosterImageState extends ConsumerState<PosterImage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.movie_outlined,
+            widget.placeholderIcon,
             size: 36,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),

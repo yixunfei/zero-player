@@ -13,10 +13,12 @@ final class RadioController extends ChangeNotifier
     this.createEngine, {
     this.operationTimeout = const Duration(seconds: 20),
     this.policy,
+    this.beforePlay,
   }) {
     policy?.addListener(_policyChanged);
   }
   final ContentPolicy? policy;
+  final Future<void> Function()? beforePlay;
 
   void _policyChanged() {
     final current = selected;
@@ -106,6 +108,11 @@ final class RadioController extends ChangeNotifier
     return _enqueue(() async {
       if (_closed || generation != _generation) return;
       try {
+        await _untilClosed(
+          beforePlay?.call() ?? Future.value(),
+          interrupted: interrupt.future,
+        );
+        if (_closed || generation != _generation) return;
         if (retire) await _discardEngine();
         if (_closed || generation != _generation) return;
         final engine = _player();
@@ -149,7 +156,10 @@ final class RadioController extends ChangeNotifier
     if (_needsOpen && selected != null) {
       return select(selected!, lineIndex: line);
     }
-    return _command((engine) => engine.playOrPause());
+    return _command((engine) async {
+      if (!playing) await beforePlay?.call();
+      await engine.playOrPause();
+    });
   }
 
   Future<void> pause() => _suspend(clear: false);

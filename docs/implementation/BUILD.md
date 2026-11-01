@@ -2,6 +2,12 @@
 
 当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
 
+## v0.0.9 发行配置（2026-11-01）
+
+本版正式发行 Windows x64，Android 正式签名文件仍缺失，Android v0.0.9 独立包名测试构建仅用于本地设备测试。按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.9/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。
+
+本地 Android 测试包使用下述“0.0.8+8 本地真机测试包”章节的独立包名与测试签名流程；以当前 `pubspec.yaml` 版本和 `tool/verify_apk.py` 对应参数校验。不得将测试签名 APK 作为正式 Android 升级发布。
+
 ## 重装后开发入口（2026-10-30）
 
 本机路径与工具见 [.codex/LOCAL_ENVIRONMENT.md](../../.codex/LOCAL_ENVIRONMENT.md)。先运行 `flutter doctor -v`、`flutter analyze --no-pub`、`dart run tool/check_source_size.dart`、`flutter test --no-pub` 和 `python -m unittest discover -s tool -p 'test_*.py' -v`。
@@ -71,6 +77,21 @@ v0.0.6 本轮只验收 Windows x64。先执行 `flutter build windows --release 
 工具链：Flutter 3.44.1 / Dart 3.12.1、JDK 21、Android SDK、Visual Studio 2022 C++ 桌面组件。pubspec.lock 锁定依赖。Android minSdk 26，支持 arm64-v8a 和 x86_64。
 
 ## 检查与开发
+
+在线音乐的普通回归为 `flutter test --no-pub test/music`。公网原生用例默认跳过，显式执行时使用独立临时目录和现有媒体网关，不读取实际用户数据：
+
+~~~powershell
+./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
+./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_offline_native_test.dart')
+./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_discovery_native_test.dart', 'integration_test/lx_sources_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
+flutter test --no-pub test/music/public_sources_online_test.dart --dart-define=RUN_MUSIC_ONLINE=true
+~~~
+
+第一项原生用例实际查询中英文歌曲并验证解码、进度跳转与暂停；第二项使用隔离合成音频，验证两首真实下载、音频完整性、关闭源站后的离线解码、历史续播、队列自动连播及队列弹窗操作。公开音源测试分别检查网易云、Audius 和 Internet Archive 的搜索/元数据解析，不将返回地址等同于真实解码成功；依赖源站当时可用性，默认跳过。所有 Flutter 平台测试和构建继续串行运行，完成原生测试后用普通 Release 构建恢复插件注册。
+
+推荐页原生用例检查真实榜单封面、所选渠道搜索、米兔解码并输出 `build/music-v3-home.png`；LX 原生用例分别检查 Hello World、HYW 和 musicBox 的固定公开样本解码。源站变化可能使联网用例失败，须保留失败证据。普通回归另覆盖三种尺寸和放大文字、推荐缓存降级、网站请求头、LX 固定请求/签名格式、拒绝动态指令、POST 禁止重定向和本机只读 API。内置音乐清单只保存已审阅版本的元数据与摘要，不包含可执行脚本。
+
+若 Gradle 在 `FlutterTaskHelper.readDependencies` 报 `Index: 1, Size: 1`，先检查 `build/app/intermediates/flutter/<mode>/flutter_build.d` 及本次目标关联的 `.dart_tool/flutter_build/<hash>/*.d`。依赖清单应为包含 `: ` 分隔符的 Makefile 文本；全为零填充说明生成文件损坏。仅在逐文件确认损坏后核对绝对路径、备份隔离并重新普通构建，保留错误堆栈和恢复记录。本轮复现与验证见 STATUS.md 的“音乐队列与下载稳定性”。
 
 ~~~powershell
 flutter pub get

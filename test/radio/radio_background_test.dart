@@ -97,7 +97,7 @@ Future<void> _exercise(WidgetTester tester, double width) async {
     await tester.tap(find.byTooltip('播放广播'));
     await tester.pumpAndSettle();
     expect(engine.snapshot.playing, isTrue);
-    await services.pauseRadioForVideo();
+    await services.pauseAudioForVideo();
     await tester.pumpAndSettle();
     expect(engine.snapshot.playing, isFalse);
     await tester.tap(find.byTooltip('停止广播'));

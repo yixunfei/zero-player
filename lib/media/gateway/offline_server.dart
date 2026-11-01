@@ -79,7 +79,7 @@ final class OfflineServer {
     await _ensureStarted();
     final files = <String, File>{};
     final descriptor = File(p.join(directory.path, 'resources.json'));
-    if (entry.endsWith('.mp4')) {
+    if (RegExp(r'\.(mp4|mp3|m4a|aac|flac|ogg|wav)$').hasMatch(entry)) {
       files[entry] = File(p.join(directory.path, entry));
       final integrity =
           jsonDecode(

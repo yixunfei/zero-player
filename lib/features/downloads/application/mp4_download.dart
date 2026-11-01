@@ -18,6 +18,7 @@ Future<void> downloadMp4({
   void Function(int)? reserveBytes,
   required Future<void> Function(int, int, int) progress,
   required Future<void> Function(File, CancellationToken) validate,
+  String fileName = 'video.mp4',
 }) => _Mp4Transfer(
   uri,
   directory,
@@ -28,6 +29,7 @@ Future<void> downloadMp4({
   reserveBytes,
   progress,
   validate,
+  fileName,
 ).run();
 
 final class _Mp4Transfer {
@@ -41,6 +43,7 @@ final class _Mp4Transfer {
     this.reserveBytes,
     this.progress,
     this.validate,
+    this.fileName,
   );
   final Uri uri;
   final Directory directory;
@@ -51,7 +54,8 @@ final class _Mp4Transfer {
   final void Function(int)? reserveBytes;
   final Future<void> Function(int, int, int) progress;
   final Future<void> Function(File, CancellationToken) validate;
-  late final part = File(p.join(directory.path, 'video.mp4.part'));
+  final String fileName;
+  late final part = File(p.join(directory.path, '$fileName.part'));
   late final checkpoint = File(p.join(directory.path, 'mp4-state.json'));
 
   Future<void> run() async {
@@ -200,7 +204,7 @@ final class _Mp4Transfer {
     await validate(part, cancellation);
     cancellation.check();
     final digest = '${await sha256.bind(part.openRead()).first}';
-    await part.rename(p.join(directory.path, 'video.mp4'));
+    await part.rename(p.join(directory.path, fileName));
     await File(p.join(directory.path, 'integrity.json')).writeAsString(
       jsonEncode({'digest': digest, 'bytes': bytes}),
       flush: true,

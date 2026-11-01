@@ -36,6 +36,15 @@ import '../features/live/data/live_repository.dart';
 import '../features/live/data/live_audit_defaults.dart';
 import '../features/radio/data/radio_repository.dart';
 import '../features/radio/application/radio_controller.dart';
+import '../core/platform/background_audio_group.dart';
+import '../features/music/data/myfreemp3_client.dart';
+import '../features/music/data/music_repository.dart';
+import '../features/music/application/music_controller.dart';
+import '../features/music/application/music_browser.dart';
+import '../features/music/data/music_library.dart';
+import '../features/music/application/music_downloads.dart';
+import '../features/music/data/music_recommendations.dart';
+import '../features/music/application/music_open_api.dart';
 import '../features/playback/domain/player_engine.dart';
 import '../media/engine/media_kit_engine.dart';
 import '../features/live/data/live_health_repository.dart';
@@ -64,6 +73,7 @@ final class AppServices {
     this.root,
     this.db, {
     this.radioEngine,
+    this.musicEngine,
     PlatformServices? platform,
     this.openRequests,
     this.allowPrivateNetworks = false,
@@ -72,12 +82,58 @@ final class AppServices {
   final bool allowPrivateNetworks;
   final LiveAuditDefaults? channelAuditOverride;
   final PlayerEngine Function()? radioEngine;
+  final PlayerEngine Function()? musicEngine;
+  MusicOpenApi? _musicOpenApi;
+  MusicOpenApi get musicOpenApi => _musicOpenApi ??= MusicOpenApi(musicPlayer);
+  MusicRecommendations? _musicRecommendations;
+  MusicRecommendations get musicRecommendations =>
+      _musicRecommendations ??= MusicRecommendations(network, db);
+  MusicLibrary? _musicLibrary;
+  MusicLibrary get musicLibrary => _musicLibrary ??= MusicLibrary(db);
+  MusicDownloads? _musicDownloads;
+  MusicDownloads get musicDownloads => _musicDownloads ??= MusicDownloads(
+    db,
+    Directory(p.join(root.path, 'music_downloads')),
+    music,
+    http,
+    fetcher,
+    offline,
+    validate: exporter.validateAudio,
+  );
+  late final music = MusicRepository(
+    MyFreeMp3Client(network),
+    policy: contentPolicy,
+  );
+  MusicBrowser? _musicBrowser;
+  MusicBrowser get musicBrowser =>
+      _musicBrowser ??= MusicBrowser(music, db: db);
+  MusicController? _musicPlayer;
+  MusicController get musicPlayer => _musicPlayer ??= MusicController(
+    music,
+    musicEngine ??
+        () => MediaKitEngine(
+          videoOutput: false,
+          gateway: gateway,
+          networkTimeout: const Duration(seconds: 30),
+          isTrustedResource: offline.isRegisteredResource,
+          isTrustedPlaylist: offline.isRegisteredPlaylist,
+        ),
+    beforePlay: () async => _radioPlayer?.pause(),
+    libraryFactory: () => musicLibrary,
+    downloadsFactory: () => musicDownloads,
+  );
+  BackgroundAudioGroup? _backgroundAudio;
   RadioController? _radioPlayer;
   RadioController get radioPlayer => _radioPlayer ??= RadioController(
     radioEngine ?? () => MediaKitEngine(videoOutput: false, gateway: gateway),
     policy: contentPolicy,
+    beforePlay: () async => _musicPlayer?.pause(),
   );
-  Future<void> pauseRadioForVideo() async => _radioPlayer?.pause();
+  Future<void> pauseAudioForVideo() async {
+    await _radioPlayer?.pause();
+    await _musicPlayer?.pause();
+  }
+
   final Stream<String>? openRequests;
   Stream<String> get localOpenRequests =>
       openRequests ?? _ownership?.channel.requests ?? const Stream.empty();
@@ -188,6 +244,7 @@ final class AppServices {
     await sources.all(includeSuppressed: true);
     await settings.load();
     contentPolicy.refresh();
+    await _musicLibrary?.reload();
   }
 
   late final store = SegmentStore(
@@ -297,7 +354,12 @@ final class AppServices {
       windowState: File(p.join(root.path, 'window.json')),
     );
     services.platform.desktop?.shutdown = services.close;
-    await services.platform.enableRadioTray(services.radioPlayer);
+    await services.platform.enableRadioTray(
+      services._backgroundAudio = BackgroundAudioGroup([
+        services.radioPlayer,
+        services.musicPlayer,
+      ]),
+    );
     await services.gateway.start();
     await services.downloadScheduler.initialize();
     services.settings.addListener(services._applySettings);
@@ -369,6 +431,23 @@ final class AppServices {
         },
         () async {
           await platform.radioTray?.dispose();
+        },
+        () => _backgroundAudio?.dispose(),
+        () async {
+          await _musicBrowser?.close();
+        },
+        () => _musicRecommendations?.close(),
+        () async {
+          await _musicOpenApi?.close();
+        },
+        () async {
+          await _musicPlayer?.close();
+        },
+        () async {
+          await _musicDownloads?.close();
+        },
+        () async {
+          await _musicLibrary?.close();
         },
         () async {
           await _radioPlayer?.close();

@@ -9,12 +9,14 @@ import 'app_layout.dart';
 import 'mobile_bottom_navigation.dart';
 import 'navigation_guide.dart';
 import '../features/radio/presentation/radio_mini_player.dart';
+import '../features/music/presentation/music_player.dart';
 
 const _destinations = [
   ('/', '发现', Icons.explore_outlined),
   ('/search', '搜索', Icons.search),
   ('/live', '直播', Icons.live_tv),
   ('/radio', '广播（实验）', Icons.radio_outlined),
+  ('/music', '在线音乐', Icons.library_music_outlined),
   ('/history', '记录', Icons.history),
   ('/downloads', '下载', Icons.download_outlined),
   ('/local', '本地视频', Icons.video_file_outlined),
@@ -128,6 +130,11 @@ final class _AppShellState extends State<AppShell> {
                 _pageBody(wide),
                 if (widget.location != '/radio')
                   RadioMiniPlayer(controller: widget.services.radioPlayer),
+                if (widget.location != '/music')
+                  MusicPlayer(
+                    controller: widget.services.musicPlayer,
+                    compact: true,
+                  ),
               ],
             ),
           ),

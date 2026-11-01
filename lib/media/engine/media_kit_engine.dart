@@ -16,6 +16,7 @@ final class MediaKitEngine implements PlayerEngine {
     this.isTrustedPlaylist,
     this.isTrustedResource,
     this.isFilteredPlaylist,
+    this.networkTimeout,
   }) {
     if (videoOutput) video = VideoController(player);
     for (final stream in <Stream<dynamic>>[
@@ -49,6 +50,9 @@ final class MediaKitEngine implements PlayerEngine {
   final bool Function(Uri)? isTrustedPlaylist;
   final bool Function(Uri)? isTrustedResource;
   final bool Function(Uri)? isFilteredPlaylist;
+
+  /// A gateway may need more than mpv's five-second default to contact upstream.
+  final Duration? networkTimeout;
   GatewaySession? _session;
   Future<void>? _securityReady;
   Future<void>? _disposing;
@@ -73,6 +77,17 @@ final class MediaKitEngine implements PlayerEngine {
       'cache-on-disk': 'no',
     }.entries) {
       await _setVerified(entry.key, entry.value);
+    }
+    if (networkTimeout case final timeout?) {
+      final seconds = timeout.inSeconds.clamp(1, 60);
+      final native = player.platform as NativePlayer;
+      await native.setProperty('network-timeout', '$seconds');
+      if (double.tryParse(
+            await native.getProperty('options/network-timeout'),
+          ) !=
+          seconds) {
+        throw StateError('播放器网络等待时间未生效');
+      }
     }
   }
 
@@ -114,7 +129,10 @@ final class MediaKitEngine implements PlayerEngine {
     if (_disposing != null) return;
     _session?.close();
     final transport = gateway;
-    if (transport != null && !transport.isRegisteredResource(uri)) {
+    if (transport != null &&
+        !transport.isRegisteredResource(uri) &&
+        isTrustedResource?.call(uri) != true &&
+        isTrustedPlaylist?.call(uri) != true) {
       await transport.start();
       if (_disposing != null) return;
       final session = _session = transport.createSession(

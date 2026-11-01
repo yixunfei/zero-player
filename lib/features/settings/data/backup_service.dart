@@ -1,6 +1,7 @@
 import 'dart:convert';
 import '../../../core/persistence/app_database.dart';
 import 'backup_validation.dart';
+import '../../music/data/music_library.dart';
 
 final class BackupPreview {
   const BackupPreview(this.tables);
@@ -47,13 +48,15 @@ final class BackupService {
       " OR key='radio_subscriptions' OR key GLOB 'radio_favorite:*' OR key GLOB 'radio_snapshot:*'"
       " OR key GLOB 'source_favorite:*' OR key GLOB 'filter_feature:*'"
       " OR key GLOB 'content_label:*'";
+  static const _musicMetadata =
+      " OR key GLOB 'music_playlist:*' OR key GLOB 'music_history:*' OR key='music_mode'";
 
   Future<String> export() async => db.transaction(() async {
     authorizeExport?.call();
     final data = <String, Object>{};
     for (final name in tables) {
       data[name] = await db.rows(
-        'SELECT * FROM $name${name == 'app_meta' ? _backupMetadata : ''} '
+        'SELECT * FROM $name${name == 'app_meta' ? '$_backupMetadata$_musicMetadata' : ''} '
         'LIMIT ${maxRowsPerTable + 1}',
       );
       if ((data[name] as List).length > maxRowsPerTable) {
@@ -101,6 +104,7 @@ final class BackupService {
       }
     }
     validateFeatureCollection(result['app_meta']!);
+    validateMusicCollection(result['app_meta']!);
     return BackupPreview(
       Map.unmodifiable({
         for (final e in result.entries)
@@ -136,7 +140,7 @@ final class BackupService {
     }
     for (final table in tables.reversed) {
       await db.customStatement(
-        'DELETE FROM $table${table == 'app_meta' ? _backupMetadata : ''}',
+        'DELETE FROM $table${table == 'app_meta' ? '$_backupMetadata$_musicMetadata' : ''}',
       );
     }
     for (final table in tables) {

@@ -61,12 +61,18 @@ final class MediaHttpClient {
   Future<HttpPayload> open(
     Uri uri, {
     required HeaderPolicy policy,
+    String method = 'GET',
+    List<int>? body,
     String? range,
     String? ifRange,
     CancellationToken? cancellation,
     RequestPriority priority = RequestPriority.playback,
     void Function(bool active)? onActivity,
   }) async {
+    if (!{'GET', 'POST'}.contains(method) ||
+        (body != null && (method != 'POST' || body.length > 65536))) {
+      throw const FormatException('不支持的请求方式或请求体过大');
+    }
     final initialOrigin = HeaderPolicy.origin(uri);
     for (var redirects = 0; redirects <= 5; redirects++) {
       cancellation?.check();
@@ -90,7 +96,7 @@ final class MediaHttpClient {
         onActivity?.call(true);
         watch.start();
         cancellation?.check();
-        request = await _createRequest(uri, cancellation);
+        request = await _createRequest(uri, cancellation, method);
         request.followRedirects = false;
         request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
         policy.forUri(uri).forEach(request.headers.set);
@@ -102,24 +108,20 @@ final class MediaHttpClient {
           () => request!.abort(const RequestCancelled()),
         );
         cancellation?.check();
+        if (body != null) {
+          request.contentLength = body.length;
+          request.add(body);
+        }
         final response = await request.close().timeout(timeout);
-        recordRequestTrace(
-          uri: uri,
-          elapsedMs: watch.elapsedMilliseconds,
-          requestHeaders: diagnosticHttpHeaders(request.headers),
-          status: response.statusCode,
-          responseHeaders: {
-            for (final name in [
-              'content-type',
-              'content-length',
-              'server',
-              'location',
-            ])
-              name: ?response.headers.value(name),
-          },
+        _recordResponse(
+          uri,
+          watch.elapsedMilliseconds,
+          request.headers,
+          response,
         );
         recorded = true;
-        if ({301, 302, 303, 307, 308}.contains(response.statusCode)) {
+        if (method == 'GET' &&
+            {301, 302, 303, 307, 308}.contains(response.statusCode)) {
           final location = response.headers.value(HttpHeaders.locationHeader);
           await _body(
             response,
@@ -158,6 +160,7 @@ final class MediaHttpClient {
   Future<HttpClientRequest> _createRequest(
     Uri uri,
     CancellationToken? token,
+    String method,
   ) async {
     final result = Completer<HttpClientRequest>();
     var abandoned = false;
@@ -167,7 +170,7 @@ final class MediaHttpClient {
     });
     unawaited(
       _client
-          .getUrl(uri)
+          .openUrl(method, uri)
           .then(
             (request) {
               if (abandoned) {
@@ -188,6 +191,27 @@ final class MediaHttpClient {
       remove?.call();
     }
   }
+
+  void _recordResponse(
+    Uri uri,
+    int elapsed,
+    HttpHeaders headers,
+    HttpClientResponse response,
+  ) => recordRequestTrace(
+    uri: uri,
+    elapsedMs: elapsed,
+    requestHeaders: diagnosticHttpHeaders(headers),
+    status: response.statusCode,
+    responseHeaders: {
+      for (final name in [
+        'content-type',
+        'content-length',
+        'server',
+        'location',
+      ])
+        name: ?response.headers.value(name),
+    },
+  );
 
   Stream<List<int>> _body(
     HttpClientResponse response,

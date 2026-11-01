@@ -12,10 +12,14 @@ final class PosterCard extends StatefulWidget {
     required this.onTap,
     this.description = '',
     this.loadDescription,
+    this.placeholderIcon = Icons.movie_outlined,
+    this.informationLabel = '节目简介',
   });
   final String title, poster, subtitle, description;
   final VoidCallback onTap;
   final Future<String> Function()? loadDescription;
+  final IconData placeholderIcon;
+  final String informationLabel;
   @override
   State<PosterCard> createState() => _PosterCardState();
 }
@@ -101,7 +105,10 @@ final class _PosterCardState extends State<PosterCard> {
             offset: _expanded ? const Offset(0, -.08) : Offset.zero,
             duration: _duration,
             curve: Curves.easeOutCubic,
-            child: PosterImage(url: widget.poster),
+            child: PosterImage(
+              url: widget.poster,
+              placeholderIcon: widget.placeholderIcon,
+            ),
           ),
           IgnorePointer(
             child: AnimatedSlide(
@@ -132,7 +139,7 @@ final class _PosterCardState extends State<PosterCard> {
             top: 4,
             right: 4,
             child: IconButton.filledTonal(
-              tooltip: _pinned ? '收起节目简介' : '展开节目简介',
+              tooltip: '${_pinned ? '收起' : '展开'}${widget.informationLabel}',
               isSelected: _pinned,
               onPressed: () => setState(() => _pinned = !_pinned),
               icon: const Icon(Icons.info_outline, size: 20),

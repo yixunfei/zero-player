@@ -87,3 +87,4 @@ app.*.map.json
 /windows/flutter/generated_plugins.cmake
 
 !/docs/implementation/RELEASE-0.0.8.md
+!/docs/implementation/RELEASE-0.0.9.md

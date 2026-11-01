@@ -43,6 +43,53 @@ final class DocumentClient {
   const DocumentClient(this.http);
   final MediaHttpClient http;
 
+  /// Fixed native JSON APIs only. POST redirects and automatic retries are disabled.
+  Future<Document> postJson(
+    Uri uri,
+    Map<String, Object?> data, {
+    Map<String, String> headers = const {},
+    int maxBytes = 2 * 1024 * 1024,
+    CancellationToken? cancellation,
+  }) async {
+    final bytes = utf8.encode(jsonEncode(data));
+    if (bytes.length > 65536) throw const FormatException('请求体超过大小限制');
+    final token = CancellationToken();
+    final unlink = cancellation?.listen(token.cancel);
+    final budget = NetworkBudget(const Duration(seconds: 25), token);
+    try {
+      final response = await http.open(
+        uri,
+        method: 'POST',
+        body: bytes,
+        policy: HeaderPolicy({
+          uri: {...headers, 'Content-Type': 'application/json'},
+        }),
+        cancellation: token,
+        priority: RequestPriority.interactive,
+        onActivity: budget.activity,
+      );
+      if (response.response.statusCode != 200) {
+        await response.body.take(0).drain<void>();
+        throw RemoteFailure(
+          FailureKind.http,
+          '服务返回错误 ${response.response.statusCode}',
+          status: response.response.statusCode,
+        );
+      }
+      return await _readDocument(response, maxBytes, false);
+    } on RequestCancelled {
+      throw RemoteFailure(
+        cancellation?.isCancelled == true
+            ? FailureKind.cancelled
+            : FailureKind.timeout,
+        cancellation?.isCancelled == true ? '操作已取消' : '请求超时',
+      );
+    } finally {
+      budget.dispose();
+      unlink?.call();
+    }
+  }
+
   Future<Document> get(
     Uri uri, {
     Map<String, String> headers = const {},

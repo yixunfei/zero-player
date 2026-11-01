@@ -14,6 +14,7 @@ import '../features/downloads/presentation/downloads_page.dart';
 import '../features/library/presentation/history_page.dart';
 import '../features/live/presentation/live_page.dart';
 import '../features/radio/presentation/radio_page.dart';
+import '../features/music/presentation/music_page.dart';
 import '../features/playback/application/playback_controller.dart';
 import '../features/playback/presentation/player_page.dart';
 import '../features/search/presentation/search_page.dart';
@@ -134,6 +135,10 @@ final class _ProductAppState extends ConsumerState<ProductApp>
           GoRoute(
             path: '/radio',
             builder: (_, state) => RadioPage(services: services),
+          ),
+          GoRoute(
+            path: '/music',
+            builder: (_, state) => MusicPage(services: services),
           ),
           GoRoute(
             path: '/calendar',

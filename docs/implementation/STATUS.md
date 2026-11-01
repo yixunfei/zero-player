@@ -1,10 +1,13 @@
 # 实施状态与需求矩阵
 
-更新：2026-10-31（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-01（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
 ## 当前交接
 
-- 当前发行源码版本为 `0.0.8+8`；v0.0.8 仅发行 Windows x64，说明见 [版本说明](RELEASE-0.0.8.md)。v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 等后续源码更新已于 2026-10-31 作为提交 `acb4d81` 推送至 `origin/main`。
+- 当前源码版本 `0.0.9+9`，本轮纳入多源并发搜索、本地下载优先显示及分类精选歌单，详情见“音乐聚合搜索与分类优化”和 [v0.0.9 版本说明](RELEASE-0.0.9.md)。
+- 在线音乐、歌单、播放模式、历史续播、离线下载、推荐封面及更多原生渠道的核查见“在线音乐核查与修复”；v0.0.8 已发行附件不包含音乐功能。
+- 最新本地测试包：`artifacts/device-test/0.0.9-20261101-083645/`，包含 Windows 安装器/便携包及独立包名 Android ARM64 测试签名 Release；旧包保留。
+- 本轮 `0.0.9+9` 正式发行范围为 Windows x64；Android 最新正式公开包仍为 v0.0.7。v0.0.8 仅发行 Windows x64，说明见 [版本说明](RELEASE-0.0.8.md)。v0.0.7 发布范围见 [版本说明](RELEASE-0.0.7.md)。首次安装与过滤授权、[渠道源安全加固](SOURCE-SECURITY-2026-10-29.md) 等后续源码更新已于 2026-10-31 作为提交 `acb4d81` 推送至 `origin/main`。
 - 系统恢复后的项目根为 `K:/zero-player`。Flutter 3.44.1 / Dart 3.12.1、JDK 21、Android SDK、VS 2022 C++ 工具链可用。本机信息见 [.codex/LOCAL_ENVIRONMENT.md](../../.codex/LOCAL_ENVIRONMENT.md)。
 - Android ARM64 debug APK 已在恢复阶段构建；本轮复核 SHA-256 与恢复记录一致：`f868082b7a3541a27077a4b8bac0d170c1c22642fb63487dd41858938f8b46e2`。此结论不代表 Release 或设备验收。
 - 恢复阶段全量单元/组件回归：483 通过、2 项公网测试跳过；真实 RFC1918 网卡授权/撤销测试执行通过。日志 `build/restore-20261030-tests.log`。发布工具 Python 回归 6 项通过，源码规模检查通过。
@@ -12,6 +15,90 @@
 - 首次 Windows 原生回归发现 CMake 缓存绑定旧 L:；已将旧目录保留在 `build/windows-before-restore-20261030`，按原摘要校验复用 mpv/ANGLE 压缩包，重新生成 Windows 构建目录。原生复验 3 项通过：安全配置/受控播放 1 项，MP4/HLS 的 FFprobe 与 FFmpeg 声画采样 2 项（不将 tearDownAll 计入用例）。日志 `.dart_tool/native-8c0bcc01/`；驱动有既有插件检测提示，但实际取得成功结果且退出码为 0。
 - 恢复阶段 `flutter analyze --no-pub` 无问题（`build/restore-20261030-final-analyze.log`）。
 - Windows x64 普通 Release 重新构建通过（退出码 0），产物 `build/windows/x64/runner/Release/zero_player.exe`，必须保留同目录 DLL/data。日志 `build/restore-20261030-windows-release.log`；插件注册与产物检查确认无 integration_test 插件。本轮未生成安装器、公开发布或验收真实用户媒体。
+
+## v0.0.9 发行与本地测试（2026-11-01）
+
+- 版本更新至 `0.0.9+9`；用户要求提交、打包并推送新版本。正式范围沿用 Windows x64；原 Android 正式密钥文件缺失，不能覆盖正式安装，独立包名的 Android 测试签名包仅作本地测试。原用户音源压缩包保留在本机，不纳入源码或发行附件。
+- 同一业务源码此前的全量回归为 611 项通过、5 项按配置跳过（`build/music-enhance-all-tests.log`）；版本更新后版本一致性回归通过（`build/release-0.0.9-version-test.log`），12 项发布工具测试和源码/函数规模检查通过。此前 Windows 原生离线业务回归见下一节，最终静态分析无问题。
+- Windows x64 普通 Release 构建通过，版本信息为 `0.0.9+9`（`build/release-0.0.9-windows.log`）。Android ARM64 本地独立测试 Release 构建通过（`build/release-0.0.9-android-test.log`），包名 `dev.zeroplayer.zero_player.devtest`、大小 64.98 MiB；版本、ABI、CRC、随包资源及 v2 测试签名通过，证据 `build/release-0.0.9-apk-verify.log` 和 `build/release-0.0.9-apk-signature.log`。Windows/Android 普通插件注册均无 integration_test。
+- 本机测试包 `artifacts/device-test/0.0.9-20261101-083645/` 的 5 个附件 SHA-256、APK/ZIP CRC、APK 与构建产物一致、便携包 93 个 Windows 构建文件一致。此前 `app-release.apk` 保留为 `app-release-before-v0.0.9-20261101.apk`；未安装测试包、修改默认应用或验收 Android/TV 真机及长期播放。
+- 正式发行附件、限制和操作说明见 [v0.0.9 版本说明](RELEASE-0.0.9.md)；发行构建及打包入口见 [构建说明](BUILD.md)。
+
+## 音乐聚合搜索与分类优化（2026-11-01）
+
+- 保留接手时全部未提交修改。增加可持久选择的“多源聚合”：6 个非实验渠道、最多 3 路并发，每源 12 秒截止并取消底层请求；按完成顺序增量显示，单源失败隔离，旧搜索取消后不更新结果。同源不同歌曲按渠道/标识去重，聚合分页沿用各源页码。
+- 搜索立即合并已完成下载并标明本地播放，在线失败仍可收听；跨源仅使用标题/歌手一致、已知时长相差不超过 2 秒且唯一的本地记录，保留不同版本及歧义。完成记录有内存身份/录音索引，状态更新同步失效；下载进度持久化后直接更新内存，消除每次进度更新重新读取所有下载元数据的开销。空间配额、安全续传、摘要校验、下载权限和监管/网络边界保留。
+- 发现页增加榜单/语种/风格/场景分组与 8 份离线可浏览的编辑精选歌单（只保存选曲搜索元数据）；榜单沿用真实源与一小时缓存，重复加载合并，过期缓存先显示再更新。没有接入新的动态歌单 API 或声称个性化推荐。
+- 全量 `flutter test --no-pub`：611 通过、5 项按既有公网配置跳过，日志 `build/music-enhance-all-tests.log`。新增 6 项回归，覆盖并发上限/增量结果、超时、取消、下载跨重启索引/删除/跨源匹配、静态歌单离线浏览和网络失败时本地结果；原有三种尺寸/1.6 倍文字发现页回归增加分类切换断言。源码与函数规模检查通过。
+- 首轮失败证据保留：`build/music-enhance-music-tests.log`（新增分类令测试按钮位置移出屏幕，改为先滚动到可点击位置）、`build/music-enhance-music-tests-final.log`（整理索引时语法错误，已修复）、`build/music-enhance-music-pass.log`（新组件测试未指定列表滚动目标，已修复）。这些失败不作为通过证据。
+- Windows 原生离线业务 1 项通过（不计 tearDownAll）：两首真实下载、完整音轨校验、关闭源站后的离线解码、续播/历史与队列自动连播，日志 `.dart_tool/native-de4890c1/music_offline_native_test.log`、`build/music-enhance-native.log`。驱动仍有既有 integration_test 检测提示，业务成功标记和进程退出码均核对成功。
+- 最终 `flutter analyze --no-pub` 无问题（`build/music-enhance-analyze-final.log`），源码/函数规模及差异空白检查通过。普通 Windows x64 Release 构建通过（`build/music-enhance-windows.log`，退出码 0）；`build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data，普通插件注册无 integration_test。
+- 下一步：真实公网多源性能/成功率与 Android/TV 实机、后台和长时间播放验收；如需交付安装包，应重新按 BUILD.md 打包，现有安装包尚不包含本轮增强。本轮未更新安装包、提交、推送或公开发布。
+
+## 在线音乐核查与修复（2026-11-01）
+
+- 核查搜索、播放/队列、收藏历史、离线任务、推荐和渠道边界，保留接手时所有未提交改动。修复原生错误及播放操作异常后仍显示播放中、故障引擎迟到完成事件误切下一首的问题；失败立即隔离旧事件并释放引擎，保留已知进度，播放按钮可重新解析并续播。打开阶段异常也统一进入停止状态。
+- 窄屏播放器将完整歌曲信息、控制按钮和进度工具分行，防止标题和进度条被按钮挤压；补充缓冲中/已播完状态。首次搜索页显示输入引导，不显示空查询页码和无意义翻页；历史、下载内容全部被过滤后显示明确空态。界面验证包含 320/390/844/1280 宽度与 1.6 倍文字，新增窄屏标题实际可用宽度断言；桌面推荐页截图 `build/music-discovery-home.png` 已检查。
+- 全量回归 605 项通过、5 项按配置跳过（`build/music-audit-all-tests.log`）；后续窄屏整理后音乐模块 50 项复验通过、3 项公网配置跳过（`build/music-audit-music-final2.log`）。新增回归覆盖故障事件隔离、播放状态复位、异常 seek 后进度保留及重新创建引擎续播。最终静态分析无问题（`build/music-audit-analyze-final.log`），源码/函数规模检查通过。
+- Windows 原生 6 项业务用例取得成功：MY FREE MP3 中英文搜索/解码/跳转/暂停、真实下载与离线双曲连播/历史/队列（`.dart_tool/native-2fb11269/`），真实推荐/米兔搜索解码（`.dart_tool/native-bc0d2185/music_discovery_native_test.log`），Hello World/HYW/musicBox 解码（`.dart_tool/native-14aa174f/`）。不计 tearDownAll。HYW 首轮未能播放（`.dart_tool/native-bc0d2185/lx_sources_native_test.log`），独立检查返回有效媒体地址，完整原生重试 3 项通过；保留首次失败，不承诺实验音源持续可用。驱动仍有既有 integration_test 检测提示，业务结果与进程退出码分别核对。
+- Windows 普通 Release 构建通过（`build/music-audit-windows.log`），Android ARM64 测试签名 Release 构建通过（`build/music-audit-android.log`），版本沿用 0.0.8+8。APK 64.97 MiB，独立包名 `dev.zeroplayer.zero_player.devtest`、70 MiB 预算及 v2 签名检查通过（`build/music-audit-packaging.log`、`build/music-audit-signature.log`）；普通平台注册无 integration_test。Inno 安装器编译成功。
+- 交付 `artifacts/device-test/0.0.8-20261101-080757/`：Windows 安装器 67.58 MiB、便携 ZIP 88.51 MiB、Android ARM64 APK，另附依赖声明/来源、TEST-INFO 和 SHA256SUMS。393 个构建输入指纹保持一致，5 个交付附件摘要及 APK/ZIP CRC 通过，便携包 93 个构建文件逐字节一致，双端随包音乐目录和频道预检表与源码一致；未包含本机数据库或签名私钥。报告 `build/music-audit-package-verification.json`。未安装到用户环境，保留全部旧包。
+- Android/TV 实机、系统后台及长时间播放仍待验收；本轮不改变脚本执行、监管、内容过滤、网络授权或正式签名边界，不提交、推送或公开发布。
+
+## 音乐队列与下载稳定性（2026-11-01，当前源码）
+
+- 继续保持原生逐源适配、不执行远程脚本的约定。本轮梳理播放队列、渠道记忆、进度拖动、过滤变更和离线任务；未改变既有音源协议、网络授权、监管边界或发行版本。本地 v6 等尚未完成的源仍按下节边界处理，不将其标为已兼容。
+- 歌曲菜单新增“下一首播放”和“加入播放队列”，覆盖搜索、历史、歌单及已下载歌曲；队列按渠道/歌曲 ID 去重，最多 500 首。播放器与迷你播放器提供队列弹窗，支持切歌、上移/下移、移出和清空其他歌曲。编辑其他条目保留当前引擎/进度；移出当前歌曲后播放后继，最后一首移出后停止。队列仍为本次运行会话，持久收藏使用歌单。
+- 过滤规则更新时移除队列中受限的后续歌曲，避免自动连播停在被屏蔽项；当前歌曲受限仍停止。列表循环的上一首支持从队首回队尾。重试解析保留最后播放位置。进度拖动只更新预览，松手后执行一次 seek，避免持续重启媒体请求。
+- 本机渠道偏好存入 `app_meta.music_provider`，异步恢复不能覆盖用户新选择；关闭等待偏好写入，损坏或已移除的渠道回退默认。该偏好属于本机，不进入歌单/历史备份。搜索保留受控客户端提供的超时/HTTP 等失败信息，并区分过滤规则拒绝。
+- 下载暂停改为等待指定活动任务，排队暂停/删除无需等待其他歌曲。取消与替换按具体 token 识别，旧任务不能删除新任务的取消句柄，也不会在移除后重新创建记录。续传预算补回当前部分文件或 HLS 保留资源的已有占用，其他任务和文件继续计入总额，修复接近 1 GiB 上限时重复扣除续传空间的问题。LX 和米兔的下载限制集中到领域属性，即使导入记录声明可下载也不能绕过。
+- 全量单元/界面回归 602 项通过、5 项配置跳过（`build/music-v4-all-tests.log`）；音乐模块新增 15 项回归，覆盖队列去重/容量/编辑/过滤后连播/重试进度、渠道恢复竞态和错误说明、两类下载取消/替换、容量附近续传及三种尺寸/1.6 倍文字下的队列与进度拖动。静态分析无问题（`build/music-v4-analyze-clean.log`），源码/函数规模检查通过（`build/music-v4-size-final.log`）。早期 lint 与异常模式匹配顺序问题已修正，失败日志保留。
+- Windows 原生业务 6 项通过（不计 tearDownAll），证据 `.dart_tool/native-1bbb4876/`、`build/music-v4-native.log`。增强离线用例已验证源站关闭后的两首真实解码/自动连播、队列弹窗整理与两条历史记录；推荐封面/米兔搜索解码、Hello World/HYW/musicBox 解码、MY FREE MP3 中英文搜索与播放控制保持通过。驱动仍有既有 integration_test 检测提示和 Windows AXTree 日志，业务结果与退出码成功。
+- 普通 Windows x64 Release 构建通过（`build/music-v4-windows.log`），程序 `build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data，普通注册不含 integration_test。Android ARM64 Debug 构建恢复后通过（`build/music-v4-android-recovered.log`，退出码 0），APK CRC 完整且仅含 arm64-v8a；旧 APK 已保留为 `app-debug-before-music-v4-20261101-030508.apk`。两个运行包的音乐清单/频道预检表均与源码一致，AOT/APK 摘要确认已更新，结果 `build/music-v4-artifact-verification.json`。
+- 首次 Android 任务在依赖解析阶段中断；重试与 Gradle dry-run 均复现 FlutterTaskHelper.readDependencies 的 IndexOutOfBounds。确认 4 份生成依赖清单完全为零填充后，逐文件核验绝对路径及内容，改名保留原件，再重新构建成功；没有清空构建目录或修改 SDK。恢复记录 `build/music-v4-depfile-recovery.json`，失败证据 `build/music-v4-android-retry.log`、`build/music-v4-android-stacktrace.log`；重新生成的 `flutter_build.d` 已校验正常。
+- 下一步仍为 Android/TV 实机、系统后台、长时/长列表体验及更多原生音源适配；本轮未验收这些项目，也未提交、推送、发布或生成新安装包，既有测试安装包未更新。
+
+## 音乐推荐首页与逐源原生适配（2026-11-01，阶段记录）
+
+- 用户明确选择保持“不执行远程脚本”的规则，继续逐源原生适配。未加入 JavaScript、Python 或 JAR 执行器，未降低 TLS、私网、成人过滤或监管限制。所有脚本只在忽略的检查目录中作为文本分析；随包清单只包含来源、版本、固定 SHA-256 和适配状态。
+- 首次进入音乐显示“发现音乐”，使用真实网易云热歌/新歌/原创/飙升榜单和 WFU 音乐主题；复用视频 PosterCard/PosterImage 与受控图片缓存，按专辑方形排列，点击封面以歌名和歌手通过所选渠道搜索。参考 Navidrome 的封面库组织方式，用 Flutter 原生实现，无需部署 Navidrome 服务。推荐按榜单缓存一小时，失败显示已有缓存，损坏缓存重新获取；文字继续经过内容过滤。
+- 新增米兔（QQMP3）歌曲搜索和酷我解析、枫叶 musicBox 网易云搜索/Meting 播放。米兔需固定站点请求头，云盘分享不自动导入且不提供下载。WFU 仅提供推荐主题，不提取 YouTube 嵌入流；UZZ 当前 403，未发现可验证协议，不列入播放选择。原生网站协议回归覆盖分页、图片、正常请求头与不安全地址拒绝。
+- pdone 仓库 16 项加本地 v6 修复包逐项登记：原生分支扩展为 Huibq、幻音、QDY、星海、杰翔独家公共 v4、Hello World、HYW 公益版、野花、野草和聚合直链，共 10 项有限分支。大多数仅支持网易云 128k；野草按源方声明使用酷我 ID/128k，米兔供搜索元数据。聚合仅接受固定 POST 直链响应，拒绝远端 303 动态请求指令。POST 复用受控客户端，限制请求体 64 KiB，禁止重定向和自动重试；回归验证私网拒绝和请求体不向重定向目标转发。
+- 未实现全部脚本平台/音质/回退行为，不能称为完整 LX 兼容。长青的固定协议已还原但媒体入口 404；野花/野草静态字符串表和 tag 格式已还原，实测媒体入口也 404。Huibq 曾 503、QDY/星海 403、幻音 TLS 失败、聚合初始化 429；这些状态不等于正常播放。IKUN 无公开密钥，fish/lx/sixyin/yuningxi 的混淆协议及本地 v6 的虚拟机协议仍待原生还原，不提供未适配项的播放选择。检查证据 `build/music-v3-inspection/`，摘要清单 `assets/catalogs/music/lx-native-catalog.json`。
+- 用户本地 `tmp/lx-music-source-v6 (修复).zip` 已读到并静态检查；其中 64,094 字节脚本的 SHA-256 为 `ef5289ddc2e8fd98ec7ac9e096878d9e6fed5e4ae1669d21e4484eac247aeda7`。只记录检查结果，没有执行或打包该脚本；杰翔的公共 v4 分支不冒充 v6 修复包。
+- LX Open API 实现手动启用的只读子集，默认关闭，仅监听随机 IPv4 回环端口；提供 `/status` 字段过滤、空歌词端点和逐字段 SSE，最多 4 个订阅。拒绝浏览器 Origin/Sec-Fetch 请求，不提供播放控制或任意 URL 代理，退出关闭。它是本机状态接口而非在线歌曲源，未宣称全部官方 Open API 兼容。
+- 本轮全量单元/界面回归 587 项通过、5 项按配置跳过（`build/music-v3-all-tests.log`）；随后修正发现页切换渠道时的旧搜索上下文，音乐模块 32 项复验通过、3 项公网跳过（`build/music-v3-music-final.log`）。新增 UI 回归覆盖 390/844/1280 三种尺寸与 1.6 倍文字、封面点击搜索；最后补查渠道弹窗异步目录加载与列表滚动，三种尺寸均通过（`build/music-v3-dialog-final3.log`）。早期夹具跨 fake-async 资源清理、资产 IO 未让出真实事件循环导致的失败已修正，失败日志保留。最终源码/函数规模检查通过（`build/music-v3-size-verified.log`），静态分析无问题（`build/music-v3-analyze-verified.log`）。
+- Windows 最终原生业务 6 项通过（不计 tearDownAll）：80 首真实推荐、封面到所选渠道搜索及米兔 30 项结果解码；Hello World、HYW 公益与 musicBox 分别完成公开样本解码；原有真实下载/离线解码/历史续播及 MY FREE MP3 中英文搜索/跳转/暂停保持通过。证据 `.dart_tool/native-f56907f8/`、`build/music-v3-native-final.log`，截图 `build/music-v3-home.png` 已检查。驱动仍有既有 integration_test 检测提示与 Windows AXTree 日志；不将短时解码称为完整曲目或长时稳定性验收。
+- 普通 Windows x64 Release 构建通过（`build/music-v3-windows.log`），程序 `build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data；普通注册不含 integration_test。Android ARM64 Debug 构建通过（`build/music-v3-android.log`），APK CRC 完整且只含 arm64-v8a；旧 APK 已另存备份。两个运行包内的音乐适配清单和频道预检表均与源码逐字节一致，音乐目录没有可执行脚本；摘要与检查结果见 `build/music-v3-artifact-verification.json`。Android/TV 实机与长期播放仍未验收；未提交、推送、公开发布或生成本轮新安装包。
+
+## 音乐功能本地测试包（2026-11-01，先前测试包）
+
+- 按用户要求打包当前音乐功能源码，沿用版本 `0.0.8+8`；没有提交、推送或公开发布。产物目录 `artifacts/device-test/0.0.8-20261101-013022/`，包含 `zero-player-0.0.8-windows-x64-setup.exe`、`zero-player-0.0.8-windows-x64-portable.zip`、`zero-player-0.0.8-android-arm64.apk`、第三方声明/原生来源 ZIP、`TEST-INFO.txt` 和 `SHA256SUMS.txt`。旧测试包及已发行附件均保留。
+- Windows x64 普通 Release 重新构建成功（`build/music-test-package-windows.log`）；Inno Setup 安装器编译成功（`build/music-test-package-packaging.log`）。Windows 沿用原应用身份，便携包必须完整解压。Android 使用独立包名 `dev.zeroplayer.zero_player.devtest`、应用名“Zero Player 测试”及既有本机测试签名，构建类型为 Release，可与正式版并存；未改变正式签名策略。构建日志 `build/music-test-package-android.log`。
+- APK 64.93 MiB，版本、包名、arm64-v8a 原生完整性、70 MiB 预算和可选模型排除检查通过（`build/music-test-package-apk.log`）；APK v2 签名验证通过（`build/music-test-package-signature.log`）。普通 Windows/Android 注册均不含 integration_test，未手改生成文件。
+- 沿用同一源码已通过的 576 项单元/组件回归、5 项配置跳过及 2 项 Windows 原生业务验证；本轮重新构建和打包期间 651 个输入文件指纹保持一致（`build/music-test-package-source.json`）。5 个交付附件全部复核 SHA-256，APK/ZIP CRC 完整；便携包 EXE 和 AOT 与本轮 Windows Release 一致，APK 与本轮构建一致，运行包未包含本机数据库或签名私钥。汇总 `build/music-test-package-verification.json`。
+- 本轮只构建和核验测试交付物，未安装到实际用户环境、修改默认应用或验收 Android/TV 实机、安装后关联/卸载与长时播放。Huibq 503、Internet Archive 超时等音源边界已写入包内测试说明。
+
+## 音乐库与多音源扩展（2026-11-01，当前源码）
+
+- 音乐页分为搜索、我的歌单、播放历史和离线音乐。歌单支持新建、重命名、删除、加歌、移出和排序；同歌曲按渠道与远端 ID 去重。最多 100 个歌单、每单 500 首，顺序/列表循环/单曲循环/随机模式保存到本机。历史保留 200 首，播放时节流保存，暂停/停止/退出补记，支持点选续播和清空。歌单、历史和模式使用现有 app_meta，不改数据库版本；纳入普通备份并校验数量、字段及地址，下载任务/文件不随备份迁移。
+- 音源保留默认 MY FREE MP3，新增网易云公开音频、Audius 和 Internet Archive；新增 LX/Huibq 原生 HTTP 解析及 pdone/lx-music-source 的 16 项版本检查目录。未执行、求值或自动加载远程脚本；其余目录项尚未适配播放，不能当作可播源。网易云公开音频不保证付费、地区限制或下架资源可播；Audius 排除受访问条件限制的歌曲，下载前重新检查公开下载标志。Huibq 不提供下载。
+- 音乐下载按单任务串行执行，复用强 ETag 安全续传、HLS 清单/分片下载及离线能力 URL；直接音频通过仅 file 协议的完整音轨解码校验，离线重播复核摘要。每首 128 MiB、合计 1 GiB、最多 500 项，计入保留的部分文件和 HLS 固定分片；暂停、失败和退出保留可恢复数据，重启持久恢复为暂停，需手动继续。损坏/缺失标记失败，播放中的文件拒绝删除。媒体仍经过原生输入检查，只有离线服务已注册资源可绕过再次代理；没有开放任意本机/私网地址。
+- 通过音源元数据公网请求确认网易云 30 项、Audius 28 项搜索结果及原生地址解析；不将元数据返回地址等同于实际解码成功。Internet Archive 本机请求超时，Huibq 探测返回 HTTP 503；进一步静态检查的 QDY/GD 接口返回 403、幻音备用接口 TLS 中断，本轮未把它们伪装成可用渠道。证据 `build/music-v2-online.log`；普通回归默认跳过三项公网用例，显式入口见 BUILD.md。
+- 最终全量回归 576 项通过、5 项按配置跳过（既有 2 项及新增 3 项公网音源测试），日志 `build/music-v2-all-final.log`。静态分析无问题（`build/music-v2-final-analyze.log`），源码规模检查通过（`build/music-v2-size-final.log`）。新增回归覆盖跨重启歌单/历史/模式、备份、四种完成行为、下载重启/中断状态、容量、摘要损坏及活动文件保护。早期全量回归发现音乐下载依赖提前创建影响隐藏窗口清理，已改为首次使用音乐时初始化，既有隐藏窗口回归与音乐针对性 25 项复验通过（`build/music-v2-close-regression.log`）。
+- 最终 Windows 原生 2 项业务用例通过（不计 tearDownAll）：合成音频真实下载和完整性验证、关闭源站后的本机能力 URL 解码、跳到 3 秒及历史持久化；既有 MY FREE MP3 中英文搜索与真实音频解码/跳转/暂停回归。最终证据 `.dart_tool/native-a6e6d759/music_offline_native_test.log`、`.dart_tool/native-a6e6d759/music_native_test.log`、`build/music-v2-native-final.log`。驱动仍有既有插件检测提示，但业务结果及退出码成功。初次证据 `.dart_tool/native-3d6664bf/` 保留。
+- Windows x64 普通 Release 构建通过（`build/music-v2-windows.log`），产物 `build/windows/x64/runner/Release/zero_player.exe` 需保留同目录 DLL/data，普通注册不含 integration_test。Android ARM64 Debug 构建通过（`build/music-v2-android.log`），APK CRC 完整且仅含 arm64-v8a；这是 Debug 编译验收，不是正式 Release 或设备验收。产物摘要见 `build/music-v2-artifact-verification.json`；原 APK 保留为 `app-debug-before-music-v2-20261101-004244.apk`，没有更新已发行附件。
+- 下一步为 Android/TV 实机、系统后台任务、音乐托盘关闭/恢复和长时播放验收；源站长期可用性不在本轮结论内。本轮未提交、推送、安装到真实用户环境或发布新安装器，之前的发行附件保持原样。
+
+## 在线音乐（2026-10-31，阶段记录）
+
+- 菜单新增“在线音乐”，默认使用 `https://myfreemp3.ink` 及该站公开浏览器搜索协议。独立 music 模块承担临时签名、HTML 歌曲解析、分页、取消/覆盖旧搜索、列表播放、过期地址刷新和界面。推荐搜索为应用固定快捷词，首次进入搜索“周杰伦”；不将其描述为源站排行榜。
+- 当前页搜索结果组成连续播放列表，支持上一首/下一首、进度跳转、音量、暂停和停止。离开页面保留当前会话搜索与队列，并显示迷你播放器；Windows 托盘通过统一音频会话控制最近使用的音乐或广播。音乐、广播互相暂停，打开视频暂停两者。未新增数据库表、音乐下载/收藏/歌词或自定义音乐渠道。
+- 搜索、列表和播放前均检查渠道/标题/歌手的成人与监管关键词过滤；规则更新后停止受限歌曲。歌曲与 HLS 引用继续经过现有媒体网关、网络目标检查和原生输入限制，不运行远程脚本。文字过滤不代表对实际歌曲音频完成审查。
+- Windows 真实公网原生用例通过 1 项业务用例（不计 tearDownAll）：中英文搜索各 40 首，真实 286 秒音频经受控网关解码、跳到 10 秒、暂停与停止。证据 `.dart_tool/native-2b887302/music_native_test.log`、`build/music-native-verified.log`。早期原生失败定位为 mpv 默认 5 秒网络等待短于源站约 5 秒首次响应；仅音乐显式设置并核验 30 秒等待，其他播放器默认值保持。失败证据保留在 `.dart_tool/native-708bfe55/`、`.dart_tool/native-be680b2f/`、`.dart_tool/native-31c51776/`。
+- 全量单元/组件回归 567 项通过、2 项按原配置跳过（`build/music-all-tests.log`）；新增 12 项覆盖签名更新、中文分页、协议/私网拒绝、搜索取消、超时后禁止迟到播放、监管变更、队列/进度/互斥和 390/844/1280 布局及 1.6 倍文字。静态分析无问题（`build/music-final-analyze.log`），源码规模检查通过（`build/music-source-size.log`）。早期测试中的 URI 编码预期、响应字符集与 fake-async 夹具已修正，失败日志保留，不作为业务成功证据。
+- Windows x64 普通 Release 构建通过（`build/music-windows-release.log`），产物为 `build/windows/x64/runner/Release/zero_player.exe`，需保留同目录 DLL/data；普通 Windows 注册文件不含 integration_test。Android ARM64 Debug 构建通过（`build/music-android-debug.log`），APK CRC 完整且仅含 arm64-v8a。Android Debug 正常包含开发依赖注册，不将其作为正式 Release 包验收；未手改生成文件。两平台产物 SHA-256 与检查结果见 `build/music-artifact-verification.json`，旧 APK 保留为 `app-debug-before-music-20261031-233237.apk`。
+- 下一步：Android/TV 实机、系统后台播放、Windows 音乐托盘关闭/恢复、长时间收听验收；源站长期可用性不在本轮结论内。本轮未生成新安装器、提交、推送、安装到真实用户环境或公开发布，v0.0.8 已发行包保持原样。
 
 ## v0.0.8 正式发行范围（2026-10-31）
 

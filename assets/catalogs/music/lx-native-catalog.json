@@ -1,0 +1,158 @@
+{
+  "origin": "https://github.com/pdone/lx-music-source",
+  "checkedAt": "2026-11-01",
+  "sources": [
+    {
+      "id": "changqing",
+      "version": "1.3.0",
+      "bytes": 27645,
+      "sha256": "6a942987c1e111a113376fbf8ff9fb677c487058f16ce792779c72f69c4ed6de",
+      "lines": 10,
+      "provider": "",
+      "status": "已还原固定媒体地址；当前 HTTP 404，不设为可播渠道"
+    },
+    {
+      "id": "fish",
+      "version": "1.9.0",
+      "bytes": 639619,
+      "sha256": "a711e152c4f28c32fd46b38839a70f476e0b669905773a90e2ce63246136af47",
+      "lines": 8,
+      "provider": "",
+      "status": "混淆协议待原生分析"
+    },
+    {
+      "id": "flower",
+      "version": "1",
+      "bytes": 10057,
+      "sha256": "15c166987edde41cf5917b3160c0ab253ff17e5e6bc6765c9eaa11a822c4aa97",
+      "lines": 5,
+      "provider": "lxFlower",
+      "status": "网易云 128k 请求与 tag 已原生还原；当前接口 404"
+    },
+    {
+      "id": "grass",
+      "version": "1",
+      "bytes": 9176,
+      "sha256": "d694275f382427d3fef809fc77338ef014dc330af710cca6b3233ece8740510f",
+      "lines": 5,
+      "provider": "lxGrass",
+      "status": "酷我 128k 请求与 tag 已原生还原；当前接口 404"
+    },
+    {
+      "id": "helloworld",
+      "version": "260925",
+      "bytes": 21421,
+      "sha256": "12d7a289647b4f4ff8b94d4b27d06a55b7ca9b9be6ac89c602cac2052eced723",
+      "lines": 545,
+      "provider": "lxHelloWorld",
+      "status": "网易云 128k 固定 POST 原生分支"
+    },
+    {
+      "id": "huanyin",
+      "version": "v3",
+      "bytes": 7316,
+      "sha256": "4a81129240ecae3ebf6b42f28c73e2d37bbcb6fccac9a73a401d90cdd36bee5f",
+      "lines": 310,
+      "provider": "lxHuanyin",
+      "status": "网易云 128k 原生协议"
+    },
+    {
+      "id": "huibq",
+      "version": "v1.2.0",
+      "bytes": 2727,
+      "sha256": "a9adeb456690b523008038224091cee31977606302d79082eb06adb3c75c9146",
+      "lines": 89,
+      "provider": "lxHuibq",
+      "status": "网易云 128k 原生协议"
+    },
+    {
+      "id": "hyw",
+      "version": "v1.2.0",
+      "bytes": 12082,
+      "sha256": "0f48bdab4205e4423397f970b926565085a5af4f3b8a8a19f4cdc0e755647cd5",
+      "lines": 293,
+      "provider": "lxHyw",
+      "status": "网易云 128k 公益接口原生分支；公开配置密钥，正常 TLS"
+    },
+    {
+      "id": "ikun",
+      "version": "v22",
+      "bytes": 4991,
+      "sha256": "8db6c45bc225f1f15fc2e96f7d9ad3bf2e49dd1f2a998cdf23704185ea41fe89",
+      "lines": 146,
+      "provider": "",
+      "status": "需要接口密钥/授权配置；未设为可播渠道"
+    },
+    {
+      "id": "jiexiang",
+      "version": "2.3.0",
+      "bytes": 91493,
+      "sha256": "a4f25710ea8c993e20626df2345fb933607eb4b91b794bd323f954e7085b94df",
+      "lines": 2168,
+      "provider": "lxExclusive",
+      "status": "独家公共 v4 分支；其余分支待适配"
+    },
+    {
+      "id": "juhe",
+      "version": "3",
+      "bytes": 994,
+      "sha256": "f7a661f01af7ea23035d5fac3b89d7c756372fc8a64bbfd649918f8a101cbf33",
+      "lines": 7,
+      "provider": "lxJuhe",
+      "status": "网易云 128k 直链分支；不支持远端动态请求指令，当前 429"
+    },
+    {
+      "id": "lx",
+      "version": "7",
+      "bytes": 64094,
+      "sha256": "79a5c4703e060eaff6f8ffaac05d2fadf5e22b7729f6fe151d1cca2fa3935171",
+      "lines": 13,
+      "provider": "",
+      "status": "虚拟机混淆协议待原生还原；不执行脚本"
+    },
+    {
+      "id": "qdy",
+      "version": "9.3 93特供版 DeepSeek优化",
+      "bytes": 31090,
+      "sha256": "213f73232562b528826dd97601e74212b517014e06fd614b28d8d8aa0dda400c",
+      "lines": 831,
+      "provider": "lxQdy",
+      "status": "GD 网易云分支；其余分支待适配"
+    },
+    {
+      "id": "sixyin",
+      "version": "v1.2.1",
+      "bytes": 333015,
+      "sha256": "a407ffe0ab23c29cd32ce249b83e61c8e2b70719895f16034566ad7557282785",
+      "lines": 11,
+      "provider": "",
+      "status": "混淆协议待原生分析"
+    },
+    {
+      "id": "xinghai",
+      "version": "v3.2.15",
+      "bytes": 38858,
+      "sha256": "807d6157e4fd7cdd05b8727efd73778b54a3b05a0b5e4c6bb28dedc0668e94e9",
+      "lines": 957,
+      "provider": "lxXinghai",
+      "status": "GD 网易云分支；其余分支待适配"
+    },
+    {
+      "id": "yuningxi",
+      "version": "v1.2.2",
+      "bytes": 147347,
+      "sha256": "9ddcc32f55ba1981166f16bf55c03c43165b098932208a5fb4c9c64192650f0c",
+      "lines": 28,
+      "provider": "",
+      "status": "混淆协议待原生分析"
+    },
+    {
+      "id": "exclusive-v6",
+      "version": "6",
+      "bytes": 64094,
+      "sha256": "ef5289ddc2e8fd98ec7ac9e096878d9e6fed5e4ae1669d21e4484eac247aeda7",
+      "status": "本地修复包：虚拟机混淆协议待原生还原；不执行脚本",
+      "provider": ""
+    }
+  ]
+}

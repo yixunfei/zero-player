@@ -2,6 +2,7 @@ import '../../../media/content_filter/fingerprints/feature_rule.dart';
 import 'dart:convert';
 import '../domain/settings_validation.dart';
 import '../../radio/data/radio_backup_validation.dart';
+import '../../music/data/music_library.dart';
 
 /// Validate payload semantics before the database transaction begins. A valid
 /// SQL string alone must not turn malformed JSON into a persistent startup fault.
@@ -167,6 +168,9 @@ void _url(Object? value) {
 }
 
 void _appMetadata(Map row) {
+  if (validateMusicMetadata(row['key'] as String, row['value'] as String)) {
+    return;
+  }
   if ((row['key'] as String).startsWith('content_label:')) {
     _contentLabel(row);
     return;
