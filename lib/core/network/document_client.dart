@@ -52,6 +52,40 @@ final class DocumentClient {
     CancellationToken? cancellation,
   }) async {
     final bytes = utf8.encode(jsonEncode(data));
+    return _post(
+      uri,
+      bytes,
+      'application/json',
+      headers: headers,
+      maxBytes: maxBytes,
+      cancellation: cancellation,
+    );
+  }
+
+  /// Fixed form APIs only; redirects and automatic retries remain disabled.
+  Future<Document> postForm(
+    Uri uri,
+    Map<String, String> data, {
+    Map<String, String> headers = const {},
+    int maxBytes = 2 * 1024 * 1024,
+    CancellationToken? cancellation,
+  }) => _post(
+    uri,
+    utf8.encode(Uri(queryParameters: data).query),
+    'application/x-www-form-urlencoded;charset=UTF-8',
+    headers: headers,
+    maxBytes: maxBytes,
+    cancellation: cancellation,
+  );
+
+  Future<Document> _post(
+    Uri uri,
+    List<int> bytes,
+    String contentType, {
+    required Map<String, String> headers,
+    required int maxBytes,
+    required CancellationToken? cancellation,
+  }) async {
     if (bytes.length > 65536) throw const FormatException('请求体超过大小限制');
     final token = CancellationToken();
     final unlink = cancellation?.listen(token.cancel);
@@ -62,7 +96,7 @@ final class DocumentClient {
         method: 'POST',
         body: bytes,
         policy: HeaderPolicy({
-          uri: {...headers, 'Content-Type': 'application/json'},
+          uri: {...headers, 'Content-Type': contentType},
         }),
         cancellation: token,
         priority: RequestPriority.interactive,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../../core/network/loopback_request_policy.dart';
 import 'dart:math';
 
 import 'filter_session.dart';
@@ -47,15 +48,13 @@ final class ApprovedMediaServer {
       !uri.hasFragment;
 
   Future<void> _handle(HttpRequest request) async {
+    secureLoopbackResponse(request.response);
     try {
       if (!{'GET', 'HEAD'}.contains(request.method)) {
         request.response.statusCode = HttpStatus.methodNotAllowed;
         return;
       }
-      if (request.headers.value('origin') != null ||
-          request.headers.value('sec-fetch-site') != null ||
-          request.headers.value('host') != '127.0.0.1:${_server!.port}' ||
-          request.uri.hasQuery ||
+      if (!isNativeLoopbackRequest(request, _server!.port) ||
           request.uri.pathSegments.length != 2) {
         request.response.statusCode = HttpStatus.forbidden;
         return;
@@ -66,8 +65,6 @@ final class ApprovedMediaServer {
         request.response.statusCode = HttpStatus.notFound;
         return;
       }
-      request.response.headers.set('Cache-Control', 'no-store');
-      request.response.headers.set('X-Content-Type-Options', 'nosniff');
       if (parts[1] == 'index.m3u8') {
         _manifest(request, session);
       } else {

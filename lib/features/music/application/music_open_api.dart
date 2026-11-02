@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../../../core/network/loopback_request_policy.dart';
 import 'package:flutter/foundation.dart';
 import 'music_controller.dart';
 
@@ -81,6 +82,7 @@ final class MusicOpenApi extends ChangeNotifier {
             .toSet();
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
+    secureLoopbackResponse(response);
     var streaming = false;
     try {
       if (request.method != 'GET') {
@@ -88,15 +90,11 @@ final class MusicOpenApi extends ChangeNotifier {
         return;
       }
       if (_server == null ||
-          request.headers.value('host') != '127.0.0.1:${_server!.port}' ||
-          request.headers.value('origin') != null ||
-          request.headers.value('sec-fetch-site') != null ||
+          !isNativeLoopbackRequest(request, _server!.port, allowQuery: true) ||
           request.uri.toString().length > 2048) {
         response.statusCode = 403;
         return;
       }
-      response.headers.set('X-Content-Type-Options', 'nosniff');
-      response.headers.set('Cache-Control', 'no-store');
       final state = snapshot;
       if (request.uri.path == '/status') {
         response.headers.contentType = ContentType.json;

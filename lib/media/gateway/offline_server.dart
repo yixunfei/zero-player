@@ -1,3 +1,4 @@
+import '../../core/network/loopback_request_policy.dart';
 import '../../core/platform/video_files.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -187,6 +188,7 @@ final class OfflineServer {
   }
 
   Future<void> _serve(HttpRequest request) async {
+    secureLoopbackResponse(request.response);
     try {
       final parts = request.uri.pathSegments;
       final File? file = parts.length == 2
@@ -196,10 +198,7 @@ final class OfflineServer {
         request.response.statusCode = 405;
         return;
       }
-      if (file == null ||
-          request.headers.value('origin') != null ||
-          request.headers.value('sec-fetch-site') != null ||
-          request.headers.value('host') != '127.0.0.1:${_server!.port}') {
+      if (file == null || !isNativeLoopbackRequest(request, _server!.port)) {
         request.response.statusCode = 404;
         return;
       }
@@ -208,11 +207,6 @@ final class OfflineServer {
           : parts.last.endsWith('.mp4') || parts.last.endsWith('.m4s')
           ? 'video/mp4'
           : 'application/octet-stream';
-      request.response.headers.set('X-Content-Type-Options', 'nosniff');
-      request.response.headers.set(
-        'Content-Security-Policy',
-        "default-src 'none'; sandbox",
-      );
       await serveLocalFile(request, file, contentType: type);
     } catch (_) {
       try {

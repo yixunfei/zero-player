@@ -6,33 +6,14 @@ import 'package:zero_player/media/cache/segment_store.dart';
 import 'package:zero_player/media/gateway/media_gateway.dart';
 import '../../test_support/http_test_server.dart';
 
+late Directory root;
+late MediaGateway gateway;
+late HttpClient client;
+late HttpTestServer upstream;
+late Uri target;
+
 void main() {
-  late Directory root;
-  late MediaGateway gateway;
-  late HttpClient client;
-  late HttpTestServer upstream;
-  late Uri target;
-  setUp(() async {
-    root = await Directory.systemTemp.createTemp('gateway-security-');
-    gateway = MediaGateway(SegmentStore(root), allowPrivateNetworks: true);
-    await gateway.start();
-    upstream = await HttpTestServer.start((request) {
-      request.response.headers.contentType = ContentType('video', 'mp4');
-      if (request.uri.path == '/range.mp4') {
-        request.response.headers.set('Content-Range', 'bytes 1-65/66');
-      }
-      request.response.write(
-        '<html><script>location.href="https://evil.test"</script></html>',
-      );
-    });
-    final session = gateway.createSession(HeaderPolicy({}))
-      ..cacheEnabled = false;
-    target = session.register(
-      upstream.baseUri.resolve('fake.mp4'),
-      streaming: true,
-    );
-    client = HttpClient();
-  });
+  setUp(_setUp);
   tearDown(() async {
     client.close(force: true);
     await gateway.close();
@@ -61,6 +42,10 @@ void main() {
       'Origin': 'https://evil.test',
       'Sec-Fetch-Site': 'cross-site',
       'Host': 'evil.test',
+      'Referer': 'https://evil.test/page',
+      'Sec-Fetch-Mode': 'no-cors',
+      'Sec-Fetch-Dest': 'video',
+      'Sec-Fetch-User': '?1',
     }.entries) {
       final request = await client.getUrl(target);
       request.headers.set(header.key, header.value);
@@ -68,6 +53,19 @@ void main() {
       expect(response.statusCode, HttpStatus.forbidden);
       await response.drain<void>();
     }
+    expect(upstream.calls, isEmpty);
+  });
+  test('query aliases cannot reuse a registered capability', () async {
+    final response = await (await client.getUrl(
+      target.replace(query: 'injected=1'),
+    )).close();
+    expect(response.statusCode, HttpStatus.forbidden);
+    expect(response.headers.value('Cache-Control'), 'no-store');
+    expect(
+      response.headers.value('Cross-Origin-Resource-Policy'),
+      'same-origin',
+    );
+    await response.drain<void>();
     expect(upstream.calls, isEmpty);
   });
   test(
@@ -93,4 +91,25 @@ void main() {
       expect(await utf8.decoder.bind(response).join(), 'Media request failed');
     },
   );
+}
+
+Future<void> _setUp() async {
+  root = await Directory.systemTemp.createTemp('gateway-security-');
+  gateway = MediaGateway(SegmentStore(root), allowPrivateNetworks: true);
+  await gateway.start();
+  upstream = await HttpTestServer.start((request) {
+    request.response.headers.contentType = ContentType('video', 'mp4');
+    if (request.uri.path == '/range.mp4') {
+      request.response.headers.set('Content-Range', 'bytes 1-65/66');
+    }
+    request.response.write(
+      '<html><script>location.href="https://evil.test"</script></html>',
+    );
+  });
+  final session = gateway.createSession(HeaderPolicy({}))..cacheEnabled = false;
+  target = session.register(
+    upstream.baseUri.resolve('fake.mp4'),
+    streaming: true,
+  );
+  client = HttpClient();
 }

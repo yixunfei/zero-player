@@ -19,6 +19,31 @@ void main() {
       isFalse,
     );
   });
+  test('inconsistent ranges cannot bypass prefix inspection', () {
+    for (final pair in [
+      ['bytes 1-64/100', 'bytes=-64'],
+      ['bytes 36-98/100', 'bytes=-64'],
+      ['bytes 36-99/*', 'bytes=-64'],
+      ['bytes 20-10/100', 'bytes=20-'],
+      ['bytes 20-100/100', 'bytes=20-'],
+      ['bytes 20-60/100', 'bytes=20-40'],
+      ['bytes 1-99/100', 'bytes=-200'],
+    ]) {
+      expect(
+        startsMediaEntity(pair[0], requestedRange: pair[1]),
+        isTrue,
+        reason: '$pair',
+      );
+    }
+    expect(
+      startsMediaEntity('bytes 36-99/100', requestedRange: 'bytes=-64'),
+      isFalse,
+    );
+    expect(
+      startsMediaEntity('bytes 20-40/100', requestedRange: 'bytes=20-40'),
+      isFalse,
+    );
+  });
   test('document and executable MIME types are rejected', () {
     for (final type in [
       'text/html',

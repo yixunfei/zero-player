@@ -63,6 +63,16 @@ void main() {
           server.isRegisteredPlaylist(session.uri.replace(port: 1)),
           isFalse,
         );
+        final alias = await (await client.getUrl(
+          session.uri.replace(query: 'injected=1'),
+        )).close();
+        expect(alias.statusCode, 404);
+        await alias.drain<void>();
+        final browser = await client.getUrl(session.uri);
+        browser.headers.set('Referer', 'https://evil.test/');
+        final denied = await browser.close();
+        expect(denied.statusCode, 404);
+        await denied.drain<void>();
         final response = await (await client.getUrl(session.uri)).close();
         final text = await utf8.decoder.bind(response).join();
         final parts = text.split('\n').where((l) => l.endsWith('.ts')).toList();

@@ -90,8 +90,16 @@ final class _LxSourcesState extends State<_LxSources> {
       child: ListView(
         children: [
           const Text('推荐与播放分开。以下状态按实际适配分支显示；脚本可访问不等于可播，不执行远程代码。'),
-          _site('qqmp3', '米兔音乐', '已接歌曲搜索与酷我解析；云盘下载链接不自动导入。'),
-          _site('musicBox', '枫叶音乐盒', '使用 /musicBox/，已接网易云搜索与 Meting 播放。'),
+          _site('qqmp3', '米兔音乐', '搜索接口当前返回 403，已从可选播放渠道移除。'),
+          _site('musicBox', '枫叶音乐盒', '搜索接口当前返回 502，已从可选播放渠道移除。'),
+          const ListTile(
+            title: Text('无损音乐下载 · 酷我试听'),
+            subtitle: Text('已接入匿名搜索和试听地址；站内下载口令不用于本应用。'),
+          ),
+          const ListTile(
+            title: Text('24bit 无损音乐'),
+            subtitle: Text('浏览器可搜索；应用网络请求当前返回 403，暂未列入可播渠道。'),
+          ),
           _site('uzz', 'UZZ', '当前返回 403；缺少可验证的接口，不列入可播渠道。'),
           const ListTile(
             title: Text('WFU 一整天的音乐'),

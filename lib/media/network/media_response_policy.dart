@@ -47,14 +47,28 @@ Stream<List<int>> guardMediaBody(
 bool startsMediaEntity(String? contentRange, {String? requestedRange}) {
   // An unsolicited or malformed Content-Range must not disable inspection.
   final response = RegExp(
-    r'^bytes (\d+)-(\d+)/(?:\d+|\*)$',
+    r'^bytes (\d+)-(\d+)/(\d+|\*)$',
   ).firstMatch(contentRange ?? '');
   if (response == null || requestedRange == null) return true;
   final start = int.tryParse(response[1]!);
-  if (start == null || start == 0) return true;
-  final request = RegExp(r'^bytes=(\d+)-\d*$').firstMatch(requestedRange);
-  if (request != null) return int.tryParse(request[1]!) != start;
-  return !RegExp(r'^bytes=-[1-9]\d*$').hasMatch(requestedRange);
+  final end = int.tryParse(response[2]!);
+  final total = int.tryParse(response[3]!);
+  if (start == null || start == 0 || end == null || end < start) return true;
+  if (response[3] != '*' && (total == null || total <= end)) return true;
+  final request = RegExp(r'^bytes=(\d+)-(\d*)$').firstMatch(requestedRange);
+  if (request != null) {
+    if (int.tryParse(request[1]!) != start) return true;
+    if (request[2]!.isEmpty) return false;
+    final limit = int.tryParse(request[2]!);
+    return limit == null || end > limit;
+  }
+  final suffix = RegExp(r'^bytes=-([1-9]\d*)$').firstMatch(requestedRange);
+  final length = suffix == null ? null : int.tryParse(suffix[1]!);
+  // A suffix is relative to the full entity, not merely any nonzero offset.
+  return total == null ||
+      length == null ||
+      end != total - 1 ||
+      start != (total - length).clamp(0, total);
 }
 
 void _validatePrefix(List<int> bytes) {

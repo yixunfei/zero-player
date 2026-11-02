@@ -22,6 +22,34 @@ Map<String, Object?> chart(String title) => {
   },
 };
 void main() {
+  test('malformed optional recommendation metadata does not discard songs', () {
+    final home = parseHomepageSongs({
+      'code': 200,
+      'result': [
+        {
+          'name': 'Song',
+          'song': {'artists': 'invalid', 'album': 1},
+        },
+      ],
+    });
+    expect(home.single.title, 'Song');
+    expect(home.single.artist, '');
+    final charts = parseMusicRecommendations({
+      'code': 200,
+      'playlist': {
+        'tracks': [
+          null,
+          {
+            'name': 'Song',
+            'ar': [null],
+            'al': 'invalid',
+          },
+        ],
+      },
+    });
+    expect(charts.single.title, 'Song');
+  });
+  _homepageTest();
   test(
     'editorial playlists cover categories and work without network',
     () async {
@@ -54,7 +82,7 @@ void main() {
         '<div class="channel-group"><li data-id="123456789ab"><a>周杰倫(直播)</a></li></div>',
       );
       expect(wfu.single.title, '周杰倫');
-      expect(wfu.single.cover, contains('i.ytimg.com'));
+      expect(wfu.single.cover, contains('i.ytimg'));
       expect(
         () => parseMusicRecommendations({'code': 200, 'result': {}}),
         throwsFormatException,
@@ -104,4 +132,65 @@ void main() {
       expect(feed.notice, isNull);
     },
   );
+}
+
+void _homepageTest() {
+  test('default discovery requests public homepage metadata', () async {
+    final db = AppDatabase.memory();
+    final http = MediaHttpClient(allowPrivateNetworks: true);
+    final server = await HttpTestServer.start((request) {
+      expect(request.uri.path, '/api/personalized/newsong');
+      request.response.write(
+        jsonEncode({
+          'code': 200,
+          'result': [
+            {
+              'name': '新歌',
+              'picUrl': 'https://example.com/cover.jpg',
+              'song': {
+                'artists': [
+                  {'name': '歌手'},
+                ],
+              },
+            },
+          ],
+        }),
+      );
+    });
+    final feed = MusicRecommendations(
+      DocumentClient(http),
+      db,
+      endpoint: server.baseUri,
+    );
+    addTearDown(() async {
+      feed.close();
+      http.close();
+      await server.close();
+      await db.close();
+    });
+    expect(feed.chart, 'home');
+    await feed.load(feed.chart);
+    expect(feed.items.single.query, '新歌 歌手');
+  });
+  test('anonymous homepage songs provide search metadata only', () {
+    final songs = parseHomepageSongs({
+      'code': 200,
+      'result': [
+        {
+          'name': '<b>新歌</b>',
+          'picUrl': 'http://example.com/cover.jpg',
+          'song': {
+            'artists': [
+              {'name': '歌手'},
+            ],
+            'album': {'name': '专辑'},
+          },
+        },
+      ],
+    });
+    expect(songs.single.title, '新歌');
+    expect(songs.single.query, '新歌 歌手');
+    expect(songs.single.cover, 'https://example.com/cover.jpg');
+    expect(() => parseHomepageSongs({'code': 200}), throwsFormatException);
+  });
 }

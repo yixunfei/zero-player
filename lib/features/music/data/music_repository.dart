@@ -22,6 +22,7 @@ final class MusicRepository {
           enabled: true,
           endpoint: Uri.parse(switch (provider) {
             'audius' => 'https://audius.co',
+            'flacHi' => 'https://flac.music.hi.cn',
             'archive' => 'https://archive.org',
             'lxHuibq' => 'https://lxmusicapi.onrender.com',
             'qqmp3' => 'https://www.qqmp3.vip',

@@ -52,6 +52,14 @@ void main() {
       final rejected = await browser.close();
       expect(rejected.statusCode, 403);
       await rejected.drain<void>();
+      final navigation = await client.getUrl(
+        Uri.parse('${api.address}/status'),
+      );
+      navigation.headers.set('Sec-Fetch-Mode', 'navigate');
+      final denied = await navigation.close();
+      expect(denied.statusCode, 403);
+      expect(denied.headers.value('Cache-Control'), 'no-store');
+      await denied.drain<void>();
       final control = await (await client.getUrl(
         Uri.parse('${api.address}/play'),
       )).close();

@@ -7,7 +7,7 @@ import 'package:zero_player/features/music/data/music_repository.dart';
 import 'package:zero_player/features/music/data/myfreemp3_client.dart';
 
 void main() {
-  for (final provider in ['netease', 'audius', 'archive']) {
+  for (final provider in ['netease', 'audius', 'flacHi']) {
     test(
       'public source $provider searches and resolves metadata',
       () async {

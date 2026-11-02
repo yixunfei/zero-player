@@ -3,24 +3,15 @@ import '../../../core/network/document_client.dart';
 import '../domain/music_track.dart';
 import 'website_music_sources.dart';
 import 'lx_native_sources.dart';
+import 'flac_music_sources.dart';
 
 const musicSources = {
   'myfreemp3': 'MY FREE MP3',
   'netease': '网易云公开音频',
   'audius': 'Audius',
-  'archive': 'Internet Archive',
-  'lxHuibq': '网易云 · LX/Huibq（实验）',
-  'qqmp3': '米兔音乐 · 酷我',
-  'musicBox': '枫叶音乐盒 · 网易云',
-  'lxHuanyin': '网易云 · LX/幻音（实验）',
-  'lxQdy': '网易云 · LX/QDY（实验）',
-  'lxXinghai': '网易云 · LX/星海（实验）',
-  'lxExclusive': '网易云 · 独家公共接口（实验）',
+  'flacHi': '无损音乐下载 · 酷我试听',
   'lxHelloWorld': '网易云 · LX/Hello World（实验）',
   'lxHyw': '网易云 · LX/HYW 公益（实验）',
-  'lxFlower': '网易云 · LX/野花（实验）',
-  'lxGrass': '酷我 · LX/野草（实验）',
-  'lxJuhe': '网易云 · LX/聚合直链（实验）',
 };
 
 final class PublicMusicSources {
@@ -28,12 +19,14 @@ final class PublicMusicSources {
   final DocumentClient network;
   late final websites = WebsiteMusicSources(network);
   late final lx = LxNativeSources(network);
+  late final flac = FlacMusicSources(network);
   Future<MusicSearchResult> search(
     String provider,
     String query,
     int page,
     CancellationToken? token,
   ) async {
+    if (provider == 'flacHi') return flac.search(query, page, token);
     if ({'qqmp3', 'musicBox', 'lxGrass'}.contains(provider)) {
       return websites.search(provider, query, page, token);
     }
@@ -70,6 +63,7 @@ final class PublicMusicSources {
   }
 
   Future<MusicTrack> resolve(MusicTrack track, CancellationToken token) async {
+    if (track.provider == 'flacHi') return flac.resolve(track, token);
     if ({'qqmp3', 'musicBox'}.contains(track.provider)) {
       return websites.resolve(track, token);
     }

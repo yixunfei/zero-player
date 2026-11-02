@@ -34,7 +34,7 @@ void main() {
     pending['netease']!.complete(const MusicSearchResult([], hasNext: true));
     await Future<void>.delayed(Duration.zero);
     expect(published, ['netease']);
-    expect(pending.length, 4);
+    expect(pending.length, MusicMultiSearch.providers.length);
     pending['myfreemp3']!.completeError(const FormatException('failed'));
     await Future<void>.delayed(Duration.zero);
     while (published.length < MusicMultiSearch.providers.length) {
@@ -66,7 +66,7 @@ void main() {
       cancellation: CancellationToken(),
       onResult: (_, response, failure) => failures.add(failure!),
     );
-    expect(cancelled, 6);
+    expect(cancelled, MusicMultiSearch.providers.length);
     expect(failures, everyElement(isA<TimeoutException>()));
   });
 

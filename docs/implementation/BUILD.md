@@ -2,9 +2,9 @@
 
 当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
 
-## v0.0.9 发行配置（2026-11-01）
+## v0.0.10 发行配置（2026-11-02）
 
-本版正式发行 Windows x64，Android 正式签名文件仍缺失，Android v0.0.9 独立包名测试构建仅用于本地设备测试。按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.9/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。
+本版正式发行 Windows x64，Android 正式签名文件仍缺失，Android 独立包名测试构建仅用于本地设备测试。按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.10/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。
 
 本地 Android 测试包使用下述“0.0.8+8 本地真机测试包”章节的独立包名与测试签名流程；以当前 `pubspec.yaml` 版本和 `tool/verify_apk.py` 对应参数校验。不得将测试签名 APK 作为正式 Android 升级发布。
 

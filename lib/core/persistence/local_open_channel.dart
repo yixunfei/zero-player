@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../network/loopback_request_policy.dart';
 import 'dart:math';
 import 'package:path/path.dart' as p;
 import '../platform/video_file_types.dart';
@@ -40,12 +41,12 @@ final class LocalOpenChannel {
   }
 
   Future<void> _receive(HttpRequest request) async {
+    secureLoopbackResponse(request.response);
     try {
       if (_closed ||
           request.method != 'POST' ||
           request.uri.toString() != '/open' ||
-          request.headers.value('host') != '127.0.0.1:${_server.port}' ||
-          request.headers.value('origin') != null ||
+          !isNativeLoopbackRequest(request, _server.port) ||
           request.headers.value('x-zero-open') != _secret) {
         request.response.statusCode = 403;
         return;

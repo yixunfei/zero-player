@@ -10,12 +10,40 @@ import '../../../core/persistence/app_database.dart';
 import '../../../core/text/display_text.dart';
 
 const musicCharts = {
+  'home': '网易云首页新歌',
   'hot': '热歌榜',
   'new': '新歌榜',
   'original': '原创榜',
   'rising': '飙升榜',
   'wfu': 'WFU 音乐精选',
 };
+
+/// Public homepage discovery metadata. Playback remains with the chosen source.
+List<MusicRecommendation> parseHomepageSongs(Object? raw) {
+  if (raw is! Map || raw['code'] != 200 || raw['result'] is! List) {
+    throw const FormatException('首页推荐数据暂不可用');
+  }
+  return [
+    for (final entry in (raw['result'] as List).take(80))
+      if (entry is Map && entry['song'] is Map)
+        MusicRecommendation(
+          displayText('${entry['name'] ?? ''}'),
+          _rows((entry['song'] as Map)['artists'])
+              .whereType<Map>()
+              .map((artist) => displayText('${artist['name'] ?? ''}'))
+              .join(' / '),
+          '${entry['picUrl'] ?? ''}'.replaceFirst('http://', 'https://'),
+          description: _albumName((entry['song'] as Map)['album']),
+        ),
+  ].where((item) => item.title.isNotEmpty).toList();
+}
+
+Iterable<Map> _rows(Object? value) =>
+    value is List ? value.whereType<Map>() : const <Map>[];
+
+String _albumName(Object? value) =>
+    value is Map ? displayText('${value['name'] ?? ''}') : '';
+
 const _chartIds = {
   'hot': '3778678',
   'new': '3779629',
@@ -32,16 +60,15 @@ List<MusicRecommendation> parseMusicRecommendations(Object? raw) {
     throw const FormatException('推荐音乐列表格式已变更');
   }
   return [
-    for (final row in (list['tracks'] as List).take(80).cast<Map>())
+    for (final row in (list['tracks'] as List).take(80).whereType<Map>())
       MusicRecommendation(
         displayText('${row['name'] ?? ''}'),
-        ((row['artists'] ?? row['ar']) as List? ?? [])
-            .cast<Map>()
-            .map((a) => displayText('${a['name'] ?? ''}'))
-            .join(' / '),
+        _rows(
+          row['artists'] ?? row['ar'],
+        ).map((a) => displayText('${a['name'] ?? ''}')).join(' / '),
         '${(row['album'] ?? row['al'] as Object?) is Map ? ((row['album'] ?? row['al']) as Map)['picUrl'] ?? '' : ''}'
             .replaceFirst('http://', 'https://'),
-        description: '${((row['album'] ?? row['al']) as Map?)?['name'] ?? ''}',
+        description: _albumName(row['album'] ?? row['al']),
       ),
   ].where((item) => item.title.isNotEmpty).toList();
 }
@@ -73,7 +100,7 @@ final class MusicRecommendations extends ChangeNotifier {
   final AppDatabase db;
   final Uri endpoint;
   List<MusicRecommendation> items = [];
-  String chart = 'hot';
+  String chart = 'home';
   String get category => musicCollections[chart]?.category ?? '榜单';
   bool loading = false;
   String? notice;
@@ -129,6 +156,8 @@ final class MusicRecommendations extends ChangeNotifier {
       final doc = await network.get(
         value == 'wfu'
             ? Uri.parse('https://music1.wfuapp.com/')
+            : value == 'home'
+            ? endpoint.resolve('/api/personalized/newsong')
             : endpoint
                   .resolve('/api/playlist/detail')
                   .replace(queryParameters: {'id': _chartIds[value]!}),
@@ -137,6 +166,8 @@ final class MusicRecommendations extends ChangeNotifier {
       );
       final result = value == 'wfu'
           ? parseWfuRecommendations(doc.text)
+          : value == 'home'
+          ? parseHomepageSongs(doc.json)
           : parseMusicRecommendations(doc.json);
       token.check();
       if (result.isEmpty) throw const FormatException('没有可显示的推荐音乐');

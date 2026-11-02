@@ -4,11 +4,11 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.9 Windows x64** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.9) · [Android v0.0.7](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.9.md)
+**v0.0.10 Windows x64** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.10) · [Android v0.0.7](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.10.md)
 
-## v0.0.9 新增
+## v0.0.10 新增
 
-当前版本为 **0.0.9+9**，新增在线音乐搜索、榜单与精选歌单、播放队列、历史续播和离线下载；支持多源并发搜索与本地下载优先显示。音乐与广播共享后台音频控制，并沿用既有监管、内容过滤与网络访问策略。
+当前版本为 **0.0.10+10**，新增在线音乐搜索、榜单与精选歌单、播放队列、历史续播和离线下载；支持多源并发搜索与本地下载优先显示。音乐与广播共享后台音频控制，并沿用既有监管、内容过滤与网络访问策略。
 
 本次正式发行仅提供 Windows x64。原 Android 正式签名文件当前不可用，因此保留 Android v0.0.7，不用测试签名替换正式版。独立包名 `dev.zeroplayer.zero_player.devtest` 的 Android 测试构建不作为本次公开附件。验收范围见[实施状态](docs/implementation/STATUS.md)。
 
@@ -23,7 +23,7 @@
 - 搜索默认查询全渠道，优先当前浏览来源；发现页推荐无当前来源，支持手动仅当前来源、失败重试与逐源进度。
 - 统一成人过滤，监管模式覆盖点播、直播和广播；支持频道/关键词屏蔽，每次敏感操作验证密码，恢复码由用户自行保管。
 - **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、健康筛选/测活、失败换线、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
-- **在线音乐**：以音乐榜单封面浏览推荐，点击后通过所选渠道搜索并记住本机渠道选择；复用视频封面组件和缓存，采用 Flutter 本机界面，无需部署音乐服务器。内置 [MY FREE MP3](https://myfreemp3.ink)、网易云公开音频、Audius、Internet Archive、米兔音乐、枫叶音乐盒及实验性 LX 原生分支；支持歌单、可整理的播放队列/下一首播放、四种播放模式、历史续播、离线下载、迷你播放器与托盘收听。[LX 仓库](https://github.com/pdone/lx-music-source)的 16 项与本地 v6 修复包均列明适配状态和固定摘要，不执行脚本；尚未完整兼容所有源。具体能力和源站失败情况见使用指南。
+- **在线音乐**：默认浏览网易云公开首页新歌推荐，点击后通过所选渠道搜索并记住本机渠道选择；复用视频封面组件和缓存，采用 Flutter 本机界面，无需部署音乐服务器。当前可选 [MY FREE MP3](https://myfreemp3.ink)、网易云公开音频、Audius、[无损音乐下载](https://flac.music.hi.cn/)匿名酷我试听及近期有原生播放验证记录的实验性 LX Hello World/HYW 分支；支持歌单、可整理的播放队列/下一首播放、四种播放模式、历史续播、离线下载、迷你播放器与托盘收听。[LX 仓库](https://github.com/pdone/lx-music-source)的 16 项与本地 v6 修复包仅列明适配状态和固定摘要，不执行脚本。具体能力和源站失败情况见实施状态。
 - 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
 - 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
 - 播放中特征跳过（默认关闭）：原画质直接播放，后台优先检测音频；没有规则、资源缺失或检测失败时继续播放。支持频道/全剧声画样本、保守/积极/提示策略、离线关键词检测。关键词始终先确认，默认跳过时长 20 秒，可调整并撤销。轻量关键词、OCR / ASR 资源在设置中手动下载，不随基础包安装。Android 实机性能待设备验收。详见 [实施记录](docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md)。
@@ -41,7 +41,7 @@
 | Android 8.0+ ARM64 手机/平板/TV | v0.0.7 的 android-arm64.apk |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-本次 v0.0.9 提供 `zero-player-0.0.9-windows-x64-setup.exe` 和 `zero-player-0.0.9-windows-x64-portable.zip`，另附源码、第三方声明、原生来源及 `SHA256SUMS.txt`。Android 最新公开包仍为 v0.0.7。Windows 二进制未做商业代码签名；本轮未重新验收安装/卸载后的系统文件关联。
+本次 v0.0.10 提供 `zero-player-0.0.10-windows-x64-setup.exe` 和 `zero-player-0.0.10-windows-x64-portable.zip`，另附源码、第三方声明、原生来源及 `SHA256SUMS.txt`。Android 最新公开包仍为 v0.0.7。Windows 二进制未做商业代码签名；本轮未重新验收安装/卸载后的系统文件关联。
 
 不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。便携包必须完整解压，不能仅复制 EXE。
 

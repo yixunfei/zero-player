@@ -1,8 +1,19 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-01（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-02（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
-## 当前交接
+## v0.0.10 审阅与发行（2026-11-02）
+
+- 纳入已有音乐渠道和网络边界加固改动；补充修复推荐歌手/专辑及试听格式异常类型处理，避免远端畸形可选字段使正常歌曲不可用。
+- 版本 0.0.10+10，Windows x64 正式发布；Android 保持既有正式签名边界，不发布测试签名升级包。
+- 全量回归 616 通过、5 跳过；Python 工具回归 12 通过，源码规模检查通过。新增回归、静态分析与构建日志为 build/review-targeted.log、build/review-analyze-final.log、build/review-windows.log。
+- 未验收 Android/TV 实机、安装卸载、真实媒体长时播放；不宣称本轮消除所有潜在缺陷。
+
+## 当前交接（发行前历史快照）
+
+- 在线音乐发现页默认改为网易云无需登录的首页新歌公开推荐，只取标题、歌手、封面等搜索元数据；播放仍经所选渠道搜索。失效渠道复核与未接入候选见下节；当前改动尚未进入安装包。
+
+- 当前源码新增恶意渠道与跨站攻击增量防护（见下节）；现有安装包未包含这些更改。
 
 - 当前源码版本 `0.0.9+9`，本轮纳入多源并发搜索、本地下载优先显示及分类精选歌单，详情见“音乐聚合搜索与分类优化”和 [v0.0.9 版本说明](RELEASE-0.0.9.md)。
 - 在线音乐、歌单、播放模式、历史续播、离线下载、推荐封面及更多原生渠道的核查见“在线音乐核查与修复”；v0.0.8 已发行附件不包含音乐功能。
@@ -15,6 +26,22 @@
 - 首次 Windows 原生回归发现 CMake 缓存绑定旧 L:；已将旧目录保留在 `build/windows-before-restore-20261030`，按原摘要校验复用 mpv/ANGLE 压缩包，重新生成 Windows 构建目录。原生复验 3 项通过：安全配置/受控播放 1 项，MP4/HLS 的 FFprobe 与 FFmpeg 声画采样 2 项（不将 tearDownAll 计入用例）。日志 `.dart_tool/native-8c0bcc01/`；驱动有既有插件检测提示，但实际取得成功结果且退出码为 0。
 - 恢复阶段 `flutter analyze --no-pub` 无问题（`build/restore-20261030-final-analyze.log`）。
 - Windows x64 普通 Release 重新构建通过（退出码 0），产物 `build/windows/x64/runner/Release/zero_player.exe`，必须保留同目录 DLL/data。日志 `build/restore-20261030-windows-release.log`；插件注册与产物检查确认无 integration_test 插件。本轮未生成安装器、公开发布或验收真实用户媒体。
+
+## 在线音乐渠道复核（2026-11-02）
+
+- 实际请求：网易云公开搜索和 Audius 搜索/元数据解析通过；Internet Archive 在线测试超时。米兔搜索接口返回 403、枫叶 API 返回 502。上述三个失败项已从可选渠道移除；缺少近期可播证据的其他 LX 实验分支也从选择列表移除，保留最近 Windows 原生验证过的 Hello World/HYW。保留旧歌曲记录格式，避免旧歌单反序列化失败；旧失效渠道不可发起新搜索。
+- 用户明确要求先跳过需要登录的 `Netease_url`。复核发现 `flac.music.hi.cn` 的匿名搜索 `ajax.php?act=search` 和试听解析 `act=getUrl` 可用；站内口令针对下载，本应用不调用下载。已接入酷我试听，播放前重新获取签名并校验返回地址，媒体下载标志关闭。在线测试搜得 20 项并解析到 `other-lv.kuwo.cn`，抽样音频 Range 请求返回 206、`audio/mpeg`。`24bit.net` 浏览器首页可见搜索框，但本机应用同类请求遇到 403；暂未把浏览器网页能力宣称为可播渠道。浏览器自动控制因无法可靠确认当前 URL 而停止，未继续操作。需要稳定的可供应用访问的搜索与播放接口才能接入。
+- 首页发现以 `music.163.com/api/personalized/newsong` 的公开响应为元数据来源，点击推荐只发送歌曲名与歌手至当前搜索渠道。缓存及内容过滤沿用原路径。尚需设备/真实媒体播放和长期可用性验证。
+- 验证：公开首页接口返回 200 和新歌元数据；最终在线源测试 3 项通过（网易云 30 项、Audius 28 项、flac 20 项搜索/解析），移除前 Archive 测试超时。全量 `flutter test --no-pub` 616 项通过、5 项按配置跳过；`flutter analyze --no-pub` 无问题，源码规模检查通过。Windows x64 普通 Release 构建通过，普通插件注册未含 integration_test；未生成安装包，也未在 Android/TV 设备或真实媒体上验收。
+
+## 恶意渠道与跨站攻击增量加固（2026-11-01）
+
+- 在既有渠道防护上统一五个回环服务的请求与响应策略，补齐 Referer/Fetch Metadata、能力 URL 查询别名和拒绝响应保护；修复伪造后缀/越界 Content-Range 可跳过媒体前缀检查的问题。范围与保证边界见 [渠道安全说明](SOURCE-SECURITY-2026-10-29.md#增量加固2026-11-01)。
+- 全量 `flutter test --no-pub`：613 项通过、5 项按配置跳过，日志 `build/security-hardening-tests.log`；首轮定向 11 项通过，日志 `build/security-hardening-targeted.log`。规模检查首次报告测试入口函数 105 行，拆分夹具初始化后通过（`build/security-hardening-size-final.log`）；首次失败证据 `build/security-hardening-size.log` 保留。
+- `flutter analyze --no-pub` 无问题（`build/security-hardening-analyze.log`）。拆分测试夹具后，网关 5 项复验通过（`build/security-hardening-final-targeted.log`）。
+- Windows 原生 3 项业务用例通过（不计 tearDownAll）：安全选项回读、未登记输入拒绝、WAV/HLS 实际播放与引用权限复位，以及 MP4/HLS 的 FFprobe、FFmpeg 声画采样。命令 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/hardening_native_test.dart', 'integration_test/source_security_sampler_test.dart')`；汇总日志 `build/security-hardening-native.log`，原始证据 `.dart_tool/native-043eb4a9/`。驱动仍有既有 integration_test 检测提示，测试成功结果和退出码 0 均已核对。
+- Windows 普通 Release 构建通过（退出码 0，`build/security-hardening-windows.log`），产物 `build/windows/x64/runner/Release/zero_player.exe`，需保留同目录 DLL/data；普通插件注册未包含 integration_test。未生成新安装包。下一步为 Android/TV 真机、真实公网媒体和长期播放验收。
+- 保留既有 `tmp/` 未跟踪内容；本轮不更新版本、不提交、推送或公开发布，现有安装包尚不含本轮更改。
 
 ## v0.0.9 发行与本地测试（2026-11-01）
 
@@ -325,3 +352,5 @@ M1–M5 的主要产品能力已进入主应用；M0 媒体验证已有 Windows 
 ## 2026-10-27 本轮交互与直播
 
 完成四种字体选择、可配置手动加载数量、导航和搜索对比度、搜索退出与系统返回、Home/End/PageUp/PageDown、默认开屏全屏开关、电视式直播浏览、央视默认选中但不自动播放、频道及订阅持久启停与检测。补入用户列出的三个直播项目，使用真实解析器检查 76 个点播入口和 11 份直播列表。详情及最新验证见 INTERACTION-LIVE-2026-10-27.md 和 TEST-REPORT.md。
+
+本轮追加验证：解析与版本定向回归 8 项通过，试听畸形格式回归通过；静态分析无问题。Windows 原生安全与离线音乐各 1 项业务用例通过（不计 tearDownAll），证据 .dart_tool/native-ad5d5d9a/。普通 Windows Release 构建通过，最终打包前重新构建恢复插件注册。

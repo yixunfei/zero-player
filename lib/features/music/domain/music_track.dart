@@ -69,6 +69,7 @@ final class MusicTrack {
           'myfreemp3',
           'netease',
           'audius',
+          'flacHi',
           'archive',
           'lxHuibq',
           'qqmp3',

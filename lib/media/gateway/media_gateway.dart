@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import '../../core/network/loopback_request_policy.dart';
 import '../../core/network/cancellation_token.dart';
 import '../../core/network/header_policy.dart';
 import '../../core/network/media_http_client.dart';
@@ -185,6 +186,7 @@ final class MediaGateway {
   }
 
   Future<void> _handle(HttpRequest request) async {
+    secureLoopbackResponse(request.response);
     ResourceLease? lease;
     try {
       if (request.method != 'GET' && request.method != 'HEAD') {
@@ -192,7 +194,7 @@ final class MediaGateway {
         return;
       }
       // Native capability URLs must not become a browser fetch endpoint.
-      if (!_nativeRequest(request)) {
+      if (!isNativeLoopbackRequest(request, _server!.port)) {
         request.response.statusCode = HttpStatus.forbidden;
         return;
       }
@@ -209,7 +211,6 @@ final class MediaGateway {
         originalOrigin: session.policy.containsOrigin(uri),
       );
       requests++;
-      _secureResponse(request.response);
       final range = request.headers.value(HttpHeaders.rangeHeader);
       if (range != null && !RegExp(r'^bytes=(\d+-\d*|-\d+)$').hasMatch(range)) {
         request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
@@ -283,19 +284,6 @@ final class MediaGateway {
         /* Disconnected. */
       }
     }
-  }
-
-  bool _nativeRequest(HttpRequest request) =>
-      request.headers.value('origin') == null &&
-      request.headers.value('sec-fetch-site') == null &&
-      request.headers.value('host') == baseUri.authority;
-
-  void _secureResponse(HttpResponse response) {
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set(
-      'Content-Security-Policy',
-      "default-src 'none'; sandbox",
-    );
   }
 
   Future<void> _passthrough(

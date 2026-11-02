@@ -15,14 +15,7 @@ final class MusicMultiSearch {
   MusicMultiSearch(this.search, {this.timeout = const Duration(seconds: 12)});
   final MusicSourceSearch search;
   final Duration timeout;
-  static const providers = [
-    'myfreemp3',
-    'netease',
-    'musicBox',
-    'qqmp3',
-    'audius',
-    'archive',
-  ];
+  static const providers = ['myfreemp3', 'netease', 'audius', 'flacHi'];
 
   Future<void> run(
     String query, {
