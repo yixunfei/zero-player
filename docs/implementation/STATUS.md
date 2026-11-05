@@ -2,17 +2,19 @@
 
 更新：2026-11-05（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
-## v0.0.11 发现音乐优化、界面精修与发行（2026-11-05，已验收，待发布）
+## v0.0.11 发现音乐优化、界面精修与发行（2026-11-05，已发布）
 
 - 计划：①核验并接入可选主页，优化缓存、加载和图片；②检查手机竖横屏、平板、桌面及 TV 键盘交互并审阅当前差异；③运行全量/原生回归和构建；④提交、推送并发布 Windows x64 新版。保留现有未提交改动和 `.workbuddy/`、`tmp/`，Android 不替换正式签名。
 - 结果：QQ 音乐热歌、网易云新歌、Apple Music 中国区公开榜单可选并保存选择；默认 QQ，缓存先显示、6 秒硬截止、首次慢请求显示编辑精选。封面缩为已知 CDN 的 300px，音乐导航横向滚动，网格适配文字缩放。广播页工具栏与列表整体滚动、窄屏标题与操作分行、小窗口精简播放条；共用空状态可滚动，修复历史页和广播页的横屏溢出。保留并审阅既有修复差异，未将历史 123 项审查视为全部闭环。
 - 最终验证：`flutter test --no-pub --reporter expanded` 639 通过、8 项公网用例按配置跳过（`build/v11-all-tests-final.log`）；`flutter analyze --no-pub` 无问题（`build/v11-analyze-clean.log`）；Python 14 通过（`build/v11-python.log`）；源码规模检查和 `git diff --check` 通过（`build/v11-size-release.log`）。原有 112 行测试入口已按解析职责提取。五种尺寸、1.6 倍文字下九个主页面检查通过（`build/v11-viewport-third.log`）；初次布局失败、格式/压缩选项和旧测试滚动目标的失败证据保留。
 - 公网元数据 3 项通过（`build/v11-online-final.log`）：QQ 30 首/525ms、网易云 10 首/112ms、Apple Music 50 首/1465ms；仅是本机单次测量，不推断所有用户网络。Windows 原生 3 项业务通过（不计 tearDownAll）：受控播放安全、两首下载/离线解码/历史续播与队列连播、QQ 推荐到 MY FREE MP3 搜索与实际解码。原始证据 `.dart_tool/native-c2f98bc8/`、汇总 `build/v11-native.log`；驱动有既有 integration_test 检测提示，但成功标记与退出码 0 均已核对。截图 `build/music-discovery-home.png` 已检查。
 - Windows x64 普通 Release 构建通过（`build/v11-windows.log`，退出码 0），版本 `0.0.11+11`。原生来源摘要复核、138 个依赖声明已完成；未验收 Android/TV 实机、安装卸载和真实媒体长时播放。
-- 下一步：按 BUILD.md 生成并校验正式附件，提交、推送及发布；发行入口为 [v0.0.11](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11)。
+- 已提交并推送发行提交 `fe5aae8449e2e2c27cb7efd465caf88ea3d8dca1`；[v0.0.11](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) 已公开且为 GitHub 最新版。六个附件的本地 SHA-256、ZIP CRC 与远端附件摘要/大小一致；源码 ZIP 与发行提交 717 个 Git blob 逐字节一致，便携 ZIP 与全部 93 个 Windows 构建文件一致（`build/v11-artifact-verification.log`、`build/v11-published.json`）。安装器、便携包、源码、声明、原生来源和 SHA256SUMS 均已发布，旧版保留。
+- 后续：Android/TV 实机、安装卸载、真实媒体长时播放及历史审查余项仍待专项验收。本次正式发行不包含 Android 新包。
 
 ## 在线音乐渠道收藏与搜索优先级（2026-11-05）
 
+- 本节为当时源码验收记录；这些改动现已随 v0.0.11 发布。
 - 目标与结果：在线音乐页增加渠道收藏；已有 `https://myfreemp3.ink/` 搜索适配及默认选择继续使用，MY FREE MP3 默认收藏。星形按钮支持收藏/取消，收藏渠道在选择列表中靠前并标星；独立保存收藏集合，不覆盖已有渠道选择，空收藏重启后保持为空。
 - 聚合搜索先调度收藏渠道，保留最多 3 路并发、每源 12 秒截止、按完成顺序显示、取消与过滤边界。实验性 LX 分支仍单独选择，收藏不会扩大聚合范围。补齐启动时立即收藏/切换的恢复竞态与关闭前保存。
 - 验证：最终 `flutter test --no-pub test/music --reporter expanded` 68 通过、3 项公网用例按配置跳过（`build/music-favorites-music-tests-final.log`）；`flutter analyze --no-pub` 无问题（`build/music-favorites-analyze.log`）；`git diff --check` 通过。覆盖默认收藏、取消后重启、恢复期间的新操作、损坏偏好、收藏优先调度和 320/390/844/1280 宽度、1.6 倍文字下的收藏按钮与下拉菜单交互。
