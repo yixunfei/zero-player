@@ -17,11 +17,19 @@ final class MusicBrowser extends ChangeNotifier {
   Future<void>? _loaded;
   Future<void> _writes = Future.value();
   int _choiceRevision = 0;
+  int _favoritesRevision = 0;
+  final _favorites = <String>{'myfreemp3'};
+  final _favoriteEdits = <String, bool>{};
   CancellationToken? _request;
   bool _closed = false;
   String query = '';
   String _provider = 'myfreemp3';
   String get provider => _provider;
+  Set<String> get favoriteProviders => Set.unmodifiable(_favorites);
+  List<String> get orderedProviders => [
+    ...musicSources.keys.where(_favorites.contains),
+    ...musicSources.keys.where((id) => !_favorites.contains(id)),
+  ];
   int page = 1;
   bool loading = false;
   String? error;
@@ -30,32 +38,73 @@ final class MusicBrowser extends ChangeNotifier {
   int failedSources = 0;
   String? preferenceNotice;
   MusicSearchResult result = const MusicSearchResult([]);
-  Future<void> load() => _loaded ??= _restoreProvider();
-  Future<void> _restoreProvider() async {
+  Future<void> load() => _loaded ??= _restorePreferences();
+  Future<void> _restorePreferences() async {
     final revision = _choiceRevision;
     try {
       final rows = await db?.rows(
-        "SELECT value FROM app_meta WHERE key='music_provider'",
+        "SELECT key,value FROM app_meta WHERE key IN ('music_provider','music_source_favorites')",
       );
-      if (_closed ||
-          revision != _choiceRevision ||
-          rows == null ||
-          rows.isEmpty) {
-        return;
+      if (rows == null) return;
+      for (final row in rows) {
+        try {
+          final value = jsonDecode(row['value'] as String);
+          if (row['key'] == 'music_provider' &&
+              revision == _choiceRevision &&
+              value is String &&
+              (value == 'all' || musicSources.containsKey(value))) {
+            _provider = value;
+          } else if (row['key'] == 'music_source_favorites' &&
+              value is List &&
+              value.every((id) => id is String)) {
+            _favorites
+              ..clear()
+              ..addAll(value.cast<String>().where(musicSources.containsKey));
+            for (final edit in _favoriteEdits.entries) {
+              edit.value
+                  ? _favorites.add(edit.key)
+                  : _favorites.remove(edit.key);
+            }
+          }
+        } catch (_) {
+          // Restore each preference independently if another is damaged.
+        }
       }
-      final value = jsonDecode(rows.first['value'] as String);
-      if (value is String &&
-          (value == 'all' || musicSources.containsKey(value))) {
-        _provider = value;
-        notifyListeners();
-      }
+      if (!_closed) notifyListeners();
     } catch (_) {
       // A damaged local preference must not prevent searching.
     }
   }
 
+  void setFavorite(String id, bool value) {
+    if (_closed || !musicSources.containsKey(id)) return;
+    unawaited(load());
+    final revision = ++_favoritesRevision;
+    _favoriteEdits[id] = value;
+    value ? _favorites.add(id) : _favorites.remove(id);
+    preferenceNotice = null;
+    if (db != null) {
+      _writes = _writes
+          .then((_) async {
+            await load();
+            await db!.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+              'music_source_favorites',
+              jsonEncode(_favorites.toList()),
+            ]);
+          })
+          .catchError((Object _) {
+            if (!_closed && revision == _favoritesRevision) {
+              preferenceNotice = '渠道收藏未能保存，本次仍按收藏优先搜索。';
+              notifyListeners();
+            }
+          });
+    }
+    notifyListeners();
+  }
+
   void selectProvider(String value) {
     if (_closed || !(value == 'all' || musicSources.containsKey(value))) return;
+    unawaited(load());
     final revision = ++_choiceRevision;
     _provider = value;
     preferenceNotice = null;
@@ -103,6 +152,7 @@ final class MusicBrowser extends ChangeNotifier {
           query,
           page: page,
           cancellation: token,
+          favorites: favoriteProviders,
           onResult: (source, response, failure) {
             if (_closed || token.isCancelled) return;
             completedSources++;

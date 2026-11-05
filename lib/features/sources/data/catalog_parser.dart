@@ -79,7 +79,7 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
       return;
     }
     final name = (row['name'] ?? row['key'] ?? '未命名源').toString();
-    if (tvbox && row['type'] != 1) {
+    if (tvbox && '${row['type']}' != '1') {
       diagnostics.add(ImportDiagnostic(name, '未支持的 TVBox 类型（Spider/XML/未知）'));
       return;
     }

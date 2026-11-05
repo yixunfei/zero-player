@@ -41,6 +41,10 @@ final class ContentPolicy extends ChangeNotifier {
       (radio ? 'radio:' : 'live:') + stableId(channelIdentity(name));
   void rememberSource(VideoSource source) {
     final previous = _sources[source.id];
+    if (previous?.classification == 'adult' &&
+        source.classification != 'adult') {
+      return;
+    }
     _sources[source.id] = source;
     if (previous != null &&
         (previous.classification != source.classification ||

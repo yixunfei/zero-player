@@ -60,9 +60,16 @@ final class AppBackDispatcher extends RootBackButtonDispatcher {
       _exiting = true;
       await shutdown();
       await SystemNavigator.pop();
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'app exit',
+        ),
+      );
     } finally {
       _dialogOpen = false;
-      _exiting = false;
     }
   }
 }

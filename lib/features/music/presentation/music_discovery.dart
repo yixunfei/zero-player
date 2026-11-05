@@ -38,29 +38,34 @@ final class MusicDiscovery extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverLayoutBuilder(
               builder: (context, constraints) {
-                final columns = (constraints.crossAxisExtent / 190)
-                    .floor()
-                    .clamp(2, 7);
                 final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+                final columns =
+                    (constraints.crossAxisExtent / (144 * scale.clamp(1, 1.4)))
+                        .floor()
+                        .clamp(1, 7);
                 final width =
                     (constraints.crossAxisExtent - (columns - 1) * 12) /
                     columns;
                 return SliverGrid(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final item = items[index];
-                    return PosterCard(
-                      key: ValueKey('music-recommendation-$index'),
-                      title: item.title,
-                      poster: item.cover,
-                      subtitle: item.artist,
-                      description: item.description.isEmpty
-                          ? '点击封面，通过当前渠道搜索这首音乐。'
-                          : item.description,
-                      placeholderIcon: Icons.album_outlined,
-                      informationLabel: '歌曲信息',
-                      onTap: () => onSearch(item.query),
-                    );
-                  }, childCount: items.length),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = items[index];
+                      return PosterCard(
+                        key: ValueKey('music-recommendation-$index'),
+                        title: item.title,
+                        poster: item.cover,
+                        subtitle: item.artist,
+                        description: item.description.isEmpty
+                            ? '点击封面，通过当前渠道搜索这首音乐。'
+                            : item.description,
+                        placeholderIcon: Icons.album_outlined,
+                        informationLabel: '歌曲信息',
+                        onTap: () => onSearch(item.query),
+                      );
+                    },
+                    childCount: items.length,
+                    addAutomaticKeepAlives: false,
+                  ),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
                     crossAxisSpacing: 12,
@@ -100,7 +105,7 @@ final class MusicDiscovery extends StatelessWidget {
           children: [
             Text('发现音乐', style: Theme.of(context).textTheme.headlineLarge),
             const SizedBox(height: 8),
-            const Text('从一张封面开始，找到今天想听的音乐。'),
+            const Text('从喜欢的平台发现新歌，选择歌曲后搜索收听。'),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -111,7 +116,9 @@ final class MusicDiscovery extends StatelessWidget {
                     label: Text(category),
                     selected: feed.category == category,
                     onSelected: (_) => feed.load(
-                      category == '榜单'
+                      category == '推荐'
+                          ? feed.homepage
+                          : category == '榜单'
                           ? 'hot'
                           : musicCollections.entries
                                 .firstWhere((e) => e.value.category == category)
@@ -126,7 +133,9 @@ final class MusicDiscovery extends StatelessWidget {
               runSpacing: 8,
               children: [
                 for (final chart
-                    in (feed.category == '榜单'
+                    in (feed.category == '推荐'
+                            ? musicHomepages
+                            : feed.category == '榜单'
                             ? musicCharts
                             : {
                                 for (final e in musicCollections.entries)
@@ -141,7 +150,9 @@ final class MusicDiscovery extends StatelessWidget {
                   ),
                 IconButton(
                   tooltip: '刷新推荐音乐',
-                  onPressed: () => feed.load(feed.chart, refresh: true),
+                  onPressed: feed.loading
+                      ? null
+                      : () => feed.load(feed.chart, refresh: true),
                   icon: const Icon(Icons.refresh),
                 ),
               ],

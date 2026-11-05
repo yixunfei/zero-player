@@ -331,7 +331,7 @@ final class SearchController extends ChangeNotifier {
           return;
         }
         if (page == 1) latencies[source.id] = clock.elapsedMilliseconds;
-        pages = result.pageCount.clamp(1, pageLimit);
+        pages = result.pageCount.clamp(pages, pageLimit);
         limited |= result.pageCount > pageLimit;
         for (final item in result.items) {
           if (filterAdult && adultContent('${item.title} ${item.category}')) {

@@ -190,31 +190,33 @@ final class SourceRepository {
     if (failure?.kind == FailureKind.cancelled) {
       return;
     }
-    final source = await find(id);
-    final count = failure == null ? 0 : (source?.failures ?? 0) + 1;
-    final now = DateTime.now();
-    final wait = count >= 6
-        ? const Duration(days: 7)
-        : count >= 4
-        ? const Duration(days: 1)
-        : count >= 2
-        ? const Duration(minutes: 30)
-        : Duration.zero;
-    await db.write(
-      '''INSERT INTO source_health(source_id,failures,last_error,checked_at,retry_after,api_ok,latency_ms)
+    await db.atomic(() async {
+      final source = await find(id);
+      final count = failure == null ? 0 : (source?.failures ?? 0) + 1;
+      final now = DateTime.now();
+      final wait = count >= 6
+          ? const Duration(days: 7)
+          : count >= 4
+          ? const Duration(days: 1)
+          : count >= 2
+          ? const Duration(minutes: 30)
+          : Duration.zero;
+      await db.customStatement(
+        '''INSERT INTO source_health(source_id,failures,last_error,checked_at,retry_after,api_ok,latency_ms)
       VALUES(?,?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET failures=excluded.failures,
       last_error=excluded.last_error,checked_at=excluded.checked_at,
       retry_after=excluded.retry_after,api_ok=excluded.api_ok,latency_ms=COALESCE(excluded.latency_ms,source_health.latency_ms)''',
-      [
-        id,
-        count,
-        failure?.message,
-        now.millisecondsSinceEpoch,
-        wait == Duration.zero ? null : now.add(wait).millisecondsSinceEpoch,
-        failure == null ? 1 : 0,
-        latencyMs,
-      ],
-    );
+        [
+          id,
+          count,
+          failure?.message,
+          now.millisecondsSinceEpoch,
+          wait == Duration.zero ? null : now.add(wait).millisecondsSinceEpoch,
+          failure == null ? 1 : 0,
+          latencyMs,
+        ],
+      );
+    }, tables: const {'source_health'});
   }
 
   Future<void> batch(

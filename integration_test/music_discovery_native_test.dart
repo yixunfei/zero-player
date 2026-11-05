@@ -18,7 +18,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   testWidgets(
-    'music cover discovery searches chosen channel and QQMP3 decodes',
+    'music homepage discovery searches chosen channel and MY FREE MP3 decodes',
     _exercise,
     skip: !const bool.fromEnvironment('RUN_MUSIC_ONLINE'),
   );
@@ -31,7 +31,8 @@ Future<void> _exercise(WidgetTester tester) async {
   try {
     await services.settings.load();
     await services.supervision.load();
-    await services.musicRecommendations.load('hot', refresh: true);
+    await services.musicRecommendations.initialize();
+    expect(services.musicRecommendations.showingFallback, isFalse);
     expect(services.musicRecommendations.items, isNotEmpty);
     await windowManager.ensureInitialized();
     await windowManager.setSize(const Size(1280, 850));
@@ -61,10 +62,10 @@ Future<void> _exercise(WidgetTester tester) async {
       '${fixtureProjectRoot()}/build/music-discovery-home.png',
     ).writeAsBytes(png!.buffer.asUint8List());
     screenshot.dispose();
-    services.musicBrowser.selectProvider('qqmp3');
+    services.musicBrowser.selectProvider('myfreemp3');
     await tester.tap(find.byType(PosterCard).first);
     await tester.pump();
-    expect(services.musicBrowser.provider, 'qqmp3');
+    expect(services.musicBrowser.provider, 'myfreemp3');
     expect(
       services.musicBrowser.query,
       services.musicRecommendations.items.first.query,
@@ -82,7 +83,7 @@ Future<void> _exercise(WidgetTester tester) async {
     expect(services.musicPlayer.playing, isTrue);
     expect(services.musicPlayer.snapshot.position, greaterThan(Duration.zero));
     debugPrint(
-      'MUSIC_DISCOVERY_NATIVE_OK recommendations=${services.musicRecommendations.items.length} qqResults=${services.musicBrowser.result.tracks.length}',
+      'MUSIC_DISCOVERY_NATIVE_OK recommendations=${services.musicRecommendations.items.length} searchResults=${services.musicBrowser.result.tracks.length}',
     );
   } finally {
     await tester.pumpWidget(const SizedBox.shrink());

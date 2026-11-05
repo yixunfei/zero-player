@@ -12,14 +12,20 @@ final class RadioSubscriptionStore {
       "SELECT value FROM app_meta WHERE key='radio_subscriptions'",
     );
     if (rows.isEmpty) return [RadioSubscription(name: '内置广播', url: source)];
-    final data = jsonDecode(rows.single['value'] as String);
-    if (data is! List || data.length > 50) {
-      throw const FormatException('广播订阅配置无效');
+    try {
+      final data = jsonDecode(rows.single['value'] as String);
+      if (data is! List || data.length > 50) {
+        throw const FormatException('广播订阅配置无效');
+      }
+      return data.map((row) {
+        if (row is! Map) throw const FormatException('广播订阅配置无效');
+        return RadioSubscription.fromJson(row);
+      }).toList();
+    } on FormatException {
+      return [RadioSubscription(name: '内置广播', url: source)];
+    } on TypeError {
+      return [RadioSubscription(name: '内置广播', url: source)];
     }
-    return data.map((row) {
-      if (row is! Map) throw const FormatException('广播订阅配置无效');
-      return RadioSubscription.fromJson(row);
-    }).toList();
   }
 
   Future<void> update(

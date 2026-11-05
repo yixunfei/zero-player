@@ -53,41 +53,68 @@ final class RadioToolbar extends StatelessWidget {
     ),
   );
 
-  Widget _heading() => Row(
-    children: [
-      IconButton(
-        tooltip: '收起广播页面',
-        onPressed: onCollapse,
-        icon: const Icon(Icons.keyboard_arrow_down),
-      ),
-      const Expanded(
-        child: Text(
-          '在线广播 · 实验阶段',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
-      IconButton(
-        tooltip: '检测当前广播分组',
-        onPressed: loading ? null : onProbe,
-        icon: const Icon(Icons.network_check),
-      ),
-      IconButton(
-        tooltip: '管理广播订阅',
-        onPressed: onSubscriptions,
-        icon: const Icon(Icons.playlist_add),
-      ),
-      IconButton(
-        tooltip: '广播来源与说明',
-        onPressed: onInfo,
-        icon: const Icon(Icons.info_outline),
-      ),
-      IconButton(
-        tooltip: '刷新广播列表',
-        onPressed: loading ? null : onRefresh,
-        icon: const Icon(Icons.refresh),
-      ),
-    ],
+  Widget _heading() => LayoutBuilder(
+    builder: (context, constraints) {
+      final title = Row(
+        children: [
+          IconButton(
+            tooltip: '收起广播页面',
+            onPressed: onCollapse,
+            icon: const Icon(Icons.keyboard_arrow_down),
+          ),
+          const Expanded(
+            child: Text(
+              '在线广播 · 实验阶段',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      );
+      if (constraints.maxWidth < 560) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            title,
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(children: _actions()),
+            ),
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: title),
+          ..._actions(),
+        ],
+      );
+    },
   );
+
+  List<Widget> _actions() => [
+    IconButton(
+      tooltip: '检测当前广播分组',
+      onPressed: loading ? null : onProbe,
+      icon: const Icon(Icons.network_check),
+    ),
+    IconButton(
+      tooltip: '管理广播订阅',
+      onPressed: onSubscriptions,
+      icon: const Icon(Icons.playlist_add),
+    ),
+    IconButton(
+      tooltip: '广播来源与说明',
+      onPressed: onInfo,
+      icon: const Icon(Icons.info_outline),
+    ),
+    IconButton(
+      tooltip: '刷新广播列表',
+      onPressed: loading ? null : onRefresh,
+      icon: const Icon(Icons.refresh),
+    ),
+  ];
 
   Widget _filters() => Wrap(
     spacing: 8,

@@ -4,7 +4,6 @@ import '../../../core/platform/background_audio_session.dart';
 import '../../live/domain/live_channel.dart';
 import '../../playback/domain/player_engine.dart';
 import '../../supervision/application/content_policy.dart';
-import '../../supervision/domain/supervision_rules.dart';
 
 /// Serializes native player commands, discarding superseded station selections.
 final class RadioController extends ChangeNotifier
@@ -58,7 +57,7 @@ final class RadioController extends ChangeNotifier
     if (_engine case final engine?) return engine;
     final engine = _engine = createEngine();
     _states = engine.states.listen((state) {
-      if (_closed || !identical(_engine, engine)) return;
+      if (_closed || !identical(_engine, engine) || error != null) return;
       playing = state.playing;
       buffering = state.buffering;
       notifyListeners();
@@ -66,6 +65,9 @@ final class RadioController extends ChangeNotifier
     _errors = engine.errors.listen((_) {
       if (_closed || !identical(_engine, engine)) return;
       error = '电台暂时无法播放，请重试或选择其他线路/电台。';
+      _needsOpen = true;
+      playing = false;
+      buffering = false;
       if (loading) {
         notifyListeners();
         return;
@@ -91,7 +93,9 @@ final class RadioController extends ChangeNotifier
   Future<void> select(LiveChannel station, {int lineIndex = 0}) {
     if (_closed || station.playbackUrls.isEmpty) return Future<void>.value();
     if (!(policy?.channelAllowed(station, radio: true) ?? true)) {
-      return Future.error(const ContentBlocked());
+      error = '当前电台已被内容策略拦截';
+      notifyListeners();
+      return Future<void>.value();
     }
     final retire = (loading || error != null) && _engine != null;
     final generation = ++_generation;
@@ -128,11 +132,18 @@ final class RadioController extends ChangeNotifier
           engine.open(uri, headers: station.headersFor(uri)),
           interrupted: interrupt.future,
         );
-        if (!_closed && generation == _generation) _needsOpen = false;
+        if (!_closed && generation == _generation) {
+          if (error != null) {
+            await _discardEngine();
+          } else {
+            _needsOpen = false;
+          }
+        }
       } on TimeoutException {
         await _discardEngine();
         if (!_closed && generation == _generation) error = '电台连接超时，请重试或换台。';
       } catch (_) {
+        await _discardEngine();
         if (!_closed && generation == _generation) error = '电台连接失败，请重试或换台。';
       } finally {
         if (!_closed && generation == _generation) {
@@ -231,6 +242,8 @@ final class RadioController extends ChangeNotifier
 
   Future<void> _discardEngine() async {
     _needsOpen = true;
+    playing = false;
+    buffering = false;
     final engine = _engine;
     _engine = null;
     await _states?.cancel();

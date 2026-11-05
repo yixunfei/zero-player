@@ -498,7 +498,7 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
             });
           }
         : null,
-    onHorizontalDragEnd: canGesture
+    onHorizontalDragEnd: canGesture && !widget.controller.isLive
         ? (_) {
             if (seekPreview != null) widget.controller.seek(seekPreview!);
             setState(() {

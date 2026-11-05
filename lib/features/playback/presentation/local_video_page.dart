@@ -75,44 +75,42 @@ final class _LocalVideoPageState extends State<LocalVideoPage> {
     if (!Platform.isAndroid) return (await VideoFiles.chooseVideo())?.path;
     final token = CancellationToken();
     final progress = ValueNotifier<(int, int)>((0, -1));
-    BuildContext? dialog;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          dialog = context;
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text('选择并复制本地视频'),
-              content: ValueListenableBuilder<(int, int)>(
-                valueListenable: progress,
-                builder: (_, value, _) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    LinearProgressIndicator(
-                      value: value.$2 > 0
-                          ? (value.$1 / value.$2).clamp(0.0, 1.0)
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      value.$1 == 0
-                          ? '请选择视频文件'
-                          : '已复制 ${(value.$1 / 1048576).toStringAsFixed(1)} MiB${value.$2 > 0 ? ' / ${(value.$2 / 1048576).toStringAsFixed(1)} MiB' : ''}',
-                    ),
-                  ],
-                ),
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final dialogRoute = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('选择并复制本地视频'),
+            content: ValueListenableBuilder<(int, int)>(
+              valueListenable: progress,
+              builder: (_, value, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    value: value.$2 > 0
+                        ? (value.$1 / value.$2).clamp(0.0, 1.0)
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    value.$1 == 0
+                        ? '请选择视频文件'
+                        : '已复制 ${(value.$1 / 1048576).toStringAsFixed(1)} MiB${value.$2 > 0 ? ' / ${(value.$2 / 1048576).toStringAsFixed(1)} MiB' : ''}',
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(onPressed: token.cancel, child: const Text('取消复制')),
-              ],
             ),
-          );
-        },
-      ),
+            actions: [
+              TextButton(onPressed: token.cancel, child: const Text('取消复制')),
+            ],
+          ),
+        );
+      },
     );
+    unawaited(navigator.push(dialogRoute));
     try {
       return (await VideoFiles.chooseVideo(
         maxBytes: widget.services.settings.value.downloadMiB * 1024 * 1024,
@@ -121,7 +119,8 @@ final class _LocalVideoPageState extends State<LocalVideoPage> {
         onProgress: (copied, total) => progress.value = (copied, total),
       ))?.path;
     } finally {
-      if (dialog != null && dialog!.mounted) Navigator.pop(dialog!);
+      if (dialogRoute.isActive) navigator.removeRoute(dialogRoute);
+      await dialogRoute.completed;
       progress.dispose();
     }
   }

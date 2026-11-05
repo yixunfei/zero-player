@@ -21,6 +21,8 @@ void main() {
   });
   test('inconsistent ranges cannot bypass prefix inspection', () {
     for (final pair in [
+      ['bytes 20-60/*', 'bytes=20-'],
+      ['bytes 20-60/100', 'bytes=20-'],
       ['bytes 1-64/100', 'bytes=-64'],
       ['bytes 36-98/100', 'bytes=-64'],
       ['bytes 36-99/*', 'bytes=-64'],

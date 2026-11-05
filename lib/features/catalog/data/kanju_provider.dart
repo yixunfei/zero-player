@@ -35,7 +35,9 @@ final class KanjuProvider implements VodProvider {
         );
     final data = await client.get(uri);
     if (data['cards'] is! List) throw const FormatException('看剧AI片单结构已变化');
-    final pagination = data['pagination'] as Map? ?? {};
+    final pagination = data['pagination'] is Map
+        ? data['pagination'] as Map
+        : const {};
     return CatalogPage(
       (data['cards'] as List).whereType<Map>().map(parse).toList(),
       pagination['has_more'] == true ? page + 1 : page,
@@ -59,7 +61,9 @@ final class KanjuProvider implements VodProvider {
     final episodes = <Map>[
       ...(data['episodes'] as List? ?? []).whereType<Map>(),
     ];
-    var pagination = data['episode_pagination'] as Map? ?? {};
+    var pagination = data['episode_pagination'] is Map
+        ? data['episode_pagination'] as Map
+        : const {};
     for (var page = 0; pagination['has_more'] == true; page++) {
       if (page >= 49 || episodes.length >= 10000) {
         throw const FormatException('剧集超过加载上限');

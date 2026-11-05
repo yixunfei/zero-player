@@ -95,8 +95,8 @@ final class _LiveScheduleDialogState extends State<LiveScheduleDialog> {
                         if (current)
                           LinearProgressIndicator(
                             value:
-                                (now.difference(item.start).inSeconds /
-                                        item.duration.inSeconds)
+                                (now.difference(item.start).inMicroseconds /
+                                        item.duration.inMicroseconds)
                                     .clamp(0, 1),
                           ),
                       ],

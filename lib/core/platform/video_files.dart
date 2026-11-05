@@ -12,6 +12,7 @@ import 'publish_file.dart';
 final class VideoFiles {
   static const channel = MethodChannel('zero_player/platform');
   static const _progress = MethodChannel('zero_player/local_video_progress');
+  static bool _choosing = false;
 
   static Future<String?> chooseDirectory() => Platform.isAndroid
       ? channel.invokeMethod<String>('chooseVideoDirectory')
@@ -25,10 +26,17 @@ final class VideoFiles {
   }) async {
     if (Platform.isAndroid) {
       cancellation?.check();
+      if (_choosing) throw StateError('已有视频选择任务正在进行');
+      _choosing = true;
       _progress.setMethodCallHandler((call) async {
         if (call.method == 'progress') {
-          final data = Map<String, dynamic>.from(call.arguments as Map);
-          onProgress?.call(data['copied'] as int, data['total'] as int);
+          final data = call.arguments;
+          if (data is Map && data['copied'] is num && data['total'] is num) {
+            onProgress?.call(
+              (data['copied'] as num).toInt(),
+              (data['total'] as num).toInt(),
+            );
+          }
         }
       });
       final remove = cancellation?.listen(
@@ -45,6 +53,7 @@ final class VideoFiles {
       } finally {
         remove?.call();
         _progress.setMethodCallHandler(null);
+        _choosing = false;
       }
     }
     return openFile(
@@ -105,7 +114,9 @@ final class VideoFiles {
         ),
       );
       try {
-        return (await saving)!;
+        final result = await saving;
+        if (result == null) throw StateError('保存未完成，请重新选择目录');
+        return result;
       } finally {
         remove?.call();
       }

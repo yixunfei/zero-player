@@ -25,7 +25,7 @@ final class FilteringVodProvider implements VodProvider {
         // An unverified category must not silently become unrestricted.
         return <String, String>{};
       }
-    }();
+    }().whenComplete(() => _categoryLoad = null);
   }
 
   Future<CatalogItem> _classify(CatalogItem item) async {

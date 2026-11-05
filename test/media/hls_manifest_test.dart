@@ -4,6 +4,7 @@ import 'package:zero_player/media/hls/hls_manifest.dart';
 void main() {
   final base = Uri.parse('https://source.test/path/list.m3u8?token=abc');
   _regressionTests(base);
+  _reviewRegressions(base);
   test(
     'preserves durations, discontinuity and relative URI after redirect',
     () {
@@ -147,4 +148,26 @@ part.ts?auth={$token}
       );
     },
   );
+}
+
+void _reviewRegressions(Uri base) {
+  test('surrounding HLS tag whitespace does not change playlist kind', () {
+    final media = HlsManifest.parse(
+      '#EXTM3U\n #EXTINF:2, \n a.ts \n #EXT-X-ENDLIST \n',
+      base,
+    );
+    expect(media.isComplete, isTrue);
+    expect(media.duration, const Duration(seconds: 2));
+    final master = HlsManifest.parse(
+      '#EXTM3U\n #EXT-X-STREAM-INF:BANDWIDTH=123 \n media.m3u8\n',
+      base,
+    );
+    expect(master.isMaster, isTrue);
+  });
+  test('huge finite EXTINF is rejected before microsecond overflow', () {
+    expect(
+      () => HlsManifest.parse('#EXTM3U\n#EXTINF:1e300,\na.ts\n', base),
+      throwsFormatException,
+    );
+  });
 }

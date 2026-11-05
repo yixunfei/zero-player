@@ -122,6 +122,7 @@ final class MusicOpenApi extends ChangeNotifier {
           'event-stream',
           charset: 'utf-8',
         );
+        streaming = true;
         response.bufferOutput = false;
         response.write(': connected\n\n');
         _clients[response] = _fields(request);
@@ -137,7 +138,13 @@ final class MusicOpenApi extends ChangeNotifier {
         response.statusCode = 404;
       }
     } catch (_) {
-      response.statusCode = 500;
+      _forget(response);
+      try {
+        if (!streaming) response.statusCode = 500;
+        await response.close();
+      } catch (_) {
+        /* Client may have already disconnected. */
+      }
     } finally {
       if (!streaming) {
         await response.close().catchError((Object _) {});

@@ -236,43 +236,39 @@ final class _DownloadsPageState extends State<DownloadsPage> {
         'export-${DateTime.now().microsecondsSinceEpoch}.${format.name}',
       ),
     );
-    BuildContext? dialogContext;
-    void closeDialog() {
-      final current = dialogContext;
-      if (current != null && current.mounted) Navigator.pop(current);
-      dialogContext = null;
-    }
-
     if (!mounted) {
       session.close();
       return;
     }
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          dialogContext = context;
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text('正在导出媒体'),
-              content: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('重封装完成并验证后，选择保存位置'),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: token.cancel, child: const Text('取消导出')),
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final dialogRoute = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('正在导出媒体'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(),
+                SizedBox(height: 16),
+                Text('重封装完成并验证后，选择保存位置'),
               ],
             ),
-          );
-        },
-      ),
+            actions: [
+              TextButton(onPressed: token.cancel, child: const Text('取消导出')),
+            ],
+          ),
+        );
+      },
     );
+    unawaited(navigator.push(dialogRoute));
+    void closeDialog() {
+      if (dialogRoute.isActive) navigator.removeRoute(dialogRoute);
+    }
+
     void cancelRestricted() {
       if (!widget.services.downloads.allowed(task)) {
         token.cancel();
@@ -292,7 +288,6 @@ final class _DownloadsPageState extends State<DownloadsPage> {
       token.check();
       widget.services.downloads.requireAllowed(task);
       closeDialog();
-      dialogContext = null;
       await FileTransfer.saveFile(
         file,
         '${task.title.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')}.${format.name}',

@@ -1,4 +1,5 @@
 """Verify a complete, URL-matched audit before producing packaged defaults."""
+from contextlib import closing
 import collections
 import datetime
 import json
@@ -10,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 def main():
     database = ROOT / 'artifacts/live-audit-20261028.sqlite'
-    with sqlite3.connect(f'file:{database.as_posix()}?mode=ro', uri=True) as db:
+    with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as db:
         channels = {r[0]: '|'.join(json.loads(r[1])) for r in db.execute(
             'SELECT id,urls FROM live_channels')}
         lists = {r[0]: r[1] for r in db.execute('SELECT id,url FROM live_lists')}

@@ -42,6 +42,7 @@ final class _PlayerPageState extends State<PlayerPage>
   bool leaving = false;
   bool closed = false;
   bool _capturing = false;
+  bool _fullscreenChanging = false;
   late final void Function() _removeCloseHook;
   BoxFit fit = BoxFit.contain;
   @override
@@ -79,7 +80,7 @@ final class _PlayerPageState extends State<PlayerPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _removeCloseHook();
-    if (!closed) unawaited(controller.close());
+    unawaited(controller.close().catchError(_reportExitError));
     unawaited(
       widget.services.platform.restorePlayerWindow().catchError(
         _reportExitError,
@@ -143,9 +144,17 @@ final class _PlayerPageState extends State<PlayerPage>
       );
 
   Future<void> _fullscreen() async {
-    if (locked) return;
-    await widget.services.platform.fullscreen(!fullscreen);
-    if (mounted) setState(() => fullscreen = !fullscreen);
+    if (locked || _fullscreenChanging) return;
+    _fullscreenChanging = true;
+    final target = !fullscreen;
+    try {
+      await widget.services.platform.fullscreen(target);
+      if (mounted) setState(() => fullscreen = target);
+    } catch (error, stack) {
+      _reportExitError(error, stack);
+    } finally {
+      _fullscreenChanging = false;
+    }
   }
 
   @override
@@ -437,6 +446,7 @@ final class _PlayerPageState extends State<PlayerPage>
     ],
   );
   Future<void> _line(int index) async {
+    final request = controller.request;
     final target = controller.request!.item.lines[index];
     final matches = matchingEpisodes(controller.episode.label, target.episodes);
     if (matches.length == 1) {
@@ -459,7 +469,11 @@ final class _PlayerPageState extends State<PlayerPage>
           ],
         ),
       );
-      if (selected != null) await controller.select(index, selected);
+      if (mounted &&
+          identical(request, controller.request) &&
+          selected != null) {
+        await controller.select(index, selected);
+      }
     }
   }
 

@@ -40,6 +40,7 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
   Future<void>? _pending;
   String? _error;
   bool _busy = false;
+  int _revision = 0;
 
   @override
   void initState() {
@@ -58,8 +59,17 @@ final class _SourceDetailsDialogState extends State<SourceDetailsDialog> {
   }
 
   Future<void> _reload() async {
-    final source = await widget.services.sources.find(widget.source.id);
-    if (mounted && source != null) setState(() => _source = source);
+    final revision = ++_revision;
+    try {
+      final source = await widget.services.sources.find(widget.source.id);
+      if (mounted && revision == _revision && source != null) {
+        setState(() => _source = source);
+      }
+    } catch (_) {
+      if (mounted && revision == _revision) {
+        setState(() => _error = '来源详情读取失败，请重试');
+      }
+    }
   }
 
   Future<void> _refresh() async {

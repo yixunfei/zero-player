@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:async';
 import 'music_collections.dart';
+import 'music_discovery_sources.dart';
+export 'music_discovery_sources.dart' show musicHomepages;
 import '../domain/music_recommendation.dart';
 export '../domain/music_recommendation.dart';
 import 'package:flutter/foundation.dart';
@@ -10,7 +13,6 @@ import '../../../core/persistence/app_database.dart';
 import '../../../core/text/display_text.dart';
 
 const musicCharts = {
-  'home': '网易云首页新歌',
   'hot': '热歌榜',
   'new': '新歌榜',
   'original': '原创榜',
@@ -32,7 +34,7 @@ List<MusicRecommendation> parseHomepageSongs(Object? raw) {
               .whereType<Map>()
               .map((artist) => displayText('${artist['name'] ?? ''}'))
               .join(' / '),
-          '${entry['picUrl'] ?? ''}'.replaceFirst('http://', 'https://'),
+          musicThumbnail('${entry['picUrl'] ?? ''}'),
           description: _albumName((entry['song'] as Map)['album']),
         ),
   ].where((item) => item.title.isNotEmpty).toList();
@@ -66,8 +68,9 @@ List<MusicRecommendation> parseMusicRecommendations(Object? raw) {
         _rows(
           row['artists'] ?? row['ar'],
         ).map((a) => displayText('${a['name'] ?? ''}')).join(' / '),
-        '${(row['album'] ?? row['al'] as Object?) is Map ? ((row['album'] ?? row['al']) as Map)['picUrl'] ?? '' : ''}'
-            .replaceFirst('http://', 'https://'),
+        musicThumbnail(
+          '${(row['album'] ?? row['al'] as Object?) is Map ? ((row['album'] ?? row['al']) as Map)['picUrl'] ?? '' : ''}',
+        ),
         description: _albumName(row['album'] ?? row['al']),
       ),
   ].where((item) => item.title.isNotEmpty).toList();
@@ -94,22 +97,54 @@ List<MusicRecommendation> parseWfuRecommendations(String body) {
 }
 
 final class MusicRecommendations extends ChangeNotifier {
-  MusicRecommendations(this.network, this.db, {Uri? endpoint})
-    : endpoint = endpoint ?? Uri.parse('https://music.163.com');
+  MusicRecommendations(
+    this.network,
+    this.db, {
+    Uri? endpoint,
+    this.requestTimeout = const Duration(seconds: 6),
+    this.homeEndpoints = const {},
+  }) : endpoint = endpoint ?? Uri.parse('https://music.163.com');
   final DocumentClient network;
   final AppDatabase db;
   final Uri endpoint;
+  final Duration requestTimeout;
+  final Map<String, Uri> homeEndpoints;
+  final _memory = <String, ({int time, List<MusicRecommendation> items})>{};
+  Future<void>? _initial;
+  Future<void> _writes = Future.value();
   List<MusicRecommendation> items = [];
-  String chart = 'home';
-  String get category => musicCollections[chart]?.category ?? '榜单';
+  String chart = 'qqHome';
+  String homepage = 'qqHome';
+  String get category => musicHomepages.containsKey(chart)
+      ? '推荐'
+      : musicCollections[chart]?.category ?? '榜单';
   bool loading = false;
+  bool showingFallback = false;
   String? notice;
   CancellationToken? _request;
   bool _closed = false;
+
+  Future<void> initialize() => _initial ??= _restoreHomepage();
+  Future<void> _restoreHomepage() async {
+    try {
+      final rows = await db.rows(
+        "SELECT value FROM app_meta WHERE key='music_discovery_homepage'",
+      );
+      if (_closed || _request != null) return;
+      if (rows.isNotEmpty && musicHomepages.containsKey(rows.first['value'])) {
+        homepage = rows.first['value'] as String;
+      }
+    } catch (_) {
+      // Local preference failure must not prevent browsing.
+    }
+    if (!_closed && _request == null) await load(homepage);
+  }
+
   Future<void> load(String value, {bool refresh = false}) async {
     if (_closed ||
-        (!musicCharts.containsKey(value) &&
-            !musicCollections.containsKey(value))) {
+        !(musicHomepages.containsKey(value) ||
+            musicCharts.containsKey(value) ||
+            musicCollections.containsKey(value))) {
       return;
     }
     if (loading && chart == value && !refresh) return;
@@ -119,10 +154,30 @@ final class MusicRecommendations extends ChangeNotifier {
     chart = value;
     loading = true;
     notice = null;
-    if (previous != value) items = [];
+    if (previous != value) {
+      items = [];
+      showingFallback = false;
+    }
+    if (musicHomepages.containsKey(value)) {
+      homepage = value;
+      _writes = _writes
+          .then(
+            (_) => db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+              'music_discovery_homepage',
+              value,
+            ]),
+          )
+          .catchError((Object _) {
+            if (!_closed && chart == value) {
+              notice = '发现来源未能保存，本次仍可浏览。';
+              notifyListeners();
+            }
+          });
+    }
     final collection = musicCollections[value];
     if (collection != null) {
       items = collection.songs;
+      showingFallback = false;
       loading = false;
       notice = '${collection.description} 编辑精选歌单 · 点击歌曲搜索，播放可用性以渠道为准。';
       notifyListeners();
@@ -130,58 +185,32 @@ final class MusicRecommendations extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final rows = await db.rows('SELECT value FROM app_meta WHERE key=?', [
-        'music_recommendation:$value',
-      ]);
+      final saved = _memory[value] ?? await _readCache(value);
       token.check();
-      if (rows.isNotEmpty) {
-        try {
-          final saved = jsonDecode(rows.first['value'] as String) as Map;
-          final age =
-              DateTime.now().millisecondsSinceEpoch - (saved['time'] as int);
-          items = (saved['items'] as List)
-              .take(80)
-              .cast<Map>()
-              .map(MusicRecommendation.fromJson)
-              .toList();
-          if (!refresh && items.isNotEmpty && age >= 0 && age < 3600000) return;
-        } on FormatException {
-          items = [];
-        } on TypeError {
-          items = [];
-        }
+      if (saved != null && saved.items.isNotEmpty) {
+        items = saved.items;
+        showingFallback = false;
+        final age = DateTime.now().millisecondsSinceEpoch - saved.time;
+        if (!refresh && age >= 0 && age < 3600000) return;
       }
-      token.check();
-      if (items.isNotEmpty) notifyListeners();
-      final doc = await network.get(
-        value == 'wfu'
-            ? Uri.parse('https://music1.wfuapp.com/')
-            : value == 'home'
-            ? endpoint.resolve('/api/personalized/newsong')
-            : endpoint
-                  .resolve('/api/playlist/detail')
-                  .replace(queryParameters: {'id': _chartIds[value]!}),
-        cancellation: token,
-        maxBytes: 4 * 1024 * 1024,
-      );
-      final result = value == 'wfu'
-          ? parseWfuRecommendations(doc.text)
-          : value == 'home'
-          ? parseHomepageSongs(doc.json)
-          : parseMusicRecommendations(doc.json);
+      if (items.isEmpty) {
+        items = musicCollections['mandarin']!.songs;
+        showingFallback = true;
+        notice = '推荐加载中，可以先听编辑精选，或切换发现来源。';
+      }
+      notifyListeners();
+      final result = await _fetch(value, token);
       token.check();
       if (result.isEmpty) throw const FormatException('没有可显示的推荐音乐');
       items = result;
-      await db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
-        'music_recommendation:$value',
-        jsonEncode({
-          'time': DateTime.now().millisecondsSinceEpoch,
-          'items': items.map((i) => i.toJson()).toList(),
-        }),
-      ]);
+      showingFallback = false;
+      notice = null;
+      await _saveCache(value, result);
     } catch (_) {
       if (!_closed && !token.isCancelled) {
-        notice = items.isEmpty ? '推荐音乐暂不可用，请重试或直接搜索。' : '推荐更新失败，正在显示本机缓存。';
+        notice = showingFallback
+            ? '当前来源暂不可用，先浏览编辑精选；可切换来源或重试。'
+            : '推荐更新失败，正在显示本机缓存。';
       }
     } finally {
       if (!_closed && !token.isCancelled) {
@@ -191,9 +220,102 @@ final class MusicRecommendations extends ChangeNotifier {
     }
   }
 
-  void close() {
+  Future<({int time, List<MusicRecommendation> items})?> _readCache(
+    String value,
+  ) async {
+    try {
+      final rows = await db.rows('SELECT value FROM app_meta WHERE key=?', [
+        'music_recommendation:$value',
+      ]);
+      if (rows.isEmpty) return null;
+      final saved = jsonDecode(rows.first['value'] as String) as Map;
+      return _memory[value] = (
+        time: saved['time'] as int,
+        items: (saved['items'] as List)
+            .take(80)
+            .cast<Map>()
+            .map(MusicRecommendation.fromJson)
+            .toList(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<MusicRecommendation>> _fetch(
+    String value,
+    CancellationToken token,
+  ) async {
+    final request = CancellationToken();
+    final unlink = token.listen(request.cancel);
+    try {
+      final uri = musicHomepages.containsKey(value)
+          ? homeEndpoints[value] ?? musicDiscoveryUri(value, endpoint)
+          : value == 'wfu'
+          ? Uri.parse('https://music1.wfuapp.com/')
+          : endpoint
+                .resolve('/api/playlist/detail')
+                .replace(queryParameters: {'id': _chartIds[value]!});
+      final doc = await network
+          .get(
+            uri,
+            headers: {
+              'Accept-Encoding': 'gzip',
+              if (value == 'qqHome') 'Referer': 'https://y.qq.com/',
+            },
+            cancellation: request,
+            maxBytes: 2 * 1024 * 1024,
+            networkTimeout: requestTimeout,
+          )
+          .timeout(
+            requestTimeout,
+            onTimeout: () {
+              request.cancel();
+              throw TimeoutException('推荐请求超时');
+            },
+          );
+      token.check();
+      return switch (value) {
+        'qqHome' => parseQqHomepage(doc.json),
+        'appleHome' => parseAppleHomepage(doc.json),
+        'home' => parseHomepageSongs(doc.json),
+        'wfu' => parseWfuRecommendations(doc.text),
+        _ => parseMusicRecommendations(doc.json),
+      };
+    } finally {
+      unlink();
+      request.cancel();
+    }
+  }
+
+  Future<void> _saveCache(
+    String value,
+    List<MusicRecommendation> result,
+  ) async {
+    final saved = (time: DateTime.now().millisecondsSinceEpoch, items: result);
+    _memory[value] = saved;
+    _writes = _writes
+        .then(
+          (_) => db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+            'music_recommendation:$value',
+            jsonEncode({
+              'time': saved.time,
+              'items': result.map((i) => i.toJson()).toList(),
+            }),
+          ]),
+        )
+        .catchError((Object _) {
+          if (!_closed && chart == value) notice = '推荐已更新，本机缓存未能保存。';
+        });
+    await _writes;
+  }
+
+  Future<void> close() async {
+    if (_closed) return;
     _closed = true;
     _request?.cancel();
     super.dispose();
+    await _initial;
+    await _writes;
   }
 }

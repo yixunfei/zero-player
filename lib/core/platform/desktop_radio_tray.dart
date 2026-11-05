@@ -26,7 +26,7 @@ final class DesktopRadioTray {
     session.addListener(_changed);
     desktop.keepInTray = _keepAlive;
     desktop.hideToTray = hide;
-    await update();
+    await update().catchError(_report);
   }
 
   bool _keepAlive() =>

@@ -41,6 +41,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   final _showTop = ValueNotifier(false);
   String? _notice;
   int _sourceGeneration = 0;
+  int _syncRevision = 0;
   StreamSubscription<void>? _sourceChanges;
   StreamSubscription<void>? _historyChanges;
 
@@ -88,9 +89,10 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
         [item.title, item.subtitle, item.description].join(' '),
       );
   void _policyChanged() {
+    final changed = _filterAdult != widget.services.contentPolicy.filterAdult;
     _filterAdult = widget.services.contentPolicy.filterAdult;
     if (mounted) setState(() {});
-    unawaited(_refresh());
+    unawaited(changed ? _refresh() : _syncSources());
   }
 
   void _settingsChanged() {
@@ -171,30 +173,43 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
 
   Future<void> _syncSources() async {
     final generation = _sourceGeneration;
-    final sources = await widget.services.sources.all();
-    final preferred = await widget.services.sources.preferredId(_channel);
-    if (!mounted || generation != _sourceGeneration) return;
-    final visible =
-        sources
-            .where(
-              (s) =>
-                  s.enabled &&
-                  !s.suppressed &&
-                  widget.services.contentPolicy.sourceAllowed(s),
-            )
-            .toList()
-          ..sort(compareRecommendedSources);
-    setState(() => _sources = visible);
-    if (preferred != _channel) {
-      _channel = preferred;
-      await widget.services.settings.load();
-      if (mounted) await _refresh();
-      return;
-    }
-    if (_ready &&
-        _channel.isNotEmpty &&
-        !visible.any((s) => s.id == _channel)) {
-      await _refresh();
+    final revision = ++_syncRevision;
+    bool current() =>
+        mounted && generation == _sourceGeneration && revision == _syncRevision;
+    try {
+      final sources = await widget.services.sources.all();
+      final preferred = await widget.services.sources.preferredId(_channel);
+      if (!current()) return;
+      final visible =
+          sources
+              .where(
+                (s) =>
+                    s.enabled &&
+                    !s.suppressed &&
+                    widget.services.contentPolicy.sourceAllowed(s),
+              )
+              .toList()
+            ..sort(compareRecommendedSources);
+      setState(() => _sources = visible);
+      if (preferred != _channel) {
+        _channel = preferred;
+        await widget.services.settings.load();
+        if (current()) await _refresh();
+        return;
+      }
+      if (_ready &&
+          _channel.isNotEmpty &&
+          !visible.any((s) => s.id == _channel)) {
+        await _refresh();
+      }
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'discovery sources',
+        ),
+      );
     }
   }
 

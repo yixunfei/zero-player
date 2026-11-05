@@ -215,17 +215,25 @@ final class _LivePageState extends State<LivePage> {
           );
         }, success: '刷新完成，失败详情见订阅管理');
       case 'export':
-        perform(context, () async {
-          final channels = await widget.services.live.channels();
-          await FileTransfer.saveText(
-            'zero-player-live.m3u',
-            exportM3u(
-              channels
-                  .where((c) => c.health.enabled && !c.health.removed)
-                  .toList(),
-            ),
-          );
-        });
+        perform(
+          context,
+          () => runSensitive(
+            context,
+            widget.services.supervision,
+            SensitiveOperation.export,
+            () async {
+              final channels = await widget.services.live.channels();
+              await FileTransfer.saveText(
+                'zero-player-live.m3u',
+                exportM3u(
+                  channels
+                      .where((c) => c.health.enabled && !c.health.removed)
+                      .toList(),
+                ),
+              );
+            },
+          ),
+        );
     }
   }
 

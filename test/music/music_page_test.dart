@@ -30,7 +30,12 @@ void main() {
         await tester.scrollUntilVisible(
           find.byKey(const ValueKey('music-test')),
           200,
-          scrollable: find.byType(Scrollable).first,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView).first,
+                matching: find.byType(Scrollable),
+              )
+              .first,
         );
         expect(find.textContaining('已下载 · 本地播放'), findsOneWidget);
         expect(find.byTooltip('已下载 · 优先本地播放'), findsOneWidget);
@@ -76,7 +81,12 @@ Future<void> _exercise(WidgetTester tester, Size size) async {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('music-test')),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     if (tester.getCenter(find.byKey(const ValueKey('music-test'))).dy >
         size.height - 100) {

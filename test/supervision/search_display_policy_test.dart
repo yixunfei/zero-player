@@ -1,3 +1,4 @@
+import 'package:zero_player/features/sources/domain/video_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/core/network/document_client.dart';
 import 'package:zero_player/core/network/media_http_client.dart';
@@ -9,6 +10,31 @@ import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 import '../../test_support/supervision_fixture.dart';
 
 void main() {
+  test(
+    'stale source snapshots cannot downgrade adult classification',
+    () async {
+      final f = SupervisionFixture();
+      addTearDown(f.close);
+      await f.load();
+      final old = VideoSource(
+        id: 'race',
+        name: 'fixture',
+        endpoint: Uri.parse('https://ordinary.test/api'),
+      );
+      final adult = VideoSource(
+        id: old.id,
+        name: old.name,
+        endpoint: old.endpoint,
+        classification: 'adult',
+      );
+      f.policy.rememberSource(old);
+      f.policy.rememberSource(adult);
+      f.policy.rememberSource(old);
+      expect(f.policy.sourceAllowed(old), isFalse);
+      expect(f.policy.sourceIdAllowed(old.id), isFalse);
+    },
+  );
+
   test(
     'tightening policy removes cached search entries and website diagnostics together',
     () async {

@@ -22,11 +22,16 @@ final class MusicMultiSearch {
     required int page,
     required CancellationToken cancellation,
     required void Function(String, MusicSearchResult?, Object?) onResult,
+    Set<String> favorites = const {},
   }) async {
+    final ordered = [
+      ...providers.where(favorites.contains),
+      ...providers.where((id) => !favorites.contains(id)),
+    ];
     var next = 0;
     Future<void> worker() async {
-      while (!cancellation.isCancelled && next < providers.length) {
-        final provider = providers[next++];
+      while (!cancellation.isCancelled && next < ordered.length) {
+        final provider = ordered[next++];
         final token = CancellationToken();
         final unlink = cancellation.listen(token.cancel);
         try {

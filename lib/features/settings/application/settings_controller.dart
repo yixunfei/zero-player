@@ -209,7 +209,16 @@ final class SettingsController extends ChangeNotifier {
   Future<void> _pending = Future.value();
   Future<void>? _closing;
   bool _disposed = false;
-  Future<void> load() async {
+  Future<void> load() {
+    if (_disposed || _closing != null) {
+      return Future.error(StateError('Settings are closed'));
+    }
+    final operation = _pending.then((_) => _load());
+    _pending = operation.catchError((Object _) {});
+    return operation;
+  }
+
+  Future<void> _load() async {
     if (_disposed || _closing != null) throw StateError('Settings are closed');
     await prepareAuthorization?.call();
     final rows = await db.rows('SELECT key,value FROM settings');

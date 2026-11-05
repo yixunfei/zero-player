@@ -37,11 +37,7 @@ final class _MusicPageState extends State<MusicPage> {
         widget.services.musicRecommendations.items.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          unawaited(
-            widget.services.musicRecommendations.load(
-              widget.services.musicRecommendations.chart,
-            ),
-          );
+          unawaited(widget.services.musicRecommendations.initialize());
         }
       });
     }
@@ -82,37 +78,7 @@ final class _MusicPageState extends State<MusicPage> {
       final tracks = merged.values.toList();
       return Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final item in const [
-                  ('discover', '发现音乐'),
-                  ('search', '搜索'),
-                  ('playlists', '我的歌单'),
-                  ('history', '播放历史'),
-                  ('downloads', '离线音乐'),
-                ])
-                  ChoiceChip(
-                    label: Text(item.$2),
-                    selected: _view == item.$1,
-                    onSelected: (_) {
-                      setState(() => _view = item.$1);
-                      if (item.$1 == 'discover' &&
-                          widget.services.musicRecommendations.items.isEmpty) {
-                        unawaited(
-                          widget.services.musicRecommendations.load(
-                            widget.services.musicRecommendations.chart,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-              ],
-            ),
-          ),
+          _tabs(),
           Expanded(
             child: _view == 'discover'
                 ? MusicDiscovery(
@@ -144,6 +110,36 @@ final class _MusicPageState extends State<MusicPage> {
         ],
       );
     },
+  );
+
+  Widget _tabs() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        spacing: 8,
+        children: [
+          for (final item in const [
+            ('discover', '发现音乐'),
+            ('search', '搜索'),
+            ('playlists', '我的歌单'),
+            ('history', '播放历史'),
+            ('downloads', '离线音乐'),
+          ])
+            ChoiceChip(
+              label: Text(item.$2),
+              selected: _view == item.$1,
+              onSelected: (_) {
+                setState(() => _view = item.$1);
+                if (item.$1 == 'discover' &&
+                    widget.services.musicRecommendations.items.isEmpty) {
+                  unawaited(widget.services.musicRecommendations.initialize());
+                }
+              },
+            ),
+        ],
+      ),
+    ),
   );
 
   Widget _header(BuildContext context) => Column(

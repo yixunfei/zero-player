@@ -39,7 +39,7 @@ final class BuiltinSources {
             as Map;
     final defaults = <String, bool>{
       for (final result in precheck['results'] as List)
-        result['url'] as String: !{
+        Uri.parse(result['url'] as String).toString(): !{
           'unavailable',
           'missingDomain',
           'inconclusive',

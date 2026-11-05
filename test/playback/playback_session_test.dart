@@ -147,10 +147,8 @@ void _failedSeekRegression() {
     await Future<void>.delayed(Duration.zero);
     expect(engine.seeks.last, const Duration(seconds: 10));
     failSeek = true;
-    await expectLater(
-      player.seek(const Duration(seconds: 20), rearmSkips: false),
-      throwsStateError,
-    );
+    await player.seek(const Duration(seconds: 20), rearmSkips: false);
+    expect(player.notice, '跳转失败，请重试');
     failSeek = false;
     engine.change(position: Duration.zero);
     await Future<void>.delayed(Duration.zero);

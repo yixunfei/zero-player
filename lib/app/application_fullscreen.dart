@@ -28,7 +28,21 @@ final class _ApplicationFullscreenState extends State<ApplicationFullscreen> {
     final allowed = !usesCompactNavigation(context, widget.platform);
     if (_allowed == allowed) return;
     _allowed = allowed;
-    unawaited(widget.platform.configureAppFullscreen(allowed: allowed));
+    unawaited(
+      widget.platform.configureAppFullscreen(allowed: allowed).catchError((
+        Object error,
+        StackTrace stack,
+      ) {
+        _allowed = null;
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'app fullscreen',
+          ),
+        );
+      }),
+    );
   }
 
   @override

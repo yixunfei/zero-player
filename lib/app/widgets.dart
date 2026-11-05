@@ -60,56 +60,60 @@ Future<List<String>?> inputDialog(
 }) async {
   final controllers = List.generate(
     labels.length,
-    (i) => TextEditingController(text: initial?[i] ?? ''),
-  );
-  final result = await showDialog<List<String>>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < labels.length; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: TextField(
-                    controller: controllers[i],
-                    autofocus: i == 0,
-                    maxLines: labels[i].contains('JSON') ? 4 : 1,
-                    decoration: InputDecoration(
-                      labelText: labels[i],
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            controllers.map((c) => c.text.trim()).toList(),
-          ),
-          child: Text(action),
-        ),
-      ],
+    (i) => TextEditingController(
+      text: i < (initial?.length ?? 0) ? initial![i] : '',
     ),
   );
-  // Dialog exit animations may still refer to controllers this frame.
-  await Future<void>.delayed(const Duration(milliseconds: 300));
-  for (final controller in controllers) {
-    controller.dispose();
+  try {
+    return await showDialog<List<String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < labels.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: TextField(
+                      controller: controllers[i],
+                      autofocus: i == 0,
+                      maxLines: labels[i].contains('JSON') ? 4 : 1,
+                      decoration: InputDecoration(
+                        labelText: labels[i],
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              controllers.map((c) => c.text.trim()).toList(),
+            ),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+  } finally {
+    // Dialog exit animations may still refer to controllers this frame.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    for (final controller in controllers) {
+      controller.dispose();
+    }
   }
-  return result;
 }
 
 String clockText(Duration duration) {
@@ -131,19 +135,26 @@ final class EmptyState extends StatelessWidget {
   final IconData icon;
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
+    child: SingleChildScrollView(
       padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 52, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(description, textAlign: TextAlign.center),
-          if (action != null)
-            Padding(padding: const EdgeInsets.only(top: 20), child: action),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 52, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(description, textAlign: TextAlign.center),
+            if (action != null)
+              Padding(padding: const EdgeInsets.only(top: 20), child: action),
+          ],
+        ),
       ),
     ),
   );

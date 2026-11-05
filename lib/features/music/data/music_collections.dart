@@ -1,7 +1,7 @@
 import '../domain/music_recommendation.dart';
 
 /// Editorial song lists contain search metadata only, never media addresses.
-const musicCategories = ['榜单', '语种', '风格', '场景'];
+const musicCategories = ['推荐', '榜单', '语种', '风格', '场景'];
 
 final class MusicCollection {
   const MusicCollection(

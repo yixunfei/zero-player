@@ -42,8 +42,14 @@ final class NativeMediaCommands {
         throw const FilterFailure('媒体采样失败，请重试、改用画面或仅保存本集区间');
       }
     } on TimeoutException {
-      await FFmpegKit.cancel(session.getSessionId());
-      await done.future;
+      try {
+        await FFmpegKit.cancel(
+          session.getSessionId(),
+        ).timeout(const Duration(seconds: 5));
+        await done.future.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        /* The caller still receives the original timeout. */
+      }
       throw const FilterFailure('媒体采样超时，已取消本次采集');
     } finally {
       remove();
@@ -86,8 +92,14 @@ final class NativeMediaCommands {
       }
       return jsonDecode(await result.getOutput() ?? '') as Map<String, dynamic>;
     } on TimeoutException {
-      await FFmpegKit.cancel(session.getSessionId());
-      await done.future;
+      try {
+        await FFmpegKit.cancel(
+          session.getSessionId(),
+        ).timeout(const Duration(seconds: 5));
+        await done.future.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        /* The caller still receives the original timeout. */
+      }
       throw const FilterFailure('媒体信息读取超时，已停止播放');
     } finally {
       remove();

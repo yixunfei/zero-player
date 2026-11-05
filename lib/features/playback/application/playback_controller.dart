@@ -665,7 +665,12 @@ final class PlaybackController extends ChangeNotifier {
         : position;
     if (rearmSkips) _rearmSkips();
     final processed = timeline.toProcessed(target);
-    return _seekEngine(processed);
+    return _seekEngine(processed).catchError((Object failure) {
+      if (_closed) return;
+      notice = '跳转失败，请重试';
+      diagnostics.add('跳转失败：$failure');
+      notifyListeners();
+    });
   }
 
   Future<void> _startContentFilter(Uri input, int generation) {
@@ -1111,7 +1116,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> mark() async {
-    markTarget;
+    final target = markTarget;
     if (markStart == null) {
       markStart = originalPosition;
       notifyListeners();
@@ -1124,9 +1129,9 @@ final class PlaybackController extends ChangeNotifier {
       originalDuration,
       '自定义片段',
     );
+    checkMarkTarget(target);
     markStart = null;
-    marks = await services.skips.list(workKey);
-    notifyListeners();
+    await refreshSkipMarks();
   }
 
   Future<void> undoSkip() async {
@@ -1150,22 +1155,46 @@ final class PlaybackController extends ChangeNotifier {
     _previousRate = null;
     _saveTimer.cancel();
     _seekSettleTimer?.cancel();
-    await save();
+    Object? failure;
+    StackTrace? trace;
+    Future<void> attempt(FutureOr<void> Function() action) async {
+      try {
+        await action();
+      } catch (error, stack) {
+        failure ??= error;
+        trace ??= stack;
+      }
+    }
+
+    await attempt(save);
     _routeToken.cancel();
-    await _states.cancel();
+    await attempt(() async {
+      await _states.cancel();
+    });
     _captureToken?.cancel();
-    await _errors.cancel();
-    await _queue;
-    await _closeContentFilter();
-    await _captureFinished;
-    await _seekQueue?.catchError((Object _) {});
-    _gateway?.close();
-    request?.offline?.close();
+    await attempt(() async {
+      await _errors.cancel();
+    });
+    await attempt(() async {
+      await _queue;
+    });
+    await attempt(() async {
+      await _closeContentFilter();
+    });
+    await attempt(() async {
+      await _captureFinished;
+    });
+    await attempt(() async {
+      await _seekQueue?.catchError((Object _) {});
+    });
+    await attempt(() => _gateway?.close());
+    await attempt(() => request?.offline?.close());
     try {
-      await engine.dispose();
+      await attempt(engine.dispose);
     } finally {
       dispose();
     }
+    if (failure != null) Error.throwWithStackTrace(failure!, trace!);
   }
 
   void cancelRecovery() {

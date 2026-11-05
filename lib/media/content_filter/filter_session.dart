@@ -317,9 +317,18 @@ final class FilterSession {
   Future<void> _close() async {
     cancellation.cancel();
     if (_wake?.isCompleted == false) _wake!.complete();
-    await _running;
-    await inspector.close();
-    await _changes.close();
-    if (await directory.exists()) await directory.delete(recursive: true);
+    try {
+      await _running;
+    } finally {
+      try {
+        await inspector.close();
+      } finally {
+        try {
+          await _changes.close();
+        } finally {
+          if (await directory.exists()) await directory.delete(recursive: true);
+        }
+      }
+    }
   }
 }

@@ -111,13 +111,18 @@ String? semanticEpisode(String text) {
     caseSensitive: false,
   ).firstMatch(text);
   if (season != null) {
-    return '${int.parse(season[1]!)}:${int.parse(season[2]!)}';
+    final s = int.tryParse(season[1]!);
+    final e = int.tryParse(season[2]!);
+    return s == null || e == null ? null : '$s:$e';
   }
   final match = RegExp(
     r'^(?:第|ep?|episode\s*)?\s*(\d+)\s*(?:集|话|期)?$',
     caseSensitive: false,
   ).firstMatch(text.trim());
-  if (match != null) return '1:${int.parse(match[1]!)}';
+  if (match != null) {
+    final e = int.tryParse(match[1]!);
+    return e == null ? null : '1:$e';
+  }
   final chinese = RegExp(r'^第([一二三四五六七八九十百零]+)[集话期]$').firstMatch(text.trim());
   if (chinese == null) return null;
   const digits = {

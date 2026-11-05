@@ -158,6 +158,10 @@ void _registerCase2() {
     expect(engine.snapshot.playing, isFalse);
     await radio.toggle();
     expect(engine.snapshot.playing, isFalse);
-    await expectLater(radio.select(station), throwsA(isA<ContentBlocked>()));
+    final opens = engine.opens;
+    await radio.select(station);
+    expect(radio.error, contains('拦截'));
+    expect(engine.opens, opens);
+    expect(engine.snapshot.playing, isFalse);
   });
 }

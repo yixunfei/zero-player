@@ -5,6 +5,7 @@ import 'package:zero_player/features/music/application/music_multi_search.dart';
 import 'package:zero_player/features/music/domain/music_track.dart';
 
 void main() {
+  _priorityAndCancellationTests();
   test('bounded fan-out publishes fast results before slow sources', () async {
     final pending = <String, Completer<MusicSearchResult>>{};
     final published = <String>[];
@@ -69,6 +70,42 @@ void main() {
     expect(cancelled, MusicMultiSearch.providers.length);
     expect(failures, everyElement(isA<TimeoutException>()));
   });
+}
+
+void _priorityAndCancellationTests() {
+  test(
+    'favorites start first while fast non-favorites still publish immediately',
+    () async {
+      final pending = <String, Completer<MusicSearchResult>>{};
+      final published = <String>[];
+      final runner = MusicMultiSearch((
+        query, {
+        page = 1,
+        cancellation,
+        provider = 'myfreemp3',
+      }) {
+        final done = pending[provider] = Completer<MusicSearchResult>();
+        return done.future;
+      });
+      final task = runner.run(
+        'song',
+        page: 1,
+        cancellation: CancellationToken(),
+        favorites: {'flacHi', 'audius', 'not-a-provider'},
+        onResult: (source, response, failure) => published.add(source),
+      );
+      expect(pending.keys, ['audius', 'flacHi', 'myfreemp3']);
+      pending['myfreemp3']!.complete(const MusicSearchResult([]));
+      await Future<void>.delayed(Duration.zero);
+      expect(published, ['myfreemp3']);
+      expect(pending.keys, ['audius', 'flacHi', 'myfreemp3', 'netease']);
+      for (final item in pending.values) {
+        if (!item.isCompleted) item.complete(const MusicSearchResult([]));
+      }
+      await task;
+      expect(published.toSet(), MusicMultiSearch.providers.toSet());
+    },
+  );
 
   test(
     'cancelled searches suppress late results and stop starting sources',

@@ -56,6 +56,17 @@ void main() {
       scroll.jumpTo(scroll.position.maxScrollExtent / 2);
       await tester.pump();
       final before = scroll.offset;
+      services.contentPolicy.refresh();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        scroll.offset,
+        before,
+        reason: 'background policy refresh must preserve scroll',
+      );
+
       expect(before, greaterThan(0));
       await tester.runAsync(
         () => services.history.save(

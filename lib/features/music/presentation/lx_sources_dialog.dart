@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../app/app_services.dart';
 import 'music_actions.dart';
+import '../data/public_music_sources.dart';
 
 const lxSourceNames = [
   'changqing',
@@ -149,7 +150,7 @@ final class _LxSourcesState extends State<_LxSources> {
     ),
     trailing: Wrap(
       children: [
-        if ('${row['provider'] ?? ''}'.isNotEmpty)
+        if (musicSources.containsKey(row['provider']))
           TextButton(
             onPressed: () {
               widget.services.musicBrowser.selectProvider(

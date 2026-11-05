@@ -133,9 +133,12 @@ final class ApprovedMediaServer {
   Future<void> _close() async {
     await _starting;
     await _server?.close(force: true);
-    for (final session in _sessions.values.toList()) {
-      await session.close();
+    try {
+      await Future.wait([
+        for (final session in _sessions.values.toList()) session.close(),
+      ]);
+    } finally {
+      _sessions.clear();
     }
-    _sessions.clear();
   }
 }

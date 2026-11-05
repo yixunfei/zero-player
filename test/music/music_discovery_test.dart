@@ -12,6 +12,7 @@ import '../../test_support/fake_player_engine.dart';
 
 void main() {
   for (final size in [
+    const Size(320, 850),
     const Size(390, 850),
     const Size(844, 390),
     const Size(1280, 850),
@@ -63,6 +64,7 @@ void main() {
               ),
             ),
           );
+          await _checkFavorites(tester, services);
           final first = find.byKey(const ValueKey('music-recommendation-0'));
           await tester.scrollUntilVisible(first, 150);
           await tester.pumpAndSettle();
@@ -95,6 +97,39 @@ void main() {
       },
     );
   }
+}
+
+Future<void> _checkFavorites(WidgetTester tester, AppServices services) async {
+  await tester.runAsync(services.musicBrowser.load);
+  await tester.pumpAndSettle();
+  expect(services.musicBrowser.favoriteProviders, {'myfreemp3'});
+  await tester.tap(find.byTooltip('取消收藏音乐渠道'));
+  await tester.pumpAndSettle();
+  expect(services.musicBrowser.favoriteProviders, isEmpty);
+  expect(find.byTooltip('收藏音乐渠道'), findsOneWidget);
+  await tester.tap(find.byTooltip('收藏音乐渠道'));
+  await tester.pumpAndSettle();
+  expect(services.musicBrowser.favoriteProviders, {'myfreemp3'});
+  services.musicBrowser.setFavorite('flacHi', true);
+  services.musicBrowser.setFavorite('myfreemp3', false);
+  await tester.pumpAndSettle();
+  final dropdown = find.byType(DropdownButton<String>);
+  expect(
+    tester
+        .widget<DropdownButton<String>>(dropdown)
+        .items!
+        .map((item) => item.value)
+        .take(3),
+    ['all', 'flacHi', 'myfreemp3'],
+  );
+  await tester.tap(dropdown);
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
+  await tester.tap(find.text('Audius').last);
+  await tester.pumpAndSettle();
+  services.musicBrowser.setFavorite('flacHi', false);
+  services.musicBrowser.setFavorite('myfreemp3', true);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _checkDialog(WidgetTester tester) async {

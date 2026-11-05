@@ -58,7 +58,7 @@ bool startsMediaEntity(String? contentRange, {String? requestedRange}) {
   final request = RegExp(r'^bytes=(\d+)-(\d*)$').firstMatch(requestedRange);
   if (request != null) {
     if (int.tryParse(request[1]!) != start) return true;
-    if (request[2]!.isEmpty) return false;
+    if (request[2]!.isEmpty) return total == null || end != total - 1;
     final limit = int.tryParse(request[2]!);
     return limit == null || end > limit;
   }

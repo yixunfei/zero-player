@@ -99,18 +99,36 @@ final class _RadioPageState extends State<RadioPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      _toolbar(),
-      if (_loading) const LinearProgressIndicator(),
-      if (_error case final error?)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(error),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Column(
+      children: [
+        Expanded(
+          child: ListKeyboardNavigation(
+            controller: _scroll,
+            child: CustomScrollView(
+              controller: _scroll,
+              slivers: [
+                SliverToBoxAdapter(child: _toolbar()),
+                if (_loading)
+                  const SliverToBoxAdapter(child: LinearProgressIndicator()),
+                if (_error case final error?)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(error),
+                    ),
+                  ),
+                _stations(),
+              ],
+            ),
+          ),
         ),
-      Expanded(child: _stations()),
-      _player(),
-    ],
+        _player(compact: constraints.maxHeight < 500),
+      ],
+    ),
   );
 
   Widget _toolbar() => RadioToolbar(
@@ -149,9 +167,11 @@ final class _RadioPageState extends State<RadioPage> {
     },
   );
 
-  Widget _player() => ListenableBuilder(
+  Widget _player({bool compact = false}) => ListenableBuilder(
     listenable: _controller,
-    builder: (context, _) => _playerExpanded || !_controller.active
+    builder: (context, _) => !_controller.active
+        ? const SizedBox.shrink()
+        : _playerExpanded && !compact
         ? RadioPlayerControls(
             controller: _controller,
             onCollapse: _controller.active
@@ -212,84 +232,83 @@ final class _RadioPageState extends State<RadioPage> {
   Widget _stations() {
     final stations = _filteredStations();
     if (stations.isEmpty) {
-      return Center(
-        child: Text(
-          _loading
-              ? '正在加载电台…'
-              : _catalog == null
-              ? '点击刷新获取内置广播列表'
-              : '没有匹配的电台',
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            _loading
+                ? '正在加载电台…'
+                : _catalog == null
+                ? '点击刷新获取内置广播列表'
+                : '没有匹配的电台',
+          ),
         ),
       );
     }
-    return ListKeyboardNavigation(
-      controller: _scroll,
-      child: ListenableBuilder(
-        listenable: _controller,
-        builder: (context, _) => ListView.builder(
-          controller: _scroll,
-          itemCount: stations.length,
-          itemBuilder: (context, index) {
-            final station = stations[index];
-            final selected = _controller.selected?.id == station.id;
-            return ListTile(
-              key: ValueKey('radio:${station.id}'),
-              selected: selected,
-              leading: Icon(
-                selected && _controller.playing
-                    ? Icons.graphic_eq
-                    : radioCategory(station) == RadioCategory.television
-                    ? Icons.tv_outlined
-                    : Icons.radio_outlined,
-              ),
-              title: Text(
-                station.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                [
-                  radioCategory(station).label,
-                  if (station.group.isNotEmpty) station.group,
-                  station.health.label,
-                ].join(' · '),
-              ),
-              trailing: IconButton(
-                tooltip: station.favorite ? '取消收藏电台' : '收藏电台',
-                icon: Icon(station.favorite ? Icons.star : Icons.star_outline),
-                onPressed: () => perform(context, () async {
-                  await widget.services.radio.favorite(
-                    station,
-                    !station.favorite,
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) => SliverList.builder(
+        itemCount: stations.length,
+        itemBuilder: (context, index) {
+          final station = stations[index];
+          final selected = _controller.selected?.id == station.id;
+          return ListTile(
+            key: ValueKey('radio:${station.id}'),
+            selected: selected,
+            leading: Icon(
+              selected && _controller.playing
+                  ? Icons.graphic_eq
+                  : radioCategory(station) == RadioCategory.television
+                  ? Icons.tv_outlined
+                  : Icons.radio_outlined,
+            ),
+            title: Text(
+              station.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              [
+                radioCategory(station).label,
+                if (station.group.isNotEmpty) station.group,
+                station.health.label,
+              ].join(' · '),
+            ),
+            trailing: IconButton(
+              tooltip: station.favorite ? '取消收藏电台' : '收藏电台',
+              icon: Icon(station.favorite ? Icons.star : Icons.star_outline),
+              onPressed: () => perform(context, () async {
+                await widget.services.radio.favorite(
+                  station,
+                  !station.favorite,
+                );
+                final catalog = _catalog;
+                if (catalog == null) return;
+                final updated = await widget.services.radio.withFavorites(
+                  catalog.stations,
+                );
+                if (mounted) {
+                  setState(
+                    () => _catalog = RadioCatalog(
+                      updated,
+                      catalog.updatedAt,
+                      notice: catalog.notice,
+                      needsRefresh: catalog.needsRefresh,
+                    ),
                   );
-                  final catalog = _catalog;
-                  if (catalog == null) return;
-                  final updated = await widget.services.radio.withFavorites(
-                    catalog.stations,
-                  );
-                  if (mounted) {
-                    setState(
-                      () => _catalog = RadioCatalog(
-                        updated,
-                        catalog.updatedAt,
-                        notice: catalog.notice,
-                        needsRefresh: catalog.needsRefresh,
-                      ),
-                    );
-                  }
-                }),
-              ),
-              onTap: () {
-                if (!station.health.enabled || station.health.removed) {
-                  message(context, '此电台已停用，请检测并恢复后播放');
-                  return;
                 }
-                setState(() => _playerExpanded = true);
-                unawaited(_controller.select(station));
-              },
-            );
-          },
-        ),
+              }),
+            ),
+            onTap: () {
+              if (!station.health.enabled || station.health.removed) {
+                message(context, '此电台已停用，请检测并恢复后播放');
+                return;
+              }
+              setState(() => _playerExpanded = true);
+              unawaited(_controller.select(station));
+            },
+          );
+        },
       ),
     );
   }

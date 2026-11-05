@@ -12,6 +12,24 @@ LiveChannel station(String name) => LiveChannel(
 );
 
 void main() {
+  test('failed connection can be reopened by mini player toggle', () async {
+    final failed = FakePlayerEngine(
+      onVolume: (_) async => throw StateError('native failure'),
+    );
+    final recovered = FakePlayerEngine();
+    var created = 0;
+    final controller = RadioController(
+      () => created++ == 0 ? failed : recovered,
+    );
+    addTearDown(controller.close);
+    await controller.select(station('retry'));
+    expect(controller.error, isNotNull);
+    expect(controller.playing, isFalse);
+    await controller.toggle();
+    expect(recovered.opens, 1);
+    expect(controller.error, isNull);
+  });
+
   test('close during native setup prevents a late stream open', () async {
     final entered = Completer<void>();
     final unblock = Completer<void>();

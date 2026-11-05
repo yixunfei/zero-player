@@ -73,6 +73,7 @@ final class ContentFilterService {
     }
     final enhanced = keywords || ocr || asr;
     if (enhanced) resources.users++;
+    var transferred = false;
     try {
       final rootDirectory = Directory('${root.path}/background');
       await rootDirectory.create(recursive: true);
@@ -119,13 +120,14 @@ final class ContentFilterService {
       );
       _background.add(session);
       if (enhanced) _backgroundEnhanced.add(session);
+      transferred = true;
       if (_closed) {
         await releaseBackground(session);
         return null;
       }
       return session;
     } catch (_) {
-      if (enhanced) resources.users--;
+      if (enhanced && !transferred) resources.users--;
       rethrow;
     }
   }
@@ -214,12 +216,13 @@ final class ContentFilterService {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    for (final session in _background.toList()) {
-      await releaseBackground(session);
+    try {
+      await Future.wait([
+        for (final session in _background.toList()) releaseBackground(session),
+        for (final session in _sessions.toList()) release(session),
+      ]);
+    } finally {
+      await server.close();
     }
-    for (final session in _sessions.toList()) {
-      await release(session);
-    }
-    await server.close();
   }
 }

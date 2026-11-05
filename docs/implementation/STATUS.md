@@ -1,6 +1,35 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-02（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-05（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+
+## v0.0.11 发现音乐优化、界面精修与发行（2026-11-05，已验收，待发布）
+
+- 计划：①核验并接入可选主页，优化缓存、加载和图片；②检查手机竖横屏、平板、桌面及 TV 键盘交互并审阅当前差异；③运行全量/原生回归和构建；④提交、推送并发布 Windows x64 新版。保留现有未提交改动和 `.workbuddy/`、`tmp/`，Android 不替换正式签名。
+- 结果：QQ 音乐热歌、网易云新歌、Apple Music 中国区公开榜单可选并保存选择；默认 QQ，缓存先显示、6 秒硬截止、首次慢请求显示编辑精选。封面缩为已知 CDN 的 300px，音乐导航横向滚动，网格适配文字缩放。广播页工具栏与列表整体滚动、窄屏标题与操作分行、小窗口精简播放条；共用空状态可滚动，修复历史页和广播页的横屏溢出。保留并审阅既有修复差异，未将历史 123 项审查视为全部闭环。
+- 最终验证：`flutter test --no-pub --reporter expanded` 639 通过、8 项公网用例按配置跳过（`build/v11-all-tests-final.log`）；`flutter analyze --no-pub` 无问题（`build/v11-analyze-clean.log`）；Python 14 通过（`build/v11-python.log`）；源码规模检查和 `git diff --check` 通过（`build/v11-size-release.log`）。原有 112 行测试入口已按解析职责提取。五种尺寸、1.6 倍文字下九个主页面检查通过（`build/v11-viewport-third.log`）；初次布局失败、格式/压缩选项和旧测试滚动目标的失败证据保留。
+- 公网元数据 3 项通过（`build/v11-online-final.log`）：QQ 30 首/525ms、网易云 10 首/112ms、Apple Music 50 首/1465ms；仅是本机单次测量，不推断所有用户网络。Windows 原生 3 项业务通过（不计 tearDownAll）：受控播放安全、两首下载/离线解码/历史续播与队列连播、QQ 推荐到 MY FREE MP3 搜索与实际解码。原始证据 `.dart_tool/native-c2f98bc8/`、汇总 `build/v11-native.log`；驱动有既有 integration_test 检测提示，但成功标记与退出码 0 均已核对。截图 `build/music-discovery-home.png` 已检查。
+- Windows x64 普通 Release 构建通过（`build/v11-windows.log`，退出码 0），版本 `0.0.11+11`。原生来源摘要复核、138 个依赖声明已完成；未验收 Android/TV 实机、安装卸载和真实媒体长时播放。
+- 下一步：按 BUILD.md 生成并校验正式附件，提交、推送及发布；发行入口为 [v0.0.11](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11)。
+
+## 在线音乐渠道收藏与搜索优先级（2026-11-05）
+
+- 目标与结果：在线音乐页增加渠道收藏；已有 `https://myfreemp3.ink/` 搜索适配及默认选择继续使用，MY FREE MP3 默认收藏。星形按钮支持收藏/取消，收藏渠道在选择列表中靠前并标星；独立保存收藏集合，不覆盖已有渠道选择，空收藏重启后保持为空。
+- 聚合搜索先调度收藏渠道，保留最多 3 路并发、每源 12 秒截止、按完成顺序显示、取消与过滤边界。实验性 LX 分支仍单独选择，收藏不会扩大聚合范围。补齐启动时立即收藏/切换的恢复竞态与关闭前保存。
+- 验证：最终 `flutter test --no-pub test/music --reporter expanded` 68 通过、3 项公网用例按配置跳过（`build/music-favorites-music-tests-final.log`）；`flutter analyze --no-pub` 无问题（`build/music-favorites-analyze.log`）；`git diff --check` 通过。覆盖默认收藏、取消后重启、恢复期间的新操作、损坏偏好、收藏优先调度和 320/390/844/1280 宽度、1.6 倍文字下的收藏按钮与下拉菜单交互。
+- 规模检查 `dart run tool/check_source_size.dart` 仍仅报告既有未修改的 `test/music/music_recommendations_test.dart` main 为 112 行（`build/music-favorites-size-final.log`）；本轮改动无新增超限。未重新验收公网音频解码或 Android/TV 实机，未构建、打包或发布，现有安装包未包含本轮改动。
+- 下一步：需要安装体验时重新按 BUILD.md 构建与打包；既有审查报告的未闭环事项仍按下节推进。
+
+## 2026-11-04 审查报告修复（2026-11-05，进行中）
+
+- 目标：先复核报告 123 项，再修复成立问题，同时额外核查主页偶发回顶。逐项处理与取舍记录在 [原报告的后续复核章节](CODE-REVIEW-2026-11-04.md#2026-11-05-修复复核第一批未完成全部-123-项)，不把静态报告的“确证”直接当作事实。
+- 当前：40 项已实施修复、8 项已部分加固但未闭环、12 项不按原建议修改、63 项尚未完成核查或修复；全部条目仍以报告附录状态为准。保留已有 `.workbuddy/`、`tmp/`，未更新版本、提交、推送或发布。
+- 主页回顶已复现软件路径：普通后台策略通知触发强制刷新和 jumpTo(0)。原代码组件测试偏移 182.0 变 0.0；修复后同一测试保持偏移。普通通知即时过滤并同步频道，过滤模式/当前频道有效性变化仍重新加载。不能据此确定反馈者现场就是此路径。
+- 修复覆盖成人分类旧快照回退、直播导出授权、进度弹窗生命周期、播放器异常清理与 seek、广播失败重连、设置/源状态竞态、部分解析与备份工具。未放宽内容过滤和网络边界。
+- 验证：`flutter test --no-pub` 619 通过、5 跳过（`build/review-fix-tests-final2.log`）；末次增量 `flutter test --no-pub test/radio test/media/local_video_output_test.dart test/media/download_control_test.dart test/media/hls_manifest_test.dart test/widgets/discovery_history_refresh_test.dart` 44 通过（`build/review-fix-targeted-pass.log`）；`flutter analyze --no-pub` 无问题（`build/review-fix-analyze-clean.log`）；Python 14 通过（`build/review-fix-python-final.log`）；`git diff --check` 通过。
+- Windows x64 普通 Release 构建通过（退出码 0，`build/review-fix-windows.log`），产物 `build/windows/x64/runner/Release/zero_player.exe` 需同目录 DLL/data；插件注册文件没有新增差异。未打包安装器或进行设备验收。
+- 规模门禁仍不通过：未修改的 `test/music/music_recommendations_test.dart` main 为 112 行。新增下载恢复逻辑已提取函数，无新增超限；不能把既有超限隐去后宣称全仓规模检查通过。
+- 下一步：完成 C-02/C-03/C-04 原生执行/网关关闭/模型线程生命周期，B-05、G-04/G-06 会话与监管边界及其余开放条目；Android/TV 实机、原生故障注入和真实媒体仍未验收。
+
 
 ## v0.0.10 审阅与发行（2026-11-02）
 

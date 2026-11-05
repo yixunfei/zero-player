@@ -52,7 +52,16 @@ final class SegmentPrefetcher {
         manifest.segments.any((s) => s.byteRange != null)) {
       return;
     }
-    _segments = manifest.segments.map((s) => s.uri).toList();
+    final next = manifest.segments.map((s) => s.uri).toList();
+    if (next.length == _segments.length &&
+        List.generate(
+          next.length,
+          (i) => next[i] == _segments[i],
+        ).every((same) => same)) {
+      return;
+    }
+    _segments = next;
+    _index = 0;
   }
 
   void observe(Uri uri, int bytes, {String? range}) {
@@ -81,10 +90,12 @@ final class SegmentPrefetcher {
   Future<void> _drain() async {
     _running = true;
     final start = _index;
+    final segments = _segments;
     try {
       for (var i = start; i < start + window && i < _segments.length; i++) {
         if (_closed || (!playing && !whilePaused) || !await prepare()) break;
-        final uri = _segments[i];
+        if (_closed || !identical(segments, _segments)) break;
+        final uri = segments[i];
         final key = resourceIdentity(uri, policy.identityHeaders, null);
         if (fetcher.store.find(key) != null) continue;
         final lease = await fetcher.fetch(uri, policy);

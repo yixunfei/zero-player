@@ -17,6 +17,7 @@ Future<void> showMediaProbe(
   if (request == null || request.offline != null) return;
   final uri = player.resolvedMedia?.uri ?? player.episode.uri;
   final source = await services.sources.find(request.item.sourceId);
+  if (!context.mounted) return;
   final token = CancellationToken();
   final work = probeMedia(
     services.http,
@@ -32,10 +33,6 @@ Future<void> showMediaProbe(
     token,
     networkTimeout: const Duration(seconds: 10),
   );
-  if (!context.mounted) {
-    token.cancel();
-    return;
-  }
   try {
     await showDialog<void>(
       context: context,

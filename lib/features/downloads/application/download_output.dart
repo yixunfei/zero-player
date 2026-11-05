@@ -30,24 +30,14 @@ Future<void> saveDownloadOutput(
   try {
     repository.requireAllowed(task);
     final journalKey = 'download_publish:${task.id}';
-    final entries = await repository.db.rows(
-      'SELECT value FROM app_meta WHERE key=?',
-      [journalKey],
-    );
-    if (entries.isNotEmpty) {
-      final intent = jsonDecode(entries.single['value'] as String) as Map;
-      if (intent['destination'] == destination) {
-        token.check();
-        final recovered = await VideoFiles.recoverSave(
-          destination,
-          intent['name'] as String,
-          intent['digest'] as String,
-        );
-        if (recovered != null) {
-          await repository.saved(task.id, recovered);
-          return;
-        }
-      }
+    if (await _recoverOutput(
+      task,
+      repository,
+      destination,
+      journalKey,
+      token,
+    )) {
+      return;
     }
     await _cleanInterruptedOutput(directory, task.localPath!);
     token.check();
@@ -105,6 +95,46 @@ Future<void> saveDownloadOutput(
       _activeOutputs.remove(key);
     }
   }
+}
+
+Future<bool> _recoverOutput(
+  DownloadTask task,
+  DownloadRepository repository,
+  String destination,
+  String journalKey,
+  CancellationToken token,
+) async {
+  final entries = await repository.db.rows(
+    'SELECT value FROM app_meta WHERE key=?',
+    [journalKey],
+  );
+  try {
+    if (entries.isNotEmpty) {
+      final intent = jsonDecode(entries.single['value'] as String);
+      if (intent is! Map ||
+          intent['name'] is! String ||
+          intent['digest'] is! String) {
+        throw const FormatException('保存记录已损坏');
+      }
+      if (intent['destination'] == destination) {
+        token.check();
+        final recovered = await VideoFiles.recoverSave(
+          destination,
+          intent['name'] as String,
+          intent['digest'] as String,
+        );
+        if (recovered != null) {
+          await repository.saved(task.id, recovered);
+          return true;
+        }
+      }
+    }
+  } on FormatException {
+    await repository.db.write('DELETE FROM app_meta WHERE key=?', [journalKey]);
+  } on FileSystemException {
+    await repository.db.write('DELETE FROM app_meta WHERE key=?', [journalKey]);
+  }
+  return false;
 }
 
 Future<void> _cleanInterruptedOutput(Directory directory, String entry) async {

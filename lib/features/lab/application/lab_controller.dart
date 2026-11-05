@@ -68,6 +68,7 @@ final class LabController extends ChangeNotifier {
       _session = gateway!.createSession(HeaderPolicy({}))
         ..cacheEnabled = useGateway;
       final target = await _session!.openMedia(uri);
+      if (generation != _generation) return;
       await engine.open(target);
       if (generation != _generation) return;
       status = useGateway ? '通过本机网关播放 · 分片缓存已启用' : '受控直传播放 · 不缓存';

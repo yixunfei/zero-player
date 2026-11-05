@@ -214,6 +214,7 @@ final class DownloadScheduler {
         throw StateError('无法保存到所选目录');
       }
       if (completed != null &&
+          completed.localPath != null &&
           exporter != null &&
           await repository.output(task.id) != null &&
           await repository.output(task.id, saved: true) == null) {

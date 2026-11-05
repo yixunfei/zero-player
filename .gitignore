@@ -89,3 +89,4 @@ app.*.map.json
 !/docs/implementation/RELEASE-0.0.8.md
 !/docs/implementation/RELEASE-0.0.9.md
 !/docs/implementation/RELEASE-0.0.10.md
+!/docs/implementation/RELEASE-0.0.11.md

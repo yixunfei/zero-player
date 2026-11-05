@@ -240,12 +240,18 @@ final class BackgroundFilter {
   Future<void> close() => _closing ??= _close();
   Future<void> _close() async {
     cancel();
-    await _pending;
-    await inspector.close();
     try {
-      if (await directory.exists()) await directory.delete(recursive: true);
-    } on FileSystemException {
-      // The session is cancelled; a locked temporary file cannot block playback.
+      await _pending;
+    } finally {
+      try {
+        await inspector.close();
+      } finally {
+        try {
+          if (await directory.exists()) await directory.delete(recursive: true);
+        } on FileSystemException {
+          // A locked temporary file cannot prevent native resource disposal.
+        }
+      }
     }
   }
 }

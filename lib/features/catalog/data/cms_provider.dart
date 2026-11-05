@@ -33,7 +33,9 @@ final class CmsProvider implements VodProvider {
         (int.tryParse('${data['pagecount']}') ?? 1).clamp(1, 10000),
       ),
       categories: {
-        for (final row in (data['class'] as List? ?? []).whereType<Map>())
+        for (final row
+            in (data['class'] is List ? data['class'] as List : const [])
+                .whereType<Map>())
           '${row['type_id']}': displayText('${row['type_name'] ?? ''}'),
       },
       metadata: data,

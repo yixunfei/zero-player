@@ -66,7 +66,7 @@ final class HlsManifest {
   }) {
     final original = text.replaceFirst('\uFEFF', '').split(RegExp(r'\r?\n'));
     final expanded = expandHlsVariables(original, baseUri, variables);
-    final lines = expanded.lines;
+    final lines = expanded.lines.map((line) => line.trim()).toList();
     validateHlsResources(lines, baseUri);
     if (lines.isEmpty || lines.first.trim() != '#EXTM3U') {
       throw const FormatException('Not an HLS manifest');
@@ -83,7 +83,7 @@ final class HlsManifest {
         sequence = int.parse(line.split(':').last);
       } else if (line.startsWith('#EXTINF:')) {
         final value = double.parse(line.substring(8).split(',').first);
-        if (!value.isFinite || value < 0) {
+        if (!value.isFinite || value < 0 || value > 86400 * 365) {
           throw const FormatException('Invalid EXTINF');
         }
         duration = Duration(microseconds: (value * 1000000).round());
