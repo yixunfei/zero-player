@@ -137,11 +137,11 @@ final class KanjuProvider implements VodProvider {
 
   List<PlayLine> _lines(Map row, List<Episode> episodes) {
     final lines = (row['direct_lines'] as List? ?? []).whereType<Map>();
-    if (lines.isEmpty) return [PlayLine('看剧AI · 直连资源', episodes)];
     final seen = <String>{};
-    return [
+    final result = [
       for (final line in lines)
         if (line['provider_id'] is String &&
+            (line['provider_id'] as String).trim().isNotEmpty &&
             seen.add(line['provider_id'] as String))
           PlayLine(
             displayText(
@@ -161,6 +161,8 @@ final class KanjuProvider implements VodProvider {
             ],
           ),
     ];
+    // Missing provider metadata must not erase resolvable episode routes.
+    return result.isEmpty ? [PlayLine('看剧AI · 直连资源', episodes)] : result;
   }
 
   @override

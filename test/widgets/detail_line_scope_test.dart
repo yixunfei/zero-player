@@ -33,6 +33,43 @@ void main() {
     'choosing a channel cancels queued API checks before dialog disposal',
     _channelChoice,
   );
+  testWidgets(
+    'auto recommendation waits for manual line confirmation',
+    _manualChoice,
+  );
+}
+
+Future<void> _manualChoice(WidgetTester tester) async {
+  final fixture = (await tester.runAsync(_Fixture.start))!;
+  addTearDown(() => tester.runAsync(fixture.close));
+  fixture.holdMedia = true;
+  var selected = -1;
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: LineSelector(
+          services: fixture.services,
+          item: fixture.item('movie', 'held.mp4'),
+          selected: selected,
+          autoSelect: true,
+          onSelected: (i) => selected = i,
+        ),
+      ),
+    ),
+  );
+  await _until(tester, () => fixture.server.calls['/held.mp4'] == 1);
+  await tester.tap(find.byType(ChoiceChip));
+  await tester.pumpAndSettle();
+  expect(find.text('线路尚未验证可用'), findsOneWidget);
+  fixture.mediaGate.complete();
+  await _settleNetwork(tester);
+  expect(selected, -1, reason: 'manual confirmation is still pending');
+  await tester.tap(find.text('仍然选择'));
+  await tester.pumpAndSettle();
+  expect(selected, 0);
+  expect(find.textContaining('线路 1：甲渠道 · movie-line'), findsOneWidget);
+  await tester.pumpWidget(const SizedBox());
+  await tester.runAsync(fixture.close);
 }
 
 Future<void> _channelChoice(WidgetTester tester) async {

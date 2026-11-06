@@ -87,10 +87,10 @@ final class _LineSelectorState extends State<LineSelector> {
     try {
       final source = await scope.services.sources.find(scope.item.sourceId);
       if (!_current(generation)) return;
+      setState(() => _sourceName = source?.displayName ?? '渠道不存在');
       if (source == null || !source.available) {
         throw const FormatException('当前渠道不可用，请返回选择渠道');
       }
-      setState(() => _sourceName = source.displayName);
       var cursor = 0;
       Future<void> worker() async {
         while (_current(generation) && cursor < scope.item.lines.length) {
@@ -199,6 +199,8 @@ final class _LineSelectorState extends State<LineSelector> {
   }
 
   Future<void> _select(int index) async {
+    // User intent takes precedence even while the confirmation is still open.
+    _manual = true;
     final generation = _generation;
     if (widget.item.sourceId != 'live' && !_responses.containsKey(index)) {
       final confirmed = await showDialog<bool>(
@@ -221,7 +223,6 @@ final class _LineSelectorState extends State<LineSelector> {
       if (confirmed != true || !_current(generation)) return;
     }
     if (!_current(generation)) return;
-    _manual = true;
     widget.onSelected(index);
   }
 
@@ -246,6 +247,7 @@ final class _LineSelectorState extends State<LineSelector> {
           const Text(
             '仅检测本片线路 · 每路最多 256 KiB / 20 秒网络时间（不含排队），收到媒体数据即结束；不保证完整播放',
           ),
+        if (!live) const Text('线路名来自当前渠道，可能使用其他资源方名称。'),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -256,7 +258,7 @@ final class _LineSelectorState extends State<LineSelector> {
                 label: Text(
                   live
                       ? widget.item.lines[i].name
-                      : '线路 ${i + 1}：${widget.item.lines[i].name} · ${_status[i] ?? '等待检测'}',
+                      : '线路 ${i + 1}：${_sourceName ?? '当前渠道'} · ${widget.item.lines[i].name} · ${_status[i] ?? '等待检测'}',
                 ),
                 selected: widget.selected == i,
                 onSelected: (_) => _select(i),

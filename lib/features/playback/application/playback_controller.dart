@@ -181,7 +181,7 @@ final class PlaybackController extends ChangeNotifier {
   int _generation = 0;
   Duration? _resume;
   String? routeWarning;
-  final _routeToken = CancellationToken();
+  var _routeToken = CancellationToken();
   bool _findingAlternative = false;
   void dismissRouteWarning() {
     routeWarning = null;
@@ -202,6 +202,7 @@ final class PlaybackController extends ChangeNotifier {
     _findingAlternative = true;
     cancelRecovery();
     final generation = _generation;
+    final token = _routeToken;
     final label = episode.label;
     final candidate = refreshed ?? current.item;
     if (candidate.sourceId != current.item.sourceId ||
@@ -223,7 +224,7 @@ final class PlaybackController extends ChangeNotifier {
             services,
             candidate,
             episodes[matches.single],
-            _routeToken,
+            token,
           );
         } catch (_) {
           continue;
@@ -296,7 +297,7 @@ final class PlaybackController extends ChangeNotifier {
     if (_closed || current == null || busy || current.offline != null) return;
     final playing = state.playing;
     final rate = state.rate;
-    await open(
+    final opening = open(
       PlaybackRequest(
         current.item,
         line: current.line,
@@ -307,9 +308,11 @@ final class PlaybackController extends ChangeNotifier {
         headersByUri: current.headersByUri,
         quality: quality,
       ),
+      automatic: true,
     );
-    if (_closed) return;
     final generation = _generation;
+    await opening;
+    if (_closed || generation != _generation || error != null) return;
     await engine.setRate(rate);
     if (_closed || generation != _generation) return;
     if (!playing) await engine.pause();
@@ -321,6 +324,8 @@ final class PlaybackController extends ChangeNotifier {
 
   Future<void> open(PlaybackRequest next, {bool automatic = false}) {
     if (_closed) return Future.value();
+    _routeToken.cancel();
+    _routeToken = CancellationToken();
     _captureToken?.cancel();
     _contentSession?.cancel();
     _filterEpoch++;
@@ -895,7 +900,9 @@ final class PlaybackController extends ChangeNotifier {
         headers: request!.headers,
         headersByUri: request!.headersByUri,
         offline: current.offline,
-        quality: current.quality,
+        quality: lineIndex == current.line && episodeIndex == current.episode
+            ? current.quality
+            : null,
         mediaKind: current.mediaKind,
       ),
     );

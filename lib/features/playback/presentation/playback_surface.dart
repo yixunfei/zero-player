@@ -5,6 +5,7 @@ import '../../../app/app_layout.dart';
 import '../../../app/widgets.dart';
 import '../application/playback_controller.dart';
 import 'filter_playback_overlay.dart';
+import 'playback_state_overlay.dart';
 
 final class PlaybackSurface extends StatefulWidget {
   const PlaybackSurface({
@@ -64,6 +65,23 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   }
 
   @override
+  void didUpdateWidget(covariant PlaybackSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_sync);
+      widget.controller.addListener(_sync);
+    }
+    if (oldWidget.controller != widget.controller ||
+        oldWidget.locked != widget.locked) {
+      seekPreview = null;
+      hint = null;
+      interacting = false;
+      visible = true;
+      _arm();
+    }
+  }
+
+  @override
   void dispose() {
     timer?.cancel();
     _hintTimer?.cancel();
@@ -73,17 +91,20 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
   }
 
   void _sync() {
+    if (!mounted) return;
     if (!widget.controller.state.playing || widget.controller.error != null) {
       timer?.cancel();
-      if (!visible && mounted) setState(() => visible = true);
+      visible = true;
     } else if (!(timer?.isActive ?? false) && visible && !interacting) {
       _arm();
     }
+    setState(() {});
   }
 
   void _arm() {
     timer?.cancel();
     if (!widget.controller.state.playing ||
+        widget.locked ||
         interacting ||
         (controlsFocused && _keyboardInput)) {
       return;
@@ -105,8 +126,11 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
 
   void _tap() {
     _surfaceFocus.requestFocus();
+    final wasVisible = visible;
     _show();
-    if (!widget.locked && !widget.controller.busy) widget.controller.toggle();
+    if (wasVisible && !widget.locked && !widget.controller.busy) {
+      widget.controller.toggle();
+    }
   }
 
   @override
@@ -261,73 +285,83 @@ final class _PlaybackSurfaceState extends State<PlaybackSurface> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _gestureVideo(),
-            if (!visible && !widget.locked)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 72,
+            IgnorePointer(
+              ignoring: widget.locked,
+              child: ExcludeFocus(
+                excluding: widget.locked,
+                child: Stack(fit: StackFit.expand, children: _playbackLayers()),
+              ),
+            ),
+            if (widget.locked)
+              Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _show,
-                  child: const SizedBox.expand(),
                 ),
               ),
-            if (shade > 0)
-              IgnorePointer(
-                child: ColoredBox(color: Colors.black.withValues(alpha: shade)),
-              ),
-            if (widget.controller.busy || widget.controller.state.buffering)
-              const IgnorePointer(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            FilterPlaybackOverlay(controller: widget.controller),
-            if (widget.controller.error != null) _errorPanel(),
-            if (widget.controller.error == null &&
-                widget.controller.routeWarning != null)
-              _routeWarningPanel(),
-            if (hint != null)
-              Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      hint!,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            Positioned(top: 0, left: 0, right: 0, child: _chrome(_topBar())),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _chrome(_bottomBar()),
-            ),
-            if (visible)
-              Positioned(
-                right: 12,
-                top: 60,
-                child: Focus(
-                  canRequestFocus: false,
-                  onFocusChange: _controlsFocusChanged,
-                  child: IconButton.filledTonal(
-                    tooltip: widget.locked ? '解除防误触' : '锁定防误触',
-                    onPressed: () {
-                      widget.onLock(!widget.locked);
-                      _show();
-                    },
-                    icon: Icon(widget.locked ? Icons.lock : Icons.lock_open),
-                  ),
-                ),
-              ),
+            if (visible || widget.locked) _lockButton(),
           ],
+        ),
+      ),
+    ),
+  );
+
+  List<Widget> _playbackLayers() => [
+    _gestureVideo(),
+    if (!visible && !widget.locked)
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 72,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _show,
+          child: const SizedBox.expand(),
+        ),
+      ),
+    if (shade > 0)
+      IgnorePointer(
+        child: ColoredBox(color: Colors.black.withValues(alpha: shade)),
+      ),
+    PlaybackStateOverlay(controller: widget.controller),
+    FilterPlaybackOverlay(controller: widget.controller),
+    if (widget.controller.error != null) _errorPanel(),
+    if (widget.controller.error == null &&
+        widget.controller.routeWarning != null)
+      _routeWarningPanel(),
+    if (hint != null)
+      Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(hint!, style: const TextStyle(color: Colors.white)),
+          ),
+        ),
+      ),
+    Positioned(top: 0, left: 0, right: 0, child: _chrome(_topBar())),
+    Positioned(bottom: 0, left: 0, right: 0, child: _chrome(_bottomBar())),
+  ];
+
+  Widget _lockButton() => Positioned(
+    right: 12,
+    top: 60,
+    child: SafeArea(
+      child: Focus(
+        canRequestFocus: false,
+        onFocusChange: _controlsFocusChanged,
+        child: IconButton.filledTonal(
+          tooltip: widget.locked ? '解除防误触' : '锁定防误触',
+          onPressed: () {
+            _endSpeed();
+            widget.onLock(!widget.locked);
+            _show();
+          },
+          icon: Icon(widget.locked ? Icons.lock : Icons.lock_open),
         ),
       ),
     ),

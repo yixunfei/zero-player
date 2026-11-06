@@ -2,6 +2,17 @@
 
 更新：2026-11-06（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
+## 播放线路、锁屏与误触修复（2026-11-06，源码与 Windows 回归完成）
+
+- 目标：核实搜索渠道与播放线路归属，修复防误触锁定后无法解锁及首次点击误暂停，并审查相关播放、选线和片段管理流程。保留 `.workbuddy/`、`tmp/`，不提交、推送或发布新版本。
+- 线路：实查公开看剧AI接口，当前“三体 第1季”样本的提供方是 `zy360 / 360资源`（`build/kanju-lines-online.log`）；本片线路仍来自看剧AI，没有据此认定跨渠道串线。选线现在同时显示渠道与原始资源方名称；缺少/空白 provider ID 时保留公开默认解析路径，不扩大账户或外部解析能力。手动确认选线时禁止自动推荐抢先改变选择。
+- 交互：控制栏隐藏后的首次点击只唤出，已显示时点击才切换播放；暂停时中央显示明确标识，缓冲、完成及报错不误报暂停。锁定期间解锁按钮常驻安全区，隔离画面、错误面板及其他控件的点击与焦点；保留 Escape/返回及 TV 遥控解锁。
+- 额外修复：切画质保留用户暂停及停止恢复意图，异步结果复核播放代际；换集/换线清除上集画质 URI，同集重试保留；换集取消旧线路探测；片段管理绑定打开时的播放会话，旧弹窗不能向新集写入区间、修改偏好或试跳。对应历史报告 B-05、B-08、B-12 的本轮处理以这里的实际验证为准，未宣称历史全部审查闭环。
+- 验证：原交互回归先失败 3 项（`build/playback-touch-before.log`），新增播放切换/选线回归先失败 5 项（`build/playback-extra-before.log`）；修复后定向回归及全量 `flutter test --no-pub --reporter expanded` **653 项通过、8 项公网用例按配置跳过**（`build/playback-all-tests.log`）。`flutter analyze --no-pub` 无问题（`build/playback-analyze.log`），源码规模和 `git diff --check` 通过（`build/playback-size.log`）。初次新增测试的按钮文字/HTTP 连接清理问题已修正，失败日志保留。
+- Windows 原生：`tool/run_windows_native.ps1` 串行执行 `playback_touch_native_test.dart`、`tv_playback_focus_test.dart`、`website_playback_test.dart`，**3 项业务回归通过**（不计 tearDownAll，`build/playback-native.log`、`.dart_tool/native-b3b7699f/`）。实际解码验证首次点击不暂停、二次点击暂停、恢复、锁定时禁用拖动/倍速及解锁；另验收 TV 键盘焦点、看剧AI/555 适配到媒体网关的合成媒体解码。`build/playback-paused.png`、`build/playback-locked.png` 已目视检查。驱动仍有 integration_test 检测提示；Windows 无障碍树出现 `Nodes left pending` 告警，同类告警在既有音乐原生记录中也存在，本轮未宣称读屏验收通过。
+- 构建：普通 `flutter pub get` 后 `flutter build windows --release --no-pub` 通过，退出码 0（`build/playback-pub-get.log`、`build/playback-windows.log`），沿用已校验 FFmpegKit。`build/windows/x64/runner/Release/zero_player.exe` 需同目录 DLL/data；版本保持 `0.0.11+11`，pubspec.lock 和插件注册文件无差异，未打包或发布。
+- 下一步：当前 `adb devices` 无设备，Android/TV 真机、真实媒体长时播放与 Windows 读屏仍待专项验收。模拟两小时锁定计时和十余秒原生交互不替代两小时真实播放；不能据此断言反馈中的所有卡死原因均已排除。历史未闭环审查项仍保留原边界。
+
 ## Android v0.0.11 开发测试包补充发行（2026-11-06，已发布）
 
 - 用户授权：沿用 Android 开发测试包打包并推送，追加至 v0.0.11 发行页。使用已有 `ZERO_PLAYER_DEVICE_TEST=true`，Release 构建、独立包名 `dev.zeroplayer.zero_player.devtest`、名称「Zero Player 测试」及本机已有测试签名，不替换正式签名或原发行附件。

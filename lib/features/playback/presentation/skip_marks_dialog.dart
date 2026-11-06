@@ -3,18 +3,22 @@ import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
 import '../application/playback_controller.dart';
 import '../data/skip_repository.dart';
+import '../domain/playback_mark_target.dart';
 
 Future<void> showSkipMarks(
   BuildContext context,
   AppServices services,
   PlaybackController player,
-) async {
+) => perform(context, () async {
+  final target = player.markTarget;
   await showDialog<void>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, update) {
         Future<void> refresh() async {
+          player.checkMarkTarget(target);
           await player.refreshSkipMarks();
+          player.checkMarkTarget(target);
           if (context.mounted) update(() {});
         }
 
@@ -29,10 +33,12 @@ Future<void> showSkipMarks(
                   title: const Text('此作品启用自动跳过'),
                   value: player.workSkipEnabled,
                   onChanged: (value) => perform(context, () async {
+                    player.checkMarkTarget(target);
                     await services.skips.setWorkEnabled(
-                      player.seriesKey,
+                      target.seriesKey,
                       value,
                     );
+                    player.checkMarkTarget(target);
                     player.workSkipEnabled = value;
                     await refresh();
                   }),
@@ -46,17 +52,21 @@ Future<void> showSkipMarks(
                     leading: Checkbox(
                       value: mark.enabled,
                       onChanged: (value) => perform(context, () async {
+                        player.checkMarkTarget(target);
                         await services.skips.enable(mark.id, value ?? false);
                         await refresh();
                       }),
                     ),
-                    onTap: () => _edit(context, services, mark, refresh),
+                    onTap: () =>
+                        _edit(context, services, player, target, mark, refresh),
                     trailing: Wrap(
                       children: [
                         IconButton(
                           tooltip: '试跳到终点并暂停',
                           onPressed: () => perform(context, () async {
+                            player.checkMarkTarget(target);
                             await player.engine.pause();
+                            player.checkMarkTarget(target);
                             await player.seek(mark.end);
                           }),
                           icon: const Icon(Icons.skip_next),
@@ -64,6 +74,7 @@ Future<void> showSkipMarks(
                         IconButton(
                           tooltip: '删除片段',
                           onPressed: () => perform(context, () async {
+                            player.checkMarkTarget(target);
                             await services.skips.remove(mark.id);
                             await refresh();
                           }),
@@ -73,7 +84,8 @@ Future<void> showSkipMarks(
                     ),
                   ),
                 OutlinedButton(
-                  onPressed: () => _add(context, services, player, refresh),
+                  onPressed: () =>
+                      _add(context, services, player, target, refresh),
                   child: const Text('按秒数添加片头 / 中段 / 片尾'),
                 ),
               ],
@@ -89,7 +101,7 @@ Future<void> showSkipMarks(
       },
     ),
   );
-}
+});
 
 Duration _seconds(String text) {
   final value = double.tryParse(text);
@@ -102,9 +114,12 @@ Duration _seconds(String text) {
 Future<void> _edit(
   BuildContext context,
   AppServices services,
+  PlaybackController player,
+  PlaybackMarkTarget target,
   SkipMark mark,
   Future<void> Function() refresh,
 ) => perform(context, () async {
+  player.checkMarkTarget(target);
   final result = await inputDialog(
     context,
     '微调片段',
@@ -116,6 +131,7 @@ Future<void> _edit(
     ],
   );
   if (result == null) return;
+  player.checkMarkTarget(target);
   await services.skips.edit(
     mark,
     _seconds(result[1]),
@@ -128,8 +144,10 @@ Future<void> _add(
   BuildContext context,
   AppServices services,
   PlaybackController player,
+  PlaybackMarkTarget target,
   Future<void> Function() refresh,
 ) => perform(context, () async {
+  player.checkMarkTarget(target);
   final result = await inputDialog(
     context,
     '添加片段',
@@ -137,11 +155,12 @@ Future<void> _add(
     initial: ['片头', '0', '${player.originalPosition.inSeconds}'],
   );
   if (result == null) return;
+  player.checkMarkTarget(target);
   await services.skips.add(
-    player.workKey,
+    target.workKey,
     _seconds(result[1]),
     _seconds(result[2]),
-    player.originalDuration,
+    target.duration,
     result[0],
   );
   await refresh();

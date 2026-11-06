@@ -154,7 +154,7 @@ void _confirmAndLockTests() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('TV remote can reveal and unlock hidden controls', (
+  testWidgets('TV remote can reach the persistent unlock control', (
     tester,
   ) async {
     var locked = true;
@@ -178,7 +178,7 @@ void _confirmAndLockTests() {
       ),
     );
     await tester.pump(const Duration(seconds: 4));
-    expect(find.byTooltip('解除防误触'), findsNothing);
+    expect(find.byTooltip('解除防误触').hitTestable(), findsOneWidget);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
     expect(find.byTooltip('解除防误触').hitTestable(), findsOneWidget);
