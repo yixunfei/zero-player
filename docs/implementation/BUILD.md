@@ -4,9 +4,27 @@
 
 ## v0.0.11 发行配置（2026-11-05）
 
-本版正式发行 Windows x64，Android 正式签名文件仍缺失，Android 独立包名测试构建仅用于本地设备测试。原生测试结束后先执行 `flutter pub get` 恢复普通插件注册，再按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.11/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。
+本版正式发行 Windows x64，Android 正式签名文件仍缺失；Android 开发测试构建使用独立包名和测试签名，补充发行见下节。原生测试结束后先执行 `flutter pub get` 恢复普通插件注册，再按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.11/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。
 
-本地 Android 测试包使用下述“0.0.8+8 本地真机测试包”章节的独立包名与测试签名流程；以当前 `pubspec.yaml` 版本和 `tool/verify_apk.py` 对应参数校验。不得将测试签名 APK 作为正式 Android 升级发布。
+Android 开发测试包使用下述“0.0.8+8 本地真机测试包”章节的独立包名与测试签名流程；以当前 `pubspec.yaml` 版本和 `tool/verify_apk.py` 对应参数校验。2026-11-06 按用户授权，将 v0.0.11 ARM64 开发测试 APK、单独校验清单与测试说明追加至同版发行页，明确使用 `devtest` 文件名；保留原六个附件，不作为正式 Android 升级包。
+
+### v0.0.11 Android 开发测试包（2026-11-06）
+
+业务源码与 v0.0.11 标签一致。使用 JDK21、本机已有 debug.keystore，保留旧测试包和密钥；普通构建刷新插件注册，平台测试与构建串行执行：
+
+~~~powershell
+$previousDeviceTest = $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST
+try {
+    $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = 'true'
+    flutter build apk --release --target-platform android-arm64
+    if ($LASTEXITCODE -ne 0) { throw 'Android devtest build failed' }
+} finally {
+    $env:ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST = $previousDeviceTest
+}
+python tool/verify_apk.py build/app/outputs/flutter-apk/app-release.apk --abis arm64-v8a --max-mib 70 --compressed-native --version 0.0.11 --build-number 11 --application-id dev.zeroplayer.zero_player.devtest
+~~~
+
+使用 SDK 的 `apksigner verify --verbose --print-certs` 验证 v2 签名，并与旧开发包证书比对；检查 ZIP CRC、应用标签「Zero Player 测试」及普通插件注册无 integration_test。本轮签名与 v0.0.9 开发测试包一致，APK 为 65.00 MiB。产物在 `artifacts/device-test/0.0.11-android-devtest-20261106/`，分别发布 `zero-player-0.0.11-android-arm64-devtest.apk`、`zero-player-0.0.11-android-devtest-SHA256SUMS.txt` 和 `zero-player-0.0.11-android-devtest-INFO.txt`。原 Windows 六个附件不替换；上传后验证每个新附件的远端大小和 SHA-256。本轮没有连接 Android 设备，包体与签名校验不替代实机验收。
 
 ## 重装后开发入口（2026-10-30）
 

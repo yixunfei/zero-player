@@ -1,6 +1,13 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-05（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-06（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+
+## Android v0.0.11 开发测试包补充发行（2026-11-06，已发布）
+
+- 用户授权：沿用 Android 开发测试包打包并推送，追加至 v0.0.11 发行页。使用已有 `ZERO_PLAYER_DEVICE_TEST=true`，Release 构建、独立包名 `dev.zeroplayer.zero_player.devtest`、名称「Zero Player 测试」及本机已有测试签名，不替换正式签名或原发行附件。
+- 结果：业务源码与 v0.0.11 标签一致；JDK21 / Android ARM64 Release 构建通过（`build/v11-android-devtest-build.log`，退出码 0），0.0.11+11，65.00 MiB。旧 v0.0.9 构建 APK 与归档摘要一致，本机 debug.keystore 未变。
+- 验证：版本/包名、Android 8.0+、应用标签、ARM64 库、三套字体、压缩原生库、可选推理库/模型未入包、ZIP CRC 及 v2 签名通过（`build/v11-android-devtest-verify.log`、`build/v11-android-devtest-signature.log`、`build/v11-android-devtest-package.log`）；新旧测试包签名一致，普通 Android 插件注册无 integration_test，pubspec.lock 未变。APK SHA-256：`4415e157e4f4017bf5b533d27af9c1c22897c28760c7899df92baeb3f6ff7710`。
+- 产物：`artifacts/device-test/0.0.11-android-devtest-20261106/`，包含带 `devtest` 文件名的 APK、单独校验清单与测试说明，已追加至 [v0.0.11 发行页](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11)。新增三个附件的远端大小与 SHA-256 均和本地一致，原六个附件的 ID、大小与摘要未变；该版现共九个附件，发行标签仍指向原业务源码提交 `fe5aae8`（`build/v11-android-upload.log`、`build/v11-android-published.json`）。当前没有连接 Android 设备，不以编译和包体检查代替实机验收。
 
 ## v0.0.11 发现音乐优化、界面精修与发行（2026-11-05，已发布）
 
