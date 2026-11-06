@@ -2,13 +2,15 @@
 
 更新：2026-11-06（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
-## v0.0.12 预发行（2026-11-06，构建完成，提交与发布准备）
+## v0.0.12 预发行（2026-11-06，已发布）
 
 - 用户授权提交、推送并更新版本；升级为 `0.0.12+12`，同步应用版本、README、构建入口和版本说明。提供 Windows x64 与 Android ARM64 开发测试包，保留原发行与签名；因下节已知原生问题及真机验收未闭环，本版标记为预发行。
 - 复核全部当前修复差异，保留 `.workbuddy/`、`tmp/`；原 669 项普通回归通过记录保留。本次版本同步与播放定向回归 **5 项通过**（`build/v12-version-playback.log`），静态分析无问题（`build/v12-analyze.log`），源码规模与 `git diff --check` 通过。没有将未重跑的原生用例记为本次重新通过。
 - Windows 普通 Release 构建通过，ProductVersion `0.0.12+12`（`build/v12-windows.log`）；锁定 mpv/ANGLE 缓存摘要及原生来源已核对（`build/v12-native-checksums.log`、`build/v12-native-sources.log`），138 个依赖声明已收集。
 - Android ARM64 测试签名 Release 构建通过（`build/v12-android-devtest.log`），65.02 MiB；版本、包名、ABI、字体、压缩原生库和可选推理资源排除通过（`build/v12-apk-verify.log`），v2 签名与已有开发测试包证书一致（`build/v12-apk-signature.log`）。普通插件注册无 integration_test，正式签名边界保留。
-- 下一步：冻结已审阅源码，校验源码 ZIP／Windows 包／全部附件摘要后提交推送，发布 v0.0.12 预发行并核对远端附件。Android 视频 EGL、Windows HLS 特征采样及真机长时播放边界沿用下节，不宣称随机故障已全部消失。
+- 发行：源码提交 `5a38fdd1b3ab460becee7636222f92af3e5eb067` 已推送 `origin/main`，[v0.0.12 预发行](https://github.com/yixunfei/zero-player/releases/tag/v0.0.12) 已公开，标签指向该提交。八个附件的远端大小／SHA-256 全部和本地一致，源码 ZIP 与提交的 737 个 Git blob 逐字节一致，便携包的 289 个文件与打包目录一致、其中全部 93 个 Windows 构建文件与原构建一致（`build/v12-artifact-verification.json`、`build/v12-upload.log`、`build/v12-published-verification.json`）。
+- Android 附件：[0.0.12 ARM64 开发测试 APK](https://github.com/yixunfei/zero-player/releases/download/v0.0.12/zero-player-0.0.12-android-arm64-devtest.apk)，68,180,303 字节，SHA-256 `b6578a2fd6e4b789402c9d3317b238ec96a301d49b60622f763c3aba39017047`；同版附测试说明与统一 SHA256SUMS.txt。保留 v0.0.11 的九个附件，ID、大小、摘要均未变；GitHub 稳定最新版仍为 v0.0.11，本版明确标为预发行。
+- 后续：真实手机／TV、长时播放和安装卸载待验收；Android 视频 EGL、Windows HLS 特征采样边界沿用下节，不宣称随机故障已全部消失。`.workbuddy/`、`tmp/` 本地资料保留，没有纳入提交或源码包。
 
 ## 手机随机播放故障与屏幕方向（2026-11-06，源码修复与部分验收完成，真机待验收）
 
