@@ -23,6 +23,8 @@ import 'skip_marks_dialog.dart';
 import 'playback_surface.dart';
 import 'quality_selector.dart';
 import 'line_selector.dart';
+import 'player_orientation_menu.dart';
+import '../application/playback_monitor.dart';
 import '../../sources/presentation/block_source_button.dart';
 
 final class PlayerPage extends StatefulWidget {
@@ -37,6 +39,10 @@ final class _PlayerPageState extends State<PlayerPage>
     with WidgetsBindingObserver {
   late final MediaKitEngine engine;
   late final PlaybackController controller;
+  late final PlaybackMonitor monitor;
+  late String _orientation;
+  bool _restoringVideo = false;
+  Future<void>? _playerClosing;
   bool fullscreen = false;
   bool locked = false;
   bool leaving = false;
@@ -60,16 +66,45 @@ final class _PlayerPageState extends State<PlayerPage>
           widget.services.contentFilter.server.isRegisteredPlaylist,
     );
     controller = PlaybackController(widget.services, engine);
-    _removeCloseHook = widget.services.addCloseHook(controller.close);
+    monitor = PlaybackMonitor(
+      controller,
+      widget.services.root,
+      deviceSnapshot: widget.services.platform.playbackDeviceSnapshot,
+    );
+    unawaited(monitor.start());
+    _orientation = widget.services.settings.value.playerOrientation;
+    _removeCloseHook = widget.services.addCloseHook(_closePlayer);
     WidgetsBinding.instance.addObserver(this);
     unawaited(controller.open(widget.request));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        if (widget.services.platform.android &&
+            !widget.services.platform.television) {
+          unawaited(
+            perform(
+              context,
+              () => widget.services.platform.setPlayerOrientation(_orientation),
+            ),
+          );
+        }
+      }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Inactive also occurs for notification panels; pause health checks only
+    // when the app is actually hidden/paused, not during an orientation change.
+    final suspended =
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached;
+    if (suspended || state == AppLifecycleState.resumed) {
+      controller.setSuspended(suspended);
+      monitor.suspended = suspended;
+    }
+    controller.diagnostics.add('应用状态：${state.name}');
     if (state != AppLifecycleState.resumed) {
       unawaited(controller.endSpeed());
       unawaited(controller.save());
@@ -77,10 +112,29 @@ final class _PlayerPageState extends State<PlayerPage>
   }
 
   @override
+  void didHaveMemoryPressure() {
+    controller.diagnostics.add('系统通知内存压力');
+    unawaited(monitor.sample());
+    unawaited(controller.save());
+  }
+
+  Future<void> _closePlayer() => _playerClosing ??= _doClosePlayer();
+
+  Future<void> _doClosePlayer() async {
+    var clean = false;
+    try {
+      await controller.close();
+      clean = true;
+    } finally {
+      await monitor.close(clean: clean);
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _removeCloseHook();
-    unawaited(controller.close().catchError(_reportExitError));
+    unawaited(_closePlayer().catchError(_reportExitError));
     unawaited(
       widget.services.platform.restorePlayerWindow().catchError(
         _reportExitError,
@@ -105,7 +159,7 @@ final class _PlayerPageState extends State<PlayerPage>
     final messenger = ScaffoldMessenger.maybeOf(context);
     final platform = widget.services.platform;
     await finishPlayerExit(
-      close: controller.close,
+      close: _closePlayer,
       restore: widget.services.platform.restorePlayerWindow,
       report: (error, stack) {
         _reportExitError(error, stack);
@@ -156,6 +210,23 @@ final class _PlayerPageState extends State<PlayerPage>
       _fullscreenChanging = false;
     }
   }
+
+  Future<void> _setOrientation(String mode) => perform(context, () async {
+    await widget.services.platform.setPlayerOrientation(mode);
+    if (!mounted) return;
+    await widget.services.settings.update({'playerOrientation': mode});
+    if (mounted) setState(() => _orientation = mode);
+  });
+
+  Future<void> _restoreVideo() => perform(context, () async {
+    if (_restoringVideo) return;
+    _restoringVideo = true;
+    try {
+      await controller.restoreVideo();
+    } finally {
+      _restoringVideo = false;
+    }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -344,6 +415,13 @@ final class _PlayerPageState extends State<PlayerPage>
         onPressed: () => showPlaybackDiagnostics(context, controller),
         child: const Text('播放诊断'),
       ),
+      OutlinedButton(
+        onPressed: _restoringVideo || controller.busy ? null : _restoreVideo,
+        child: const Text('恢复画面（软件解码）'),
+      ),
+      if (widget.services.platform.android &&
+          !widget.services.platform.television)
+        PlayerOrientationMenu(value: _orientation, onChanged: _setOrientation),
       if (controller.request?.offline == null)
         OutlinedButton(
           onPressed: () => selectQuality(context, controller),
@@ -415,6 +493,11 @@ final class _PlayerPageState extends State<PlayerPage>
       editFeatureRule(context, controller, quickCapture: true);
     },
     onScreenshot: _screenshot,
+    onRestoreVideo: _restoringVideo ? null : _restoreVideo,
+    orientationControl:
+        widget.services.platform.android && !widget.services.platform.television
+        ? PlayerOrientationMenu(value: _orientation, onChanged: _setOrientation)
+        : null,
   );
 
   Widget _episodes() => Column(

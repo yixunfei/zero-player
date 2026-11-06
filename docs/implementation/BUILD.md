@@ -2,6 +2,14 @@
 
 当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
 
+## v0.0.12 预发行配置（2026-11-06）
+
+版本 `0.0.12+12`，提供 Windows x64 与 Android ARM64 开发测试包；已知原生问题和真机验收边界见 [版本说明](RELEASE-0.0.12.md)。本版标记为预发行，保留 v0.0.11 稳定版与旧附件。
+
+先运行版本同步回归、静态分析及规模检查。普通 `flutter pub get` 后串行构建 Windows Release（沿用已校验 `FFMPEGKIT_LOCAL_DIR`）和 Android ARM64 Release；Android 显式设置 `ORG_GRADLE_PROJECT_ZERO_PLAYER_DEVICE_TEST=true`，使用独立包名和已有测试签名。按 `0.0.12`、构建号 `12` 校验 APK，并与旧开发测试包证书比较。
+
+运行 `collect_native_sources.py`、`collect_notices.py`；暂存已审阅源码并执行 `package_source.py`，再以 `package_release.ps1 -WindowsOnly` 打包 Windows、声明和原生来源。把已校验 Android 包以 `zero-player-0.0.12-android-arm64-devtest.apk` 及测试说明加入同版目录，最后重新生成覆盖全部附件的 SHA256SUMS.txt。发布前核对源码 ZIP 与提交 Git blob、便携包与构建目录，以及本地／远端每个附件的大小和 SHA-256。
+
 ## v0.0.11 发行配置（2026-11-05）
 
 本版正式发行 Windows x64，Android 正式签名文件仍缺失；Android 开发测试构建使用独立包名和测试签名，补充发行见下节。原生测试结束后先执行 `flutter pub get` 恢复普通插件注册，再按顺序执行 `flutter build windows --release --no-pub`（设置既有 `FFMPEGKIT_LOCAL_DIR`）、`python tool/collect_native_sources.py`、`python tool/collect_notices.py`，暂存审阅后的源码并执行 `python tool/package_source.py`，最后执行 `pwsh -File tool/package_release.ps1 -WindowsOnly`。公开附件在 `artifacts/release/0.0.11/`，源码 ZIP 内容必须与发行提交的 Git blob 一致。

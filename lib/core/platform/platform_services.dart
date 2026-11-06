@@ -10,8 +10,12 @@ import 'background_audio_session.dart';
 import 'desktop_radio_tray.dart';
 
 final class PlatformServices {
-  PlatformServices({Future<void> Function(bool, bool)? applyFullscreen}) {
+  PlatformServices({
+    Future<void> Function(bool, bool)? applyFullscreen,
+    Future<void> Function(String)? applyPlayerOrientation,
+  }) {
     _fullscreen = FullscreenController(applyFullscreen ?? _applyFullscreen);
+    _orientationApply = applyPlayerOrientation ?? _applyPlayerOrientation;
   }
   static const _channel = MethodChannel('zero_player/platform');
   bool television = false;
@@ -25,6 +29,8 @@ final class PlatformServices {
   ValueListenable<bool> get fullscreenChanging => _fullscreen.changing;
   bool? _nativeFullscreen;
   bool _appFullscreenAllowed = true;
+  String? _playerOrientation;
+  late final Future<void> Function(String) _orientationApply;
   bool get appFullscreenAllowed => _appFullscreenAllowed;
 
   Future<void> configureAppFullscreen({required bool allowed}) {
@@ -107,6 +113,30 @@ final class PlatformServices {
 
   Future<void> fullscreen(bool enabled) => _fullscreen.setPlayer(enabled);
 
+  Future<void> setPlayerOrientation(String mode) async {
+    if (!{'system', 'landscape', 'auto'}.contains(mode)) {
+      throw ArgumentError.value(mode);
+    }
+    await _orientationApply(mode);
+    _playerOrientation = mode;
+  }
+
+  Future<void> _applyPlayerOrientation(String mode) async {
+    if (Platform.isAndroid && !television) {
+      await _channel
+          .invokeMethod<void>('setPlayerOrientation', {'mode': mode})
+          .timeout(const Duration(seconds: 3));
+    }
+  }
+
+  Future<Map<String, Object?>> playbackDeviceSnapshot() async {
+    if (!Platform.isAndroid) return const {};
+    final snapshot = await _channel.invokeMapMethod<String, Object?>(
+      'playbackDeviceDiagnostics',
+    );
+    return snapshot ?? const {};
+  }
+
   Future<void> _applyFullscreen(bool application, bool player) async {
     final enabled = application || player;
     if (Platform.isWindows) {
@@ -130,14 +160,18 @@ final class PlatformServices {
       await SystemChrome.setEnabledSystemUIMode(
         enabled ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
       );
-      await SystemChrome.setPreferredOrientations(
-        player
-            ? [
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
-            : DeviceOrientation.values,
-      );
+      if (android && _playerOrientation != null && !television) {
+        await setPlayerOrientation(_playerOrientation!);
+      } else {
+        await SystemChrome.setPreferredOrientations(
+          player
+              ? [
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ]
+              : const [],
+        );
+      }
     }
   }
 
@@ -208,7 +242,10 @@ final class PlatformServices {
       _disposed ? Future.value() : _windowOperation(_restorePlayerWindow);
 
   Future<void> _restorePlayerWindow() async {
+    final hadOrientation = _playerOrientation != null;
+    _playerOrientation = null;
     await _fullscreen.setPlayer(false);
+    if (hadOrientation && !television) await _orientationApply('system');
     if (Platform.isWindows && smallWindow) await _restoreSmallWindow();
   }
 

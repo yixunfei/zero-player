@@ -3,22 +3,33 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../features/playback/domain/player_engine.dart';
+import '../../features/playback/domain/video_recovery_engine.dart';
 import '../../core/network/header_policy.dart';
 import '../../core/network/network_target_policy.dart';
 import '../../core/platform/close_resources.dart';
 import '../gateway/media_gateway.dart';
 import 'native_input_policy.dart';
 
-final class MediaKitEngine implements PlayerEngine {
+final class MediaKitEngine implements PlayerEngine, VideoRecoveryEngine {
   MediaKitEngine({
     bool videoOutput = true,
     this.gateway,
     this.isTrustedPlaylist,
     this.isTrustedResource,
     this.isFilteredPlaylist,
-    this.networkTimeout,
+    this.networkTimeout = const Duration(seconds: 30),
   }) {
     if (videoOutput) video = VideoController(player);
+    if (videoOutput) {
+      _subscriptions.add(
+        player.stream.log.listen((log) {
+          if ((log.prefix.startsWith('vo') || log.prefix == 'cplayer') &&
+              (log.level == 'error' || log.level == 'fatal')) {
+            _videoOutputFailed = true;
+          }
+        }),
+      );
+    }
     for (final stream in <Stream<dynamic>>[
       player.stream.position,
       player.stream.duration,
@@ -57,6 +68,60 @@ final class MediaKitEngine implements PlayerEngine {
   Future<void>? _securityReady;
   Future<void>? _disposing;
   Timer? _stateTimer;
+  bool _softwareDecoder = false;
+  bool _videoOutputFailed = false;
+  final _unavailableDiagnostics = <String>{};
+
+  @override
+  Future<void> useSoftwareDecoder() async {
+    if (_disposing != null) return;
+    await _setVerified('hwdec', 'no').timeout(const Duration(seconds: 3));
+    _softwareDecoder = true;
+  }
+
+  @override
+  Future<Map<String, Object?>> readVideoDiagnostics() async {
+    if (_disposing != null) return const {};
+    final native = player.platform as NativePlayer;
+    final result = <String, Object?>{
+      'softwareDecoder': _softwareDecoder,
+      'videoOutputFailed': _videoOutputFailed,
+    };
+    for (final property in const [
+      'vo-configured',
+      'width',
+      'height',
+      'hwdec-current',
+      'decoder-frame-drop-count',
+      'frame-drop-count',
+      'demuxer-cache-duration',
+    ]) {
+      if (_unavailableDiagnostics.contains(property)) continue;
+      try {
+        final value = await native
+            .getProperty(property)
+            .timeout(const Duration(milliseconds: 300));
+        if (value.isEmpty && player.state.duration > Duration.zero) {
+          _unavailableDiagnostics.add(property);
+        }
+        if (property == 'vo-configured') {
+          if (value == 'yes' || value == 'no') {
+            result[property] = value == 'yes';
+          }
+        } else if (property == 'hwdec-current') {
+          if (RegExp(r'^[a-zA-Z0-9_-]{1,48}$').hasMatch(value)) {
+            result[property] = value;
+          }
+        } else {
+          final numeric = num.tryParse(value);
+          if (numeric != null && numeric.isFinite) result[property] = numeric;
+        }
+      } catch (_) {
+        /* Unavailable while loading, or unsupported by this mpv. */
+      }
+    }
+    return result;
+  }
 
   void _scheduleState() {
     if (_disposing != null || _states.isClosed) return;
@@ -123,6 +188,8 @@ final class MediaKitEngine implements PlayerEngine {
   Stream<String> get errors => player.stream.error;
   @override
   Future<void> open(Uri uri, {Map<String, String> headers = const {}}) async {
+    _videoOutputFailed = false;
+    _unavailableDiagnostics.clear();
     NetworkTargetPolicy.validateUri(uri);
     if (_disposing != null) throw StateError('Player is closing');
     await (_securityReady ??= _configureSecurity());
@@ -151,7 +218,7 @@ final class MediaKitEngine implements PlayerEngine {
     );
     // media_kit.open writes a temporary playlist. A single trusted media item
     // can use add/loadfile directly, keeping external playlist access disabled.
-    await player.stop();
+    await _clearPlaylist();
     if (_disposing != null) return;
     final trustedHls =
         gateway?.isRegisteredPlaylist(uri) == true ||
@@ -201,7 +268,14 @@ final class MediaKitEngine implements PlayerEngine {
   Future<void> stop() {
     _session?.close();
     _session = null;
-    return player.stop();
+    return _clearPlaylist();
+  }
+
+  Future<void> _clearPlaylist() async {
+    await player.stop();
+    // media_kit 1.2.6 stop() clears libmpv's playlist but retains `current`.
+    // add() appends to it: release old Media objects and start/header metadata.
+    (player.platform as NativePlayer).current = <Media>[];
   }
 
   @override

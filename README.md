@@ -4,13 +4,13 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.11** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.11 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.11/zero-player-0.0.11-android-arm64-devtest.apk) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.11.md)
+**v0.0.12 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.12) · [Android v0.0.12 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.12/zero-player-0.0.12-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.12.md)
 
-## v0.0.11 新增
+## v0.0.12 预发行变更
 
-当前版本为 **0.0.11+11**，优化发现音乐加载，支持 QQ 音乐、网易云与 Apple Music 主页来源选择、缓存优先和快速降级；新增渠道收藏优先搜索，精修窄屏音乐导航、广播页与共用空状态。音乐与广播共享后台音频控制，并沿用既有监管、内容过滤与网络访问策略。
+当前版本为 **0.0.12+12**，修复原生警告误触发重播、异常清零后丢失进度、短资源续播归零、动态 HLS 旧缓存和旧媒体列表引用累积；纳入播放触摸、锁定与换集状态修复。新增手机横屏／自动旋转、软件解码恢复画面，以及重启后可导出的本机播放与内存诊断。沿用既有监管、内容过滤与网络访问策略。
 
-本次正式发行提供 Windows x64；另附 Android ARM64 开发测试包，名称「Zero Player 测试」，独立包名 `dev.zeroplayer.zero_player.devtest`，可与正式版并存。开发测试包采用 Release 编译和已有本机测试签名，签名与 v0.0.9 开发包一致。原 Android 正式签名文件当前不可用，Android 最新正式版保持 v0.0.7。验收范围见[实施状态](docs/implementation/STATUS.md)。
+本次为预发行，提供 Windows x64 和 Android ARM64 开发测试包。Android 名称「Zero Player 测试」，独立包名 `dev.zeroplayer.zero_player.devtest`，采用 Release 编译和已有本机测试签名，可覆盖同签名测试版并与正式版并存。原 Android 正式签名文件当前不可用，Android 最新正式版保持 v0.0.7。手机长时播放尚未验收；模拟器视频 EGL 与 Windows HLS 特征采样仍有未闭环项，不能宣称三个随机故障已全部消失。验收范围见[实施状态](docs/implementation/STATUS.md)。
 
 全新安装提供可跳过的监管设置提示；首次在非监管状态关闭成人过滤需完成本机访问密码验证。新增默认关闭的“内容过滤设置需要监管验证”，修改该开关本身始终验证监管密码。监管开启期间仍禁止关闭成人过滤。已有安装升级免新增首次流程，普通备份不传递本机验证记录。详情见使用指南。
 
@@ -39,10 +39,10 @@
 | Windows 10/11 x64 安装 | windows-x64-setup.exe |
 | Windows x64 便携运行 | windows-x64-portable.zip（完整解压后运行 zero_player.exe） |
 | Android 8.0+ ARM64 手机/平板/TV | v0.0.7 的 android-arm64.apk |
-| Android 8.0+ ARM64 开发测试 | v0.0.11 的 android-arm64-devtest.apk（测试签名，独立包名） |
+| Android 8.0+ ARM64 开发测试 | v0.0.12 的 android-arm64-devtest.apk（测试签名，独立包名） |
 | 审查/重新构建 | source.zip、third-party-notices.zip 与原生构建来源材料 |
 
-本次 v0.0.11 提供 `zero-player-0.0.11-windows-x64-setup.exe` 和 `zero-player-0.0.11-windows-x64-portable.zip`，另附源码、第三方声明、原生来源及 `SHA256SUMS.txt`。Android 开发测试附件为 `zero-player-0.0.11-android-arm64-devtest.apk`（65.00 MiB），附单独校验清单与测试说明；最新正式 Android 包仍为 v0.0.7。Windows 二进制未做商业代码签名；本轮未重新验收安装卸载或 Android/TV 实机。
+本次 v0.0.12 提供 `zero-player-0.0.12-windows-x64-setup.exe` 和 `zero-player-0.0.12-windows-x64-portable.zip`，另附源码、第三方声明、原生来源及 `SHA256SUMS.txt`。Android 开发测试附件为 `zero-player-0.0.12-android-arm64-devtest.apk`，附测试说明；最新正式 Android 包仍为 v0.0.7。Windows 二进制未做商业代码签名；本轮未重新验收安装卸载或 Android/TV 实机。
 
 不支持 32 位 ARM/x86 Android、Windows ARM64 原生版、macOS 或 iOS。便携包必须完整解压，不能仅复制 EXE。
 

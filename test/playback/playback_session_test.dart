@@ -214,7 +214,7 @@ void _regressionTests() {
     await player.toggle();
     await Future<void>.delayed(Duration.zero);
     engine.failures.add('network');
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 3200));
     expect(player.recovering, isTrue);
   });
 

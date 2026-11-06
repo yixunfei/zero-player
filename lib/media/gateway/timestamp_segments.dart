@@ -17,6 +17,7 @@ final class TimestampSegments {
 
   void register(HlsManifest manifest) {
     if (manifest.isMaster) return;
+    _starts.clear();
     if (!manifest.isComplete) {
       status = '动态清单，未改写时钟';
       return;

@@ -41,6 +41,7 @@ final class UserSettings {
     this.multiSourceDownload = false,
     this.downloadConcurrency = 2,
     this.gestures = true,
+    this.playerOrientation = 'system',
   });
   final String theme;
   final String font;
@@ -75,6 +76,7 @@ final class UserSettings {
   final bool multiSourceDownload;
   final int downloadConcurrency;
   final bool gestures;
+  final String playerOrientation;
 
   Map<String, Object> toMap() => {
     'theme': theme,
@@ -111,6 +113,7 @@ final class UserSettings {
     'multiSourceDownload': multiSourceDownload,
     'downloadConcurrency': downloadConcurrency,
     'gestures': gestures,
+    'playerOrientation': playerOrientation,
   };
 
   factory UserSettings.fromMap(Map<String, Object?> map) => UserSettings(
@@ -188,6 +191,10 @@ final class UserSettings {
     downloadConcurrency: ((map['downloadConcurrency'] as num?)?.toInt() ?? 2)
         .clamp(1, 4),
     gestures: map['gestures'] != false,
+    playerOrientation:
+        {'system', 'landscape', 'auto'}.contains(map['playerOrientation'])
+        ? map['playerOrientation'] as String
+        : 'system',
   );
 }
 

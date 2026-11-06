@@ -14,12 +14,16 @@ final class PlayerTransport extends StatelessWidget {
     required this.onScreenshot,
     required this.onFit,
     required this.fit,
+    this.orientationControl,
+    this.onRestoreVideo,
   });
   final PlaybackController controller;
   final bool fullscreen;
   final BoxFit fit;
   final VoidCallback onFullscreen, onOptions, onMark, onScreenshot;
   final ValueChanged<BoxFit> onFit;
+  final Widget? orientationControl;
+  final VoidCallback? onRestoreVideo;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -81,6 +85,13 @@ final class PlayerTransport extends StatelessWidget {
           onPressed: onFullscreen,
           icon: Icon(fullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
         ),
+        ?orientationControl,
+        if (onRestoreVideo != null)
+          IconButton(
+            tooltip: '恢复画面（软件解码）',
+            onPressed: controller.busy ? null : onRestoreVideo,
+            icon: const Icon(Icons.refresh),
+          ),
         IconButton(
           tooltip: '选集与设置',
           onPressed: onOptions,

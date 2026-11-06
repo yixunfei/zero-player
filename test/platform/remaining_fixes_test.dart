@@ -18,6 +18,19 @@ void main() {
 }
 
 void _case0() {
+  test('a hung native cleanup still restores and exits the player', () async {
+    final events = <String>[];
+    await finishPlayerExit(
+      close: () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      restore: () async {
+        events.add('restore');
+      },
+      navigate: () => events.add('navigate'),
+      report: (error, _) => events.add(error.runtimeType.toString()),
+      stepTimeout: const Duration(milliseconds: 10),
+    );
+    expect(events, ['restore', 'navigate', 'TimeoutException']);
+  });
   test('exit navigates after both cleanup steps fail', () async {
     final events = <String>[];
     await finishPlayerExit(

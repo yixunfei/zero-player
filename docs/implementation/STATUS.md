@@ -2,6 +2,30 @@
 
 更新：2026-11-06（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
+## v0.0.12 预发行（2026-11-06，构建完成，提交与发布准备）
+
+- 用户授权提交、推送并更新版本；升级为 `0.0.12+12`，同步应用版本、README、构建入口和版本说明。提供 Windows x64 与 Android ARM64 开发测试包，保留原发行与签名；因下节已知原生问题及真机验收未闭环，本版标记为预发行。
+- 复核全部当前修复差异，保留 `.workbuddy/`、`tmp/`；原 669 项普通回归通过记录保留。本次版本同步与播放定向回归 **5 项通过**（`build/v12-version-playback.log`），静态分析无问题（`build/v12-analyze.log`），源码规模与 `git diff --check` 通过。没有将未重跑的原生用例记为本次重新通过。
+- Windows 普通 Release 构建通过，ProductVersion `0.0.12+12`（`build/v12-windows.log`）；锁定 mpv/ANGLE 缓存摘要及原生来源已核对（`build/v12-native-checksums.log`、`build/v12-native-sources.log`），138 个依赖声明已收集。
+- Android ARM64 测试签名 Release 构建通过（`build/v12-android-devtest.log`），65.02 MiB；版本、包名、ABI、字体、压缩原生库和可选推理资源排除通过（`build/v12-apk-verify.log`），v2 签名与已有开发测试包证书一致（`build/v12-apk-signature.log`）。普通插件注册无 integration_test，正式签名边界保留。
+- 下一步：冻结已审阅源码，校验源码 ZIP／Windows 包／全部附件摘要后提交推送，发布 v0.0.12 预发行并核对远端附件。Android 视频 EGL、Windows HLS 特征采样及真机长时播放边界沿用下节，不宣称随机故障已全部消失。
+
+## 手机随机播放故障与屏幕方向（2026-11-06，源码修复与部分验收完成，真机待验收）
+
+- 用户要求先提交推送既有代码，再排查手机闪退、广告后回到开头、黑屏有声卡死，并增加横屏控制。既有 15 文件已提交 `790d821` 并推送 `origin/main`；Git 的失效本地代理通过本次命令级直连绕过，没有修改全局配置。`.workbuddy/`、`tmp/` 保留。
+- 用户补充：默认配置、没有开启“播放中特征跳过”，各线路都有概率出现。当前优先处理共用播放引擎、缓存与 Android 生命周期，未将可选特征分析当成手机故障的既定原因。
+- 已复现：原生可恢复警告被立即当作播放中断；短资源续播目标超出时长时被改为零；原生位置清零后恢复/历史丢失原进度。三项回归修复前全部失败（`build/stability-before.log`）；追加“先清零、后报错”顺序回归也先失败（`build/stability-error-order-before.log`）。改为警告后确认停滞再恢复，正常进度取消重开；两种事件顺序均保留最后有效进度，续播先暂停并确认跳转，时长不足时提示换线，禁止静默从头播放。普通暂停、片段预览暂停、后台和监管屏蔽均不由看门狗主动重开。
+- 外部资源路径：动态 HLS 清单复用分片 URI 时会命中旧缓存；静态切换到动态清单还会残留旧 TS 时间轴表。两个合成回归均先复现收到 `[1,1]` 而非源站 `[1,2]`（`build/stability-dynamic-before.log`），修复后动态清单绕过缓存/预取、清除旧时钟映射。静态点播缓存、广告显式标记过滤及网络访问边界保留。源站未标记或直接嵌入的视频广告不能据此保证识别。
+- 黑屏与退出：增加保留位置/倍速/暂停意图的软件解码恢复；原生画面输出报错或丢失时提示恢复画面。锁定的 media_kit 1.2.6 在 `stop()` 后仍保留 Dart `current` 播放列表，已同步清空，防止连续打开累积旧 Media 引用和错误的 start/header 元数据；原生回归检查始终只有当前媒体一项。恢复时读取引擎最新倍速，避免通知合并窗口造成旧倍速覆盖。原生读取等待提高到 30 秒以覆盖网关上游等待；原生操作和退出清理增加有界等待，避免页面一直等待不可完成的清理。
+- 诊断：仅本机保存两份有界播放快照，重启后保留上次未正常结束的记录。包含 RSS/PSS、原生/Java 堆、系统内存压力、解码/画面输出、HLS 清单类型与网关失败计数；Android 11+ 增加系统提供的[历史退出原因](https://developer.android.com/reference/android/app/ApplicationExitInfo)（原生崩溃、ANR、低内存等），旧系统显示不支持。记录不包含原始播放地址、凭据或媒体；未正常结束不等于已证明闪退或内存泄漏。
+- 手机屏幕方向：控制栏增加“跟随系统／横屏播放／自动旋转”，选择保存到设置，下次播放自动应用；退出播放恢复系统方向。TV 不强制旋转；Android 大屏方向限制仍由系统决定。
+- 最终普通检查：`flutter test --no-pub --reporter expanded` **669 通过、8 个公网用例按配置跳过**（`build/stability-all-tests-final.log`）；`flutter analyze --no-pub` 无问题（`build/stability-analyze-clean.log`），`dart run tool/check_source_size.dart` 通过（`build/stability-size-final.log`）。新增长测试已按挂载、操作、采样和诊断提取，未放宽规模门禁；`git diff --check` 通过。
+- Windows 原生：播放稳定性与触摸交互 **2 项业务回归通过**（`.dart_tool/native-c08db359/`，不计 tearDownAll），覆盖 28 秒连续推进、暂停后软件解码恢复、位置/倍速保留、12 次跳转与反复打开后仅一项播放列表。约 84 秒采样 RSS 481–505 MiB，未呈持续增长；该短时 Windows Debug 记录不能排除手机泄漏。原生依赖未替换；驱动的 integration_test 检测提示及无障碍树告警仍保留，不作读屏验收。
+- Android 原生：初次 Gradle 网络被失效代理阻断（`build/stability-android-native.log`），通过命令级 `-Dhttp.proxyHost= -Dhttps.proxyHost=` 绕过，未改全局配置。API 37 隔离模拟器上方向菜单 **1 项业务通过**（`build/stability-orientation-native.log`）：实际横屏、传感器模式请求、设置保存及退出恢复系统均核对原生状态；有旋转过程中的测试点击命中告警，实际模式值与横屏断言已通过。视频回归在 SwiftShader 和宿主 GPU 模式均遇到 EGL 上下文创建失败（`build/stability-android-native-direct.log`、`build/stability-android-native-host.log`），**未通过**，不能据此宣称 Android 画面恢复或长时播放验收完成。
+- 独立未闭环项：Windows 的既有 HLS 特征回归 `discontinuous_playback_test.dart` 两次在 FFmpeg 启动采样后进程结束（`build/stability-discontinuous-retry.log`、`.dart_tool/native-5ef7fe92/`），第二次捕获进程退出码 0（`build/stability-discontinuous-exit.json`），驱动未取得通过结果。相同 FFmpeg 的独立音视频轨道采样 **2 项业务通过**（`build/stability-ffmpeg-isolation.log`）。该 HLS 路径原因尚未定位；默认未启用特征跳过的手机反馈不据此归因，也不标记全部原生检查通过。早期倍速断言、测试读取尚未确认的异步跳转位置、规模门禁失败及主动终止测试的日志均保留。
+- 构建与产物：最终 `flutter build apk --release --target-platform android-arm64` 退出码 0（`ZERO_PLAYER_DEVICE_TEST=true`，`build/stability-android-devtest-final.log`）；版本 `0.0.11+11`、包名 `dev.zeroplayer.zero_player.devtest`，65.02 MiB（68,180,127 字节）。版本/包名、ARM64、压缩原生库、三套字体、可选推理库缺席、ZIP CRC 与 v2 签名通过；证书与已有开发测试包一致（`build/stability-apk-verify.log`、`build/stability-apk-signature.log`）。复制后的 APK SHA-256 为 `e7f14837ee58c72e9bed7d486f605faa001cc82175cf9ede0321228e6d5628f0`，产物位于 `artifacts/device-test/playback-stability-20261106/`，附 SHA256SUMS.txt 与 INFO.txt。普通构建恢复插件注册，锁文件及已有插件注册无 Git 差异；本次专用 fixture 服务和只读模拟器已停止。本轮修复留在工作区，未发布。
+- 下一步：用上述新包在真实手机以默认配置长时播放，再发生异常时重新打开播放页导出“播放诊断”，按 RSS/PSS、历史退出原因、画面输出和资源变化继续定位；必要时连接设备抓取原生崩溃/ANR/MediaCodec 日志。真实手机/TV、厂商硬解码与低内存回收均未验收，不宣称三个随机故障已全部消失。
+
 ## 播放线路、锁屏与误触修复（2026-11-06，源码与 Windows 回归完成）
 
 - 目标：核实搜索渠道与播放线路归属，修复防误触锁定后无法解锁及首次点击误暂停，并审查相关播放、选线和片段管理流程。保留 `.workbuddy/`、`tmp/`，不提交、推送或发布新版本。

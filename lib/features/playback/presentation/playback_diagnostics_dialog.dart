@@ -12,7 +12,7 @@ Future<void> showPlaybackDiagnostics(
   builder: (context) {
     final report = controller.diagnosticReport();
     return AlertDialog(
-      title: const Text('播放与过滤诊断'),
+      title: const Text('播放与设备诊断'),
       content: SizedBox(
         width: 620,
         height: 420,

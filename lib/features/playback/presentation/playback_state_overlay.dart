@@ -13,7 +13,9 @@ final class PlaybackStateOverlay extends StatelessWidget {
     }
     final state = controller.state;
     final loading =
-        controller.busy || (state.buffering && !controller.userPaused);
+        controller.busy ||
+        controller.awaitingResume ||
+        (state.buffering && !controller.userPaused);
     if (loading) {
       return const IgnorePointer(
         child: Center(child: CircularProgressIndicator()),

@@ -40,6 +40,7 @@ final class GatewaySession {
       : '${_timestamps.status}；本次生成修正 ${_timestamps.corrected} 段，未改动 ${_timestamps.unchanged} 段';
   bool cacheEnabled = true;
   bool _canFilterAds = true;
+  String manifestStatus = '尚未读取清单';
   final _variables = <Uri, Map<String, String>>{};
   MediaTimeline timeline = const MediaTimeline([]);
   late final prefetch = SegmentPrefetcher(
@@ -382,6 +383,20 @@ final class MediaGateway {
       final filtered = filterDeclaredAds(manifest);
       manifest = filtered.manifest;
       session.timeline = filtered.timeline;
+    }
+    if (!manifest.isMaster) {
+      // Rolling/stitched upstream playlists may reuse a URL for different bytes.
+      // A disk cache key cannot identify their media sequence. Once dynamic,
+      // keep this session uncached even if a later refresh adds ENDLIST.
+      if (!manifest.isComplete) {
+        session.cacheEnabled = false;
+        session.prefetch.enabled = false;
+      }
+      session.manifestStatus =
+          '${manifest.isComplete ? '静态' : '动态'}清单；'
+          '${manifest.segments.length} 段；${manifest.duration.inSeconds} 秒；'
+          '不连续点 ${manifest.segments.where((s) => s.discontinuity).length}；'
+          '声明广告过滤 ${session.filterAds}';
     }
     final playlists = manifest.playlistUris;
     if (session.normalizeTimestamps && session._canFilterAds) {

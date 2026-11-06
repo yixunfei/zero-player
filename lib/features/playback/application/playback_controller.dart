@@ -27,6 +27,8 @@ import '../domain/playback_mark_target.dart';
 import '../domain/feature_work_identity.dart';
 import 'playback_diagnostics.dart';
 import 'filter_detection_queue.dart';
+import 'playback_health.dart';
+import '../domain/video_recovery_engine.dart';
 
 enum PlaybackMediaKind { online, live, downloaded, local }
 
@@ -68,15 +70,15 @@ final class PlaybackRequest {
 
 final class PlaybackController extends ChangeNotifier {
   PlaybackController(this.services, this.engine) {
+    _health = PlaybackHealth(onStalled: _stalled, onProgress: _progressed);
     services.contentPolicy.addListener(_policyChanged);
     _states = engine.states.listen(_onState);
-    _errors = engine.errors.listen((_) {
+    _errors = engine.errors.listen((message) {
       if (!_switching && !_closed && !blocked) {
-        error = request?.offline != null
-            ? '本地媒体播放中断，请重试或检查文件是否可读'
-            : '播放中断。可重试、切换线路或重新搜索其他来源';
-        _scheduleRecovery();
-        notifyListeners();
+        diagnostics.add('原生警告：${playbackFailureCategory(message)}');
+        _recoveryPosition ??= _resume ?? originalPosition;
+        _recoveryDuration ??= originalDuration;
+        if (!_userPaused && !_suspended) _health.warn();
       }
     });
     _saveTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -126,6 +128,45 @@ final class PlaybackController extends ChangeNotifier {
   late final StreamSubscription<PlaybackSnapshot> _states;
   late final StreamSubscription<String> _errors;
   late final Timer _saveTimer;
+  late final PlaybackHealth _health;
+  Duration? _recoveryPosition;
+  Duration? _recoveryDuration;
+  bool _resumeRejected = false;
+  Timer? _resumeTimer;
+  bool get awaitingResume => _resume != null && !_resumeRejected;
+  bool _healthError = false;
+  bool _suspended = false;
+
+  void _stalled() {
+    if (_closed || blocked || busy || _userPaused || _suspended) return;
+    _recoveryPosition ??= _resume ?? originalPosition;
+    _healthError = true;
+    error = request?.offline != null
+        ? '本地媒体播放停滞，请重试或检查文件'
+        : '播放已停滞，可重试、恢复画面或切换线路';
+    diagnostics.add('确认播放停滞，保留进度 ${_recoveryPosition!.inMilliseconds} ms');
+    _scheduleRecovery();
+    notifyListeners();
+  }
+
+  void _progressed() {
+    _recoveryPosition = null;
+    _recoveryDuration = null;
+    if (!_healthError) return;
+    _healthError = false;
+    error = null;
+    _recoveryTimer?.cancel();
+    if (canCancelRecovery) notice = null;
+    diagnostics.add('播放自行恢复，取消重开');
+  }
+
+  void setSuspended(bool value) {
+    _suspended = value;
+    _health.reset();
+    if (value) _recoveryTimer?.cancel();
+    if (!value) _onState(engine.snapshot);
+  }
+
   PlaybackRequest? request;
   ResolvedMedia? resolvedMedia;
   PlaybackSnapshot state = const PlaybackSnapshot();
@@ -148,29 +189,52 @@ final class PlaybackController extends ChangeNotifier {
   String? filterStatus;
   String? filterDiagnostic;
   final diagnostics = PlaybackDiagnostics();
-  String diagnosticReport() => diagnostics.report({
-    '版本': appBuildVersion,
-    '系统': defaultTargetPlatform.name,
-    '影片': request?.item.title,
-    '渠道 ID': request?.item.sourceId,
-    '集数': request == null ? null : episode.label,
-    '播放位置 ms': state.position.inMilliseconds,
-    '待确认跳转 ms': _expectedSeek?.inMilliseconds,
-    '检测当前位置 ms': _contentSession?.playbackPosition.inMilliseconds,
-    '检测扫描位置 ms': _contentSession?.scanPosition.inMilliseconds,
-    '原始位置 ms': originalPosition.inMilliseconds,
-    '总时长 ms': state.duration.inMilliseconds,
-    '内容过滤': services.settings.value.contentFilter,
-    '状态': filterStatus,
-    '扫描进度': filterDiagnostic,
-    '时间轴': _gateway?.timestampStatus,
-    '本集标记数': _originFeatures.length,
-    '适用特征数': activeFeatures.length,
-    '检测策略': services.settings.value.filterStrategy,
-    '本集区间数': marks.length,
-    '待命中区间数': _detected.length,
-    '数据目录': services.root.path,
-  });
+  final runtimeDiagnostics = <String, Object?>{};
+  String? previousSessionReport;
+  String diagnosticReport({bool includePrevious = true}) => [
+    diagnostics.report({
+      '版本': appBuildVersion,
+      '系统': defaultTargetPlatform.name,
+      '影片': request?.item.title,
+      '渠道 ID': request?.item.sourceId,
+      '集数': request == null ? null : episode.label,
+      '播放位置 ms': state.position.inMilliseconds,
+      '保留进度 ms': (_resume ?? _recoveryPosition)?.inMilliseconds,
+      '播放 / 缓冲 / 完成':
+          '${state.playing} / ${state.buffering} / ${state.completed}',
+      '自动恢复次数': _recoveryAttempts,
+      'HLS 资源': _gateway?.manifestStatus,
+      '网关请求 / 失败':
+          '${services.gateway.requests} / ${services.gateway.failures}',
+      '原生前向 / 后向缓冲 MiB': '8 / 8',
+      '待确认跳转 ms': _expectedSeek?.inMilliseconds,
+      '检测当前位置 ms': _contentSession?.playbackPosition.inMilliseconds,
+      '检测扫描位置 ms': _contentSession?.scanPosition.inMilliseconds,
+      '原始位置 ms': originalPosition.inMilliseconds,
+      '总时长 ms': state.duration.inMilliseconds,
+      '内容过滤': services.settings.value.contentFilter,
+      '状态': filterStatus,
+      '扫描进度': filterDiagnostic,
+      '时间轴': _gateway?.timestampStatus,
+      '本集标记数': _originFeatures.length,
+      '适用特征数': activeFeatures.length,
+      '检测策略': services.settings.value.filterStrategy,
+      '本集区间数': marks.length,
+      '待命中区间数': _detected.length,
+      '数据目录': services.root.path,
+      ...runtimeDiagnostics,
+    }),
+    if (includePrevious && previousSessionReport != null)
+      '\n上次未正常结束的播放（不代表已确定闪退原因）：\n$previousSessionReport',
+  ].join('\n');
+
+  void reportVideoStall() {
+    if (_closed || blocked) return;
+    diagnostics.add('原生画面输出报错或丢失');
+    routeWarning = '检测到画面输出异常，可在控制栏选择“恢复画面（软件解码）”';
+    notifyListeners();
+  }
+
   bool get strictFiltering => false;
   Future<void> _queue = Future.value();
   bool _switching = false;
@@ -296,7 +360,7 @@ final class PlaybackController extends ChangeNotifier {
     final current = request;
     if (_closed || current == null || busy || current.offline != null) return;
     final playing = state.playing;
-    final rate = state.rate;
+    final rate = engine.snapshot.rate;
     final opening = open(
       PlaybackRequest(
         current.item,
@@ -324,6 +388,9 @@ final class PlaybackController extends ChangeNotifier {
 
   Future<void> open(PlaybackRequest next, {bool automatic = false}) {
     if (_closed) return Future.value();
+    _health.reset();
+    _resumeTimer?.cancel();
+    _healthError = false;
     _routeToken.cancel();
     _routeToken = CancellationToken();
     _captureToken?.cancel();
@@ -355,7 +422,7 @@ final class PlaybackController extends ChangeNotifier {
       if (_closed || generation != _generation) return;
       await _seekQueue?.catchError((Object _) {});
       if (_closed || generation != _generation) return;
-      await engine.stop();
+      await engine.stop().timeout(const Duration(seconds: 6));
       if (_closed || generation != _generation) return;
       await _closeContentFilter();
       if (_closed || generation != _generation) return;
@@ -377,6 +444,9 @@ final class PlaybackController extends ChangeNotifier {
       _seekSettleTimer?.cancel();
       _expectedSeek = null;
       _resume = next.position > Duration.zero ? next.position : null;
+      _recoveryDuration = null;
+      _resumeRejected = false;
+      _recoveryPosition = _resume;
       _advancing = false;
       marks = next.live || next.offline != null
           ? []
@@ -389,12 +459,23 @@ final class PlaybackController extends ChangeNotifier {
       await _validate(next);
       if (generation != _generation || _closed) return;
       _playbackInput = uri;
-      await engine.open(uri);
+      await engine.open(uri).timeout(const Duration(seconds: 35));
       if (generation != _generation || _closed || !_allowed(next)) {
         await engine.stop();
         return;
       }
+      if (_resume != null) await engine.pause();
+      if (_closed || generation != _generation) return;
       _switching = false;
+      if (_resume != null) {
+        _resumeTimer = Timer(const Duration(seconds: 12), () {
+          if (_closed || generation != _generation || !awaitingResume) return;
+          _resumeRejected = true;
+          cancelRecovery();
+          error = '未能读取可续播的时长，已保留原位置，请重试或切换线路';
+          notifyListeners();
+        });
+      }
       _onState(engine.snapshot);
       if (services.settings.value.contentFilter && !next.live) {
         unawaited(_startContentFilter(uri, generation));
@@ -407,7 +488,10 @@ final class PlaybackController extends ChangeNotifier {
         _gateway?.close();
         next.offline?.close();
       }
-      error = e is FilterFailure
+      if (e is TimeoutException) cancelRecovery();
+      error = e is TimeoutException
+          ? '播放器未响应，请返回后重新打开视频'
+          : e is FilterFailure
           ? e.message
           : e is RemoteFailure
           ? e.message
@@ -510,6 +594,7 @@ final class PlaybackController extends ChangeNotifier {
         return;
       }
       _expectedSeek = null;
+      _progressed();
       _seekSettleTimer?.cancel();
       diagnostics.add('播放已确认跳转 ${next.position.inMilliseconds} ms');
     }
@@ -517,16 +602,37 @@ final class PlaybackController extends ChangeNotifier {
         expectedSeek == null &&
         !_filterSeeking &&
         _resume == null) {
+      if (!state.completed &&
+          state.position + const Duration(seconds: 2) < state.duration) {
+        _recoveryPosition ??= originalPosition;
+        _recoveryDuration ??= originalDuration;
+      }
       _rearmSkips();
       diagnostics.add(
         '非主动时间回退 ${state.position.inMilliseconds} -> ${next.position.inMilliseconds} ms',
       );
     }
     state = next;
-    if (_resume != null && next.duration > Duration.zero) {
+    _health.observe(
+      next,
+      enabled: !_userPaused && !_suspended && _resume == null,
+    );
+    if (_resumeRejected) return;
+    if (_resume != null && next.duration > Duration.zero && !next.buffering) {
+      _resumeTimer?.cancel();
       final target = _resume!;
+      if (target >= originalDuration) {
+        _resumeRejected = true;
+        error = '当前资源时长不足以恢复进度，已保留原位置，请重试或切换线路';
+        cancelRecovery();
+        _health.reset();
+        unawaited(engine.pause().catchError((Object _) {}));
+        notifyListeners();
+        return;
+      }
       _resume = null;
-      unawaited(seek(target < originalDuration ? target : Duration.zero));
+      final generation = _generation;
+      unawaited(_resumeAt(target, generation));
       notifyListeners();
       return;
     }
@@ -560,6 +666,73 @@ final class PlaybackController extends ChangeNotifier {
       unawaited(nextEpisode());
     }
     notifyListeners();
+  }
+
+  Future<void> _resumeAt(Duration target, int generation) async {
+    try {
+      final processed = timeline.toProcessed(target);
+      await _seekEngine(processed);
+      if ((engine.snapshot.position - processed).abs() >
+          const Duration(milliseconds: 750)) {
+        await engine.states
+            .firstWhere(
+              (s) =>
+                  (s.position - processed).abs() <=
+                  const Duration(milliseconds: 750),
+            )
+            .timeout(const Duration(seconds: 3));
+      }
+      if (_closed || generation != _generation) return;
+      _recoveryPosition = null;
+      if (!_userPaused && !_suspended) await engine.play();
+    } catch (failure) {
+      if (_closed || generation != _generation) return;
+      _resume = target;
+      _resumeRejected = true;
+      diagnostics.add(
+        '恢复进度失败：${failure.runtimeType}，实际 ${engine.snapshot.position.inMilliseconds} ms',
+      );
+      error = '恢复进度失败，已保留原位置，请重试或切换线路';
+      cancelRecovery();
+      notifyListeners();
+    }
+  }
+
+  Future<void> restoreVideo() async {
+    final native = engine is VideoRecoveryEngine
+        ? engine as VideoRecoveryEngine
+        : null;
+    final current = request;
+    if (native == null || current == null || busy || blocked || _closed) {
+      return;
+    }
+    final generation = _generation;
+    final saved = _resume ?? _recoveryPosition ?? originalPosition;
+    final rate = engine.snapshot.rate;
+    _recoveryTimer?.cancel();
+    await native.useSoftwareDecoder();
+    if (_closed || generation != _generation) return;
+    diagnostics.add('恢复画面：切换软件解码，保留进度 ${saved.inMilliseconds} ms');
+    final opening = open(
+      PlaybackRequest(
+        current.item,
+        line: current.line,
+        episode: current.episode,
+        position: saved,
+        live: current.live,
+        headers: current.headers,
+        headersByUri: current.headersByUri,
+        offline: current.offline,
+        quality: current.quality,
+        mediaKind: current.mediaKind,
+      ),
+      automatic: true,
+    );
+    final openingGeneration = _generation;
+    await opening;
+    if (_closed || openingGeneration != _generation || error != null) return;
+    await engine.setRate(rate);
+    if (_userPaused) await engine.pause();
   }
 
   void _applySkip() {
@@ -607,6 +780,7 @@ final class PlaybackController extends ChangeNotifier {
       (_resume == null ? state.position : timeline.toProcessed(_resume!));
 
   Future<void> _seekEngine(Duration target) {
+    _health.reset();
     final revision = ++_seekRevision;
     final generation = _generation;
     _expectedSeek = target;
@@ -619,7 +793,7 @@ final class PlaybackController extends ChangeNotifier {
         return;
       }
       try {
-        await engine.seek(target);
+        await engine.seek(target).timeout(const Duration(seconds: 5));
         if (_closed || generation != _generation || revision != _seekRevision) {
           return;
         }
@@ -673,7 +847,7 @@ final class PlaybackController extends ChangeNotifier {
     return _seekEngine(processed).catchError((Object failure) {
       if (_closed) return;
       notice = '跳转失败，请重试';
-      diagnostics.add('跳转失败：$failure');
+      diagnostics.add('跳转失败：${failure.runtimeType}');
       notifyListeners();
     });
   }
@@ -849,6 +1023,7 @@ final class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    if (_resumeRejected || awaitingResume) return;
     if (request != null && !_allowed(request!)) {
       _policyChanged();
       return;
@@ -875,8 +1050,10 @@ final class PlaybackController extends ChangeNotifier {
         request!.item,
         line,
         episode,
-        originalPosition,
-        originalDuration,
+        _resume ?? _recoveryPosition ?? originalPosition,
+        originalDuration > Duration.zero
+            ? originalDuration
+            : _recoveryDuration ?? Duration.zero,
       );
     } catch (_) {
       notice = '进度保存失败，请检查可用空间';
@@ -918,8 +1095,11 @@ final class PlaybackController extends ChangeNotifier {
     }
   }
 
-  Future<void> retry() =>
-      select(request!.line, request!.episode, position: originalPosition);
+  Future<void> retry() => select(
+    request!.line,
+    request!.episode,
+    position: _resume ?? _recoveryPosition ?? originalPosition,
+  );
   Future<void> beginSpeed() async {
     if (_previousRate != null) return;
     _previousRate = state.rate;
@@ -1154,6 +1334,8 @@ final class PlaybackController extends ChangeNotifier {
   Future<void> _close() async {
     services.contentPolicy.removeListener(_policyChanged);
     _closed = true;
+    _health.dispose();
+    _resumeTimer?.cancel();
     _generation++;
     _captureToken?.cancel();
     _contentSession?.cancel();
@@ -1166,7 +1348,7 @@ final class PlaybackController extends ChangeNotifier {
     StackTrace? trace;
     Future<void> attempt(FutureOr<void> Function() action) async {
       try {
-        await action();
+        await Future<void>.sync(action).timeout(const Duration(seconds: 2));
       } catch (error, stack) {
         failure ??= error;
         trace ??= stack;
@@ -1215,6 +1397,7 @@ final class PlaybackController extends ChangeNotifier {
         _recoveryCancelled ||
         blocked ||
         _userPaused ||
+        _suspended ||
         _recoveryAttempts >= 2 ||
         request == null ||
         request!.offline != null ||
@@ -1234,11 +1417,19 @@ final class PlaybackController extends ChangeNotifier {
       !_closed &&
       generation == _generation &&
       !_recoveryCancelled &&
+      !_suspended &&
       !_userPaused;
 
   Future<void> _recover(int generation) async {
+    if (!_recoveryIsCurrent(generation) || _suspended || request == null) {
+      return;
+    }
     final current = request!;
-    final saved = _resume ?? originalPosition;
+    final saved = _resume ?? _recoveryPosition ?? originalPosition;
+    final rate = engine.snapshot.rate;
+    diagnostics.add(
+      '自动恢复 $_recoveryAttempts / 2，保留进度 ${saved.inMilliseconds} ms',
+    );
     final previousLine = line.name;
     final previousEpisode = episode.label;
     try {
@@ -1294,6 +1485,7 @@ final class PlaybackController extends ChangeNotifier {
           automatic: true,
         );
       }
+      if (!_closed && _generation == generation + 1) await engine.setRate(rate);
     } catch (_) {
       if (!_closed && generation == _generation) {
         error = '自动恢复失败，请选择其他线路或来源';

@@ -5,6 +5,7 @@ void validateSetting(String key, Object? value) {
     'font': appFontLabels.keys.toSet(),
     'theme': {'cinema', 'dark', 'light', 'system'},
     'mode': {'auto', 'television'},
+    'playerOrientation': {'system', 'landscape', 'auto'},
     'recommendation': {'douban', 'off'},
     'homeLayout': {'single', 'aggregate'},
     'filterStrategy': {'conservative', 'aggressive', 'confirm'},

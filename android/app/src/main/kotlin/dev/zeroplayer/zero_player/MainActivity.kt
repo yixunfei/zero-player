@@ -12,11 +12,13 @@ import android.net.ConnectivityManager
 import android.util.Rational
 import android.content.Intent
 import android.app.Activity
+import android.content.pm.ActivityInfo
 import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val videoPicker by lazy { VideoFilePicker(this) }
     private val videoDirectories by lazy { VideoDirectoryBridge(this) }
+    private val playbackDiagnostics by lazy { PlaybackDeviceDiagnostics(this) }
     private var saveResult: MethodChannel.Result? = null
     private var savePath: String? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -25,6 +27,20 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zero_player/platform")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "playbackDeviceDiagnostics" -> result.success(playbackDiagnostics.snapshot())
+                    "setPlayerOrientation" -> {
+                        val orientation = when (call.argument<String>("mode")) {
+                            "system" -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            "auto" -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                            else -> null
+                        }
+                        if (orientation == null) result.error("invalid_orientation", "Unknown orientation mode", null)
+                        else {
+                            requestedOrientation = orientation
+                            result.success(null)
+                        }
+                    }
                     "saveFile" -> requestSave(call, result)
                     "chooseLocalVideo" -> videoPicker.choose(call, result)
                     "cancelLocalVideo" -> { videoPicker.cancel(); result.success(null) }
@@ -50,6 +66,11 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        playbackDiagnostics.lastTrimLevel = level
+        super.onTrimMemory(level)
     }
 
     private fun requestSave(call: MethodCall, result: MethodChannel.Result) {
