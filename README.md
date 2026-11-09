@@ -4,11 +4,11 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.0.12 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.12) · [Android v0.0.12 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.12/zero-player-0.0.12-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.12.md)
+**v0.0.13 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.13) · [Android v0.0.13 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.13/zero-player-0.0.13-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.13.md)
 
-## v0.0.13 源码更新
+## v0.0.13 预发行
 
-当前源码版本 **0.0.13+13**：新增音乐随机播放结果、自动／手动换源、歌手与主题搜索，整合直连音乐渠道、同步歌词、歌单导入及发现页滚动稳定性修复。详见[版本说明](docs/implementation/RELEASE-0.0.13.md)。本次未生成新安装包，下方下载仍指向已有发行版。
+当前源码版本 **0.0.13+13**：新增音乐随机播放结果、自动／手动换源、歌手与主题搜索，整合直连音乐渠道、同步歌词、歌单导入及发现页滚动稳定性修复。详见[版本说明](docs/implementation/RELEASE-0.0.13.md)。提供 Windows x64 安装器／便携包和 Android ARM64 开发测试包。下文 v0.0.12 段落保留历史说明。
 
 ## v0.0.12 预发行变更
 
