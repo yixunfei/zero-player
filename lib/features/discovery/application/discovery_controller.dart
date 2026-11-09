@@ -34,6 +34,7 @@ final class DiscoveryController extends ChangeNotifier {
   Map<String, String> categories = {};
   bool aggregate = false;
   bool loading = false;
+  bool suspended = false;
   bool _disposed = false;
   bool _bootstrapFailed = false;
   String? message;
@@ -41,6 +42,7 @@ final class DiscoveryController extends ChangeNotifier {
   bool get atLimit => count >= maxItems;
   bool get hasFailures => _cursors.any((c) => c.failed);
   bool get canLoadAutomatically =>
+      !suspended &&
       !loading &&
       !atLimit &&
       (_pending.isNotEmpty || _cursors.any((c) => !c.done && !c.failed));
@@ -66,6 +68,7 @@ final class DiscoveryController extends ChangeNotifier {
     _pending.clear();
     _cursors.clear();
     message = null;
+    suspended = false;
     _bootstrapFailed = false;
     loading = true;
     notifyListeners();
@@ -122,7 +125,13 @@ final class DiscoveryController extends ChangeNotifier {
     bool manual = false,
     int? itemCount,
   }) async {
-    if (_disposed || loading || (atLimit && !manual) || _loader == null) return;
+    if (_disposed ||
+        suspended ||
+        loading ||
+        (atLimit && !manual) ||
+        _loader == null) {
+      return;
+    }
     if (retry && _bootstrapFailed) {
       return reset(
         loader: _loader!,
@@ -183,6 +192,16 @@ final class DiscoveryController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  /// A background source-state change must not discard an active reading list.
+  /// Only an explicit reset may resume requests with a fresh source snapshot.
+  void suspend() {
+    if (_disposed || suspended) return;
+    suspended = true;
+    _token.cancel();
+    loading = false;
+    notifyListeners();
   }
 
   void _flushPending([int? limit]) {

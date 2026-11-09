@@ -15,7 +15,13 @@ final class MusicMultiSearch {
   MusicMultiSearch(this.search, {this.timeout = const Duration(seconds: 12)});
   final MusicSourceSearch search;
   final Duration timeout;
-  static const providers = ['myfreemp3', 'netease', 'audius', 'flacHi'];
+  static const providers = [
+    'myfreemp3',
+    'netease',
+    'audius',
+    'flacHi',
+    'kugou',
+  ];
 
   Future<void> run(
     String query, {
@@ -33,15 +39,22 @@ final class MusicMultiSearch {
       while (!cancellation.isCancelled && next < ordered.length) {
         final provider = ordered[next++];
         final token = CancellationToken();
-        final unlink = cancellation.listen(token.cancel);
+        final cancelled = Completer<MusicSearchResult>();
+        final unlink = cancellation.listen(() {
+          cancelled.completeError(const RequestCancelled());
+          token.cancel();
+        });
         try {
           final result =
-              await search(
-                query,
-                page: page,
-                provider: provider,
-                cancellation: token,
-              ).timeout(
+              await Future.any<MusicSearchResult>([
+                search(
+                  query,
+                  page: page,
+                  provider: provider,
+                  cancellation: token,
+                ),
+                cancelled.future,
+              ]).timeout(
                 timeout,
                 onTimeout: () {
                   token.cancel();

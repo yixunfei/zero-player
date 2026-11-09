@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import '../application/music_controller.dart';
 import '../data/music_library.dart';
 import 'music_queue.dart';
+import '../application/music_multi_search.dart';
+import '../data/public_music_sources.dart';
 import 'music_actions.dart';
+import 'music_lyrics_dialog.dart';
 
 String musicTime(Duration value) =>
     '${value.inMinutes}:${(value.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -129,6 +132,43 @@ final class MusicPlayer extends StatelessWidget {
       Text(musicTime(state.duration)),
     ];
     final actions = <Widget>[
+      PopupMenuButton<String>(
+        tooltip: controller.switchingSource ? '正在换源…' : '歌曲换源',
+        enabled: !controller.switchingSource && !controller.loading,
+        icon: const Icon(Icons.swap_horiz),
+        onSelected: (value) {
+          if (value == 'auto') {
+            controller.setAutoSwitchSource(!controller.autoSwitchSource);
+          } else {
+            musicAction(
+              context,
+              () => controller.switchSource(
+                provider: value == 'next' ? null : value,
+              ),
+            );
+          }
+        },
+        itemBuilder: (_) => [
+          CheckedPopupMenuItem(
+            value: 'auto',
+            checked: controller.autoSwitchSource,
+            child: const Text('播放失败自动换源'),
+          ),
+          const PopupMenuItem(value: 'next', child: Text('查找其他可用渠道')),
+          for (final source in MusicMultiSearch.providers)
+            if (source != controller.selected?.provider)
+              PopupMenuItem(
+                value: source,
+                child: Text(musicSources[source] ?? source),
+              ),
+        ],
+      ),
+      if (controller.repository.supportsLyrics(controller.selected!))
+        IconButton(
+          tooltip: '同步歌词',
+          onPressed: () => showMusicLyrics(context, controller),
+          icon: const Icon(Icons.lyrics_outlined),
+        ),
       PopupMenuButton<MusicPlayMode>(
         tooltip: '播放模式：${musicModeLabels[controller.mode.index]}',
         icon: Icon(switch (controller.mode) {

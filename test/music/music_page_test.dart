@@ -77,7 +77,7 @@ Future<void> _exercise(WidgetTester tester, Size size) async {
   try {
     await tester.pumpWidget(frame(MusicPage(services: services)));
     await tester.pumpAndSettle();
-    expect(find.text('MY FREE MP3'), findsOneWidget);
+    expect(find.text('多源聚合 · 并发搜索'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('music-test')),
       200,

@@ -38,6 +38,13 @@ void main() {
       ];
       await player.setMode(mode);
       await player.select(tracks, 2);
+      await player.switchSource();
+      expect(player.selected?.id, 'three');
+      expect(player.switchingSource, false);
+      expect(player.error, contains('缺少歌手'));
+      await player.select(tracks, 2);
+      engines.removeAt(0);
+
       engines.last.emit(const PlaybackSnapshot(completed: true));
       for (var i = 0; i < 50; i++) {
         await Future<void>.delayed(Duration.zero);

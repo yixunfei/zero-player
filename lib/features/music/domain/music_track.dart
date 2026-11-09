@@ -28,7 +28,9 @@ final class MusicTrack {
   final String cover;
   String get key => '$provider:$id';
   bool get canDownload =>
-      downloadable && !provider.startsWith('lx') && provider != 'qqmp3';
+      downloadable &&
+      !provider.startsWith('lx') &&
+      !{'qqmp3', 'kugou'}.contains(provider);
   MusicTrack withUrl(Uri value) => MusicTrack(
     id: id,
     title: title,
@@ -70,6 +72,7 @@ final class MusicTrack {
           'netease',
           'audius',
           'flacHi',
+          'kugou',
           'archive',
           'lxHuibq',
           'qqmp3',

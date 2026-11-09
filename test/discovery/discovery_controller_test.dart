@@ -6,11 +6,53 @@ import 'package:zero_player/features/discovery/data/recommendation_repository.da
 
 void main() {
   _lifecycleTests();
+  _suspensionTest();
   _paginationTests();
   _aggregationTests();
 }
 
 Recommendation item(String id) => Recommendation('作品$id', '', '', id: id);
+
+void _suspensionTest() {
+  test(
+    'suspension cancels an in-flight page and blocks requests until reset',
+    () async {
+      final controller = DiscoveryController();
+      addTearDown(controller.dispose);
+      final pending = Completer<Recommendations>();
+      late CancellationToken pageToken;
+      var calls = 0;
+      await controller.reset(
+        categories: {'a': 'A'},
+        loader: (_, page, token) {
+          calls++;
+          pageToken = token;
+          return page == 1
+              ? Future.value(Recommendations([item('first')], hasMore: true))
+              : pending.future;
+        },
+      );
+      final page = controller.loadMore();
+      controller.suspend();
+      expect(pageToken.isCancelled, isTrue);
+      expect(controller.loading, isFalse);
+      expect(controller.canLoadAutomatically, isFalse);
+      await controller.loadMore(retry: true, manual: true);
+      expect(calls, 2);
+      pending.complete(Recommendations([item('late')]));
+      await page;
+      expect(controller.sections.single.items.single.id, 'first');
+      await controller.reset(
+        categories: {'a': 'A'},
+        loader: (_, _, _) async =>
+            Recommendations([item('refreshed')], hasMore: true),
+      );
+      expect(controller.suspended, isFalse);
+      expect(controller.canLoadAutomatically, isTrue);
+      expect(controller.sections.single.items.single.id, 'refreshed');
+    },
+  );
+}
 
 void _lifecycleTests() {
   test(

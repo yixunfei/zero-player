@@ -6,6 +6,29 @@ import 'package:zero_player/features/music/domain/music_track.dart';
 
 void main() {
   _priorityAndCancellationTests();
+  test('cancellation completes even when sources never settle', () async {
+    final token = CancellationToken();
+    var started = 0;
+    final runner = MusicMultiSearch((
+      query, {
+      page = 1,
+      cancellation,
+      provider = 'myfreemp3',
+    }) {
+      started++;
+      return Completer<MusicSearchResult>().future;
+    });
+    final task = runner.run(
+      'song',
+      page: 1,
+      cancellation: token,
+      onResult: (_, _, _) => fail('cancelled search published a result'),
+    );
+    token.cancel();
+    await task.timeout(const Duration(milliseconds: 200));
+    expect(started, 3);
+  });
+
   test('bounded fan-out publishes fast results before slow sources', () async {
     final pending = <String, Completer<MusicSearchResult>>{};
     final published = <String>[];
@@ -35,7 +58,7 @@ void main() {
     pending['netease']!.complete(const MusicSearchResult([], hasNext: true));
     await Future<void>.delayed(Duration.zero);
     expect(published, ['netease']);
-    expect(pending.length, MusicMultiSearch.providers.length);
+    expect(pending.length, 4);
     pending['myfreemp3']!.completeError(const FormatException('failed'));
     await Future<void>.delayed(Duration.zero);
     while (published.length < MusicMultiSearch.providers.length) {
@@ -99,8 +122,11 @@ void _priorityAndCancellationTests() {
       await Future<void>.delayed(Duration.zero);
       expect(published, ['myfreemp3']);
       expect(pending.keys, ['audius', 'flacHi', 'myfreemp3', 'netease']);
-      for (final item in pending.values) {
-        if (!item.isCompleted) item.complete(const MusicSearchResult([]));
+      while (published.length < MusicMultiSearch.providers.length) {
+        for (final item in pending.values.toList()) {
+          if (!item.isCompleted) item.complete(const MusicSearchResult([]));
+        }
+        await Future<void>.delayed(Duration.zero);
       }
       await task;
       expect(published.toSet(), MusicMultiSearch.providers.toSet());

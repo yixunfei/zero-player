@@ -3,6 +3,8 @@ import '../../sources/domain/video_source.dart';
 import '../../supervision/application/content_policy.dart';
 import '../../supervision/domain/supervision_rules.dart';
 import '../domain/music_track.dart';
+import '../domain/music_lyrics.dart';
+import 'netease_music_details.dart';
 import 'music_parser.dart';
 import 'myfreemp3_client.dart';
 import 'public_music_sources.dart';
@@ -13,6 +15,7 @@ final class MusicRepository {
   final MyFreeMp3Client client;
   final ContentPolicy? policy;
   late final public = PublicMusicSources(client.network);
+  late final _netease = NeteaseMusicDetails(client.network);
   VideoSource sourceFor(String provider) => provider == 'myfreemp3'
       ? source
       : VideoSource(
@@ -23,6 +26,7 @@ final class MusicRepository {
           endpoint: Uri.parse(switch (provider) {
             'audius' => 'https://audius.co',
             'flacHi' => 'https://flac.music.hi.cn',
+            'kugou' => 'https://www.kugou.com',
             'archive' => 'https://archive.org',
             'lxHuibq' => 'https://lxmusicapi.onrender.com',
             'qqmp3' => 'https://www.qqmp3.vip',
@@ -56,24 +60,70 @@ final class MusicRepository {
       (policy?.sourceAllowed(sourceFor(track.provider)) ?? true) &&
       (policy?.textAllowed('${track.title} ${track.artist}') ?? true);
 
+  bool supportsLyrics(MusicTrack track) =>
+      NeteaseMusicDetails.supportsLyrics(track.provider) && allowed(track);
+
+  Future<MusicLyrics> lyrics(MusicTrack track, CancellationToken token) async {
+    if (!supportsLyrics(track)) return MusicLyrics.empty;
+    policy?.requireSource(sourceFor('netease'));
+    final lyrics = await _netease.lyrics(track.id, token);
+    token.check();
+    policy?.requireSource(sourceFor('netease'));
+    return allowed(track) ? lyrics : MusicLyrics.empty;
+  }
+
+  MusicLyrics visibleLyrics(MusicLyrics lyrics) {
+    final policy = this.policy;
+    if (policy == null || lyrics.lines.isEmpty) return lyrics;
+    if (!policy.sourceAllowed(sourceFor('netease'))) return MusicLyrics.empty;
+    return lyrics.filtered(policy.textAllowed);
+  }
+
+  Future<({String name, List<MusicTrack> tracks, int total})> importPlaylist(
+    String value,
+    CancellationToken token,
+  ) async {
+    final source = sourceFor('netease');
+    policy?.requireSource(source);
+    final list = await _netease.playlist(value, token);
+    token.check();
+    policy?.requireSource(source);
+    if (!(policy?.textAllowed(list.name) ?? true)) throw const ContentBlocked();
+    final tracks = <String, MusicTrack>{
+      for (final track in list.tracks.where(allowed)) track.key: track,
+    };
+    if (tracks.isEmpty) throw const FormatException('歌单内没有可导入的歌曲');
+    return (
+      name: list.name,
+      tracks: List<MusicTrack>.unmodifiable(tracks.values),
+      total: list.total,
+    );
+  }
+
+  String validateSearchQuery(String value) {
+    final query = value
+        .replaceAll(RegExp(r'[\\/\x00-\x1f\x7f?#%<>{}\[\]|^`]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (query.isEmpty || query.length > 100) {
+      throw const FormatException('请输入 1–100 字的歌名或歌手');
+    }
+    if (!(policy?.textAllowed(query) ?? true)) throw const ContentBlocked();
+    return query;
+  }
+
   Future<MusicSearchResult> search(
     String query, {
     int page = 1,
     CancellationToken? cancellation,
     String provider = 'myfreemp3',
   }) async {
-    query = query
-        .replaceAll(RegExp(r'[\\/\x00-\x1f\x7f?#%<>{}\[\]|^`]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (query.isEmpty || query.length > 100 || page < 1 || page > 1000) {
-      throw const FormatException('请输入 1–100 字的歌名或歌手');
-    }
+    query = validateSearchQuery(query);
+    if (page < 1 || page > 1000) throw const FormatException('搜索页码超出范围');
     if (!musicSources.containsKey(provider)) {
       throw const FormatException('未知音乐渠道');
     }
     policy?.requireSource(sourceFor(provider));
-    if (!(policy?.textAllowed(query) ?? true)) throw const ContentBlocked();
     if (provider != 'myfreemp3') {
       final result = await public.search(provider, query, page, cancellation);
       return MusicSearchResult(

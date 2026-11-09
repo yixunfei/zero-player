@@ -1,6 +1,50 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-06（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-09（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+
+## v0.0.13 源码版本更新（2026-11-09）
+
+- 按用户要求更新版本并提交推送，版本从 `0.0.12+12` 升为 `0.0.13+13`；包含当前音乐功能、取消等待修复及此前未提交的发现页修复，新增 RELEASE-0.0.13.md，同步 README 和构建入口。本地 `.workbuddy/`、`tmp/` 不纳入提交。
+- 本轮全量 `flutter test --no-pub` 682 项通过、8 项按配置跳过（`build/v13-tests.log`）；静态分析无问题（`build/v13-analyze.log`），源码规模与差异格式检查通过。版本常量与 pubspec 同步，依赖锁和插件注册无差异。
+- 本次仅源码版本更新；未构建或发布新安装包、未创建 GitHub Release，旧下载链接保持有效。此前公网换源、原生与真机未验收项继续保留。
+
+## 音乐随机播放、换源与分类搜索（2026-11-09）
+
+- 复用已有不重复遍历队列的随机模式，增加“随机播放结果”入口。搜索增加综合、歌手、主题选择；歌手模式筛选歌手字段，主题按关键词搜索并提供爵士、钢琴、助眠、运动、电影原声快捷入口。
+- 播放器“歌曲换源”菜单可指定渠道或查找其他渠道；提供默认关闭的播放失败自动换源开关（当前会话有效）。严格匹配去空白、忽略大小写后的标题和歌手；保留进度，每轮不重复尝试渠道，过期结果不替换新选择，继续遵循现有内容和网络策略。无匹配或缺少歌手时明确提示。
+- 验证：音乐模块 77 项通过、6 项跳过（`build/music-features-tests.log`），含新增缺失歌手时保留当前歌曲的断言；静态分析无问题（`build/music-features-analyze.log`），源码规模与差异格式检查通过。
+- 待验收：成功跨渠道换源的公网/原生解码、失败自动链路及 Android/TV 真机尚未专项验证；未构建新安装包。主题为关键词检索，非语义推荐；严格匹配可能漏掉元数据写法不同的同一首歌曲。
+
+## 代码审查：聚合搜索取消等待（2026-11-09）
+
+- 检查当前规则、进度和工作区差异，保留已有未提交改动。确认音乐聚合搜索仅转发取消信号，底层不完成时仍等待渠道超时；改为取消信号与请求共同决定等待完成，取消后停止启动后续渠道并抑制结果回调。
+- 新增底层永不返回的回归测试，修复前出现 200 ms 等待超时（`build/review-cancellation-before.log`），修复后音乐模块 77 项通过、6 项按配置跳过（`build/review-music-tests.log`）。`flutter analyze`、`dart run tool/check_source_size.dart`、`git diff --check` 通过。
+- 边界：本轮为异步取消流程的局部审查与修复，未重新执行全量测试、原生构建或 Windows/Android/TV 真实媒体验收；没有声称全项目缺陷已排除。后续继续审查播放生命周期和下载恢复路径。
+
+## 在线音乐直连渠道、同步歌词与歌单导入（2026-11-09）
+
+- 参考 [MHub](https://github.com/jizizr/mhub) 的平台适配、歌词和歌单组织方式，以 Flutter/Dart 接入酷狗公开音频。客户端通过现有网络策略搜索，在播放前解析当前歌曲的 HTTPS 音频地址并交给现有播放器；无需部署音乐服务。酷狗支持单独选择、收藏和聚合搜索，本机离线下载入口关闭。首次使用默认聚合搜索，已保存的渠道偏好继续恢复。
+- “我的歌单”可导入网易云公开链接或数字 ID，按源站顺序保存过滤后的本地副本，最多 500 首。网易云在线播放支持逐行同步歌词和可用译文，切歌取消旧歌词请求，歌词及歌单继续受内容过滤约束。现有可选 LX 本机只读接口可读取当前 LRC。
+- Windows 原生两项业务用例通过，不计 tearDownAll。酷狗从默认聚合结果选择后实际解码，网易云实际解码、跳转后显示当前歌词，公开热歌榜解析通过。命令见 BUILD.md，证据 `.dart_tool/native-03122439/music_direct_native_test.log`。首次试跑中 Internet Archive 直连搜索超时，未列为可选渠道，保留 `.dart_tool/native-cd2aff0a/music_direct_native_test.log`。QQ 匿名点播样本未返回音频地址，MY FREE MP3 直连复测中英文搜索均返回 200。Android/TV 实机与长时播放待验收。
+- `flutter test --no-pub --reporter expanded` 全量 681 项通过、8 项按配置跳过（`build/music-mhub-full.log`）。`flutter analyze --no-pub` 无问题（`build/music-mhub-analyze-final.log`），源码规模与差异格式检查通过。Windows x64 普通 Release 构建通过（`build/music-mhub-windows.log`），本地程序位于 `build/windows/x64/runner/Release/zero_player.exe`，需与同目录 DLL 和 data 一起运行。
+
+## 当前修复 Windows / Android ARM64 真机测试包（2026-11-07，已生成）
+
+- 用户要求分别打 Windows 和 Android ARM64 包；本轮基于 `bdde6fc` 加当前未提交的发现页修复构建，版本保持 `0.0.12+12`，未提交、推送或公开发布。构建前后核对 13 项源码/测试、版本锁文件和既有插件注册文件摘要，保留 `.workbuddy/`、`tmp/` 与全部修复改动；仅补充本状态记录。
+- Windows x64：普通 `flutter pub get` 后，使用既有 `FFMPEGKIT_LOCAL_DIR` 串行完成 `flutter build windows --release --no-pub`，退出码 0（`build/discovery-device-windows-build.log`）；PE 架构、ProductVersion 已核对。复核 mpv/ANGLE 缓存摘要、锁定 FFmpegKit ZIP 摘要及 225 个解包文件，并确认构建输出 17 个 FFmpegKit DLL 与该分发逐字节一致；未替换原生依赖。
+- Android：JDK21，显式 `ZERO_PLAYER_DEVICE_TEST=true`，执行 `flutter build apk --release --target-platform android-arm64` 成功，退出码 0（`build/discovery-device-android-build.log`）。名称「Zero Player 测试」、包名 `dev.zeroplayer.zero_player.devtest`，Android 8.0+，仅 ARM64；版本、压缩原生库、三套字体、可选推理库/模型排除、ZIP CRC 和 v2 签名通过（`build/discovery-device-apk-verify.log`、`build/discovery-device-apk-signature.log`）。新旧测试包证书一致，可覆盖同签名测试版；保留正式签名边界。普通构建恢复 Android 生成的插件注册，最终 Windows/Android 注册均无 integration_test。
+- 打包：沿用 `package_release.ps1 -DeviceTest -AndroidArm64Only`，提供安装器、便携 ZIP、开发测试 APK、依赖声明与原生来源；源声明校验及 138 项依赖声明收集完成。便携包全部 289 个文件与暂存目录一致，其中全部 93 个 Windows 构建文件与构建输出一致；复制后的 APK 与构建一致。归档 CRC、锁定 SQLite 输入经 Gradle 去符号输出到 APK 的链路及 7 项交付文件 SHA-256 均核对（`build/discovery-device-artifact-verification.json`、`.log`）。初次额外 SQLite 检查误将去符号后的 SO 直接与下载摘要比较，已改为核对完整输入/输出链路；失败日志保留为 `build/discovery-device-artifact-verification-before.log`。
+- 交付目录：`artifacts/device-test/0.0.12-20261107-073748/`，附 `TEST-INFO.txt`、`BUILD-INFO.json` 和 `SHA256SUMS.txt`。Windows 便携包 **88.56 MiB**，SHA-256 `0d2f76529a98a8bc136973a5c601b4165bc6e99a6bb1a80e17b7a89c6be87d65`；安装包 **67.61 MiB**，SHA-256 `fa79b27cf982a0f617016b0e914f8f5ae87b3fa4fa1b3d2114225a07135b743a`；Android APK **65.02 MiB**（68,181,251 字节），SHA-256 `1e0b16cbecc8430da09129d63311cffe806ed4cb00a0a1a6a052770f93b78f12`。
+- 验收边界：沿用下节同源码 678 项普通测试与 3 项 Windows 原生业务回归记录，本轮未重复记为重新执行；本次新增结论是 Release 构建与交付物校验通过。Android/TV 真机、原反馈手机与真实媒体长时播放仍待用户实测，包体检查不替代设备验收。
+
+## 发现页偶发回顶排查与修复（2026-11-07，源码与 Windows 回归完成）
+
+- 目标：核实持续下滑时随机回到页首的反馈，区分误触、分页和后台状态变化。用户暂不清楚反馈者使用的频道/设备；不能将受控复现等同于该用户的确切原因。本轮不升级版本或发布，保留 `.workbuddy/`、`tmp/`。
+- 已复现：后台检测 `inconclusive` 按既有策略停用当前频道后，发现页 `_syncSources → _refresh → reset` 清空列表、切回推荐；无点击操作时位置从 3157.75 变为 0（`build/discovery-scroll-probe-before.log`）。普通/聚合分页、分页错误重试和实际路由下持续滑动未复现整页回顶。后台检测的启停策略保持原样。
+- 修复：已有内容且来源仍符合内容策略时，频道停用改为保留列表、位置和当前频道，暂停分页并取消进行中的分页请求；停用项仅作为不可选择的当前项显示。恢复启用后需主动刷新，刷新或换频道使用新快照。移除和重复归档仍按原规则切换，成人过滤及监管边界继续即时生效。重复选择相同频道/分类/布局不再重载。
+- 验证：定向 44 项通过（`build/discovery-scroll-targeted.log`）；最终全量 `flutter test --no-pub --reporter expanded` **678 项通过、8 项公网用例按配置跳过**（`build/discovery-scroll-all-tests.log`），覆盖挂起时取消请求/忽略晚返回、禁用手动加载、恢复刷新、停用期间新过滤立即移除内容、普通/聚合各 65 次连续滑动、失败重试及原有源管理策略。`flutter analyze --no-pub` 无问题（`build/discovery-scroll-analyze.log`），源码规模和 `git diff --check` 通过（`build/discovery-scroll-size-final.log`）。
+- Windows 原生：`tool/run_windows_native.ps1 -TestFiles @('integration_test/home_discovery_test.dart')` **3 项业务回归通过**，不计 tearDownAll（`build/discovery-scroll-native-final.log`、`.dart_tool/native-c00fa87c/`），实际运行手机尺寸下停用保留位置、恢复启用不自动重载、主动刷新，以及既有频道菜单/分类/聚合/回顶操作。两张 `artifacts/home-paused-source-*-phone.png` 已目视检查。首次原生运行的首页流程通过，渠道详情断言因真实接口耗时恰与固定 TCP 耗时同为 2 ms 而匹配两项；已限定为 TCP Ping 字段并重跑通过，失败日志保留（`build/discovery-scroll-native.log`、`.dart_tool/native-44c13fcc/`）。驱动仍有既有 integration_test 检测提示，已核对业务成功标记与退出码 0。
+- 边界与下一步：本轮修复与回归完成，后续本地设备测试包见上节，未公开发布。Android/TV 真机、原反馈设备未验收；若反馈者使用默认精选而非自选频道，仍需结合频道变化和操作信息核对，不将本路径当成其唯一原因，也不宣称所有可能的回顶原因均已排除。
 
 ## v0.0.12 预发行（2026-11-06，已发布）
 

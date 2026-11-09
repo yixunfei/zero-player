@@ -28,9 +28,27 @@ Future<String?> musicName(
   builder: (_) => _MusicName(title: title, initial: initial),
 );
 
+Future<String?> musicPlaylistLink(BuildContext context) => showDialog<String>(
+  context: context,
+  builder: (_) => const _MusicName(
+    title: '导入网易云公开歌单',
+    initial: '',
+    label: '歌单链接或数字 ID',
+    maxLength: 500,
+    submit: '导入',
+  ),
+);
+
 final class _MusicName extends StatefulWidget {
-  const _MusicName({required this.title, required this.initial});
-  final String title, initial;
+  const _MusicName({
+    required this.title,
+    required this.initial,
+    this.label = '歌单名称',
+    this.maxLength = 80,
+    this.submit = '保存',
+  });
+  final String title, initial, label, submit;
+  final int maxLength;
   @override
   State<_MusicName> createState() => _MusicNameState();
 }
@@ -49,8 +67,8 @@ final class _MusicNameState extends State<_MusicName> {
     content: TextField(
       controller: controller,
       autofocus: true,
-      maxLength: 80,
-      decoration: const InputDecoration(labelText: '歌单名称'),
+      maxLength: widget.maxLength,
+      decoration: InputDecoration(labelText: widget.label),
       onSubmitted: (value) => Navigator.pop(context, value),
     ),
     actions: [
@@ -60,7 +78,7 @@ final class _MusicNameState extends State<_MusicName> {
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, controller.text),
-        child: const Text('保存'),
+        child: Text(widget.submit),
       ),
     ],
   );
@@ -82,7 +100,9 @@ Future<void> addToMusicPlaylist(
           onPressed: () => Navigator.pop(context, 'new'),
           child: const Text('新建歌单'),
         ),
-        for (final list in services.musicLibrary.playlists)
+        for (final list in services.musicLibrary.playlists.where(
+          (list) => services.contentPolicy.textAllowed(list.name),
+        ))
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, list.id),
             child: Text(list.name),

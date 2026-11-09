@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
+import '../../../core/network/cancellation_token.dart';
 import '../data/public_music_sources.dart';
 import 'music_actions.dart';
 import 'music_player.dart';
@@ -18,7 +19,41 @@ final class MusicLibraryPanel extends StatefulWidget {
 
 final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
   String? _playlist;
+  CancellationToken? _import;
   AppServices get services => widget.services;
+
+  @override
+  void dispose() {
+    _import?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _importPlaylist() async {
+    final value = await musicPlaylistLink(context);
+    if (!mounted || value == null || _import != null) return;
+    final token = CancellationToken();
+    setState(() => _import = token);
+    try {
+      await musicAction(context, () async {
+        final result = await services.music.importPlaylist(value, token);
+        if (!mounted) return;
+        final id = await services.musicLibrary.create(
+          result.name,
+          tracks: result.tracks,
+        );
+        if (!mounted) return;
+        setState(() => _playlist = id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已导入 ${result.tracks.length} / ${result.total} 首歌曲'),
+          ),
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _import = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
@@ -35,7 +70,9 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
   Widget _playlists() {
     final library = services.musicLibrary;
     final list = library.playlists.where((p) => p.id == _playlist).firstOrNull;
-    if (list == null) return _playlistList();
+    if (list == null || !services.contentPolicy.textAllowed(list.name)) {
+      return _playlistList();
+    }
     final tracks = list.tracks.where(services.music.allowed).toList();
     return Column(
       children: [
@@ -101,25 +138,39 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
 
   Widget _playlistList() {
     final library = services.musicLibrary;
+    final lists = library.playlists.where(
+      (list) => services.contentPolicy.textAllowed(list.name),
+    );
     return Column(
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            onPressed: () => musicAction(context, () async {
-              final name = await musicName(context, '新建歌单');
-              if (name != null) await library.create(name);
-            }),
-            icon: const Icon(Icons.playlist_add),
-            label: const Text('新建歌单'),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => musicAction(context, () async {
+                  final name = await musicName(context, '新建歌单');
+                  if (name != null) await library.create(name);
+                }),
+                icon: const Icon(Icons.playlist_add),
+                label: const Text('新建歌单'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _import == null ? _importPlaylist : null,
+                icon: const Icon(Icons.link),
+                label: Text(_import == null ? '导入网易云歌单' : '正在导入…'),
+              ),
+            ],
           ),
         ),
-        if (library.playlists.isEmpty)
+        if (lists.isEmpty)
           const Padding(
             padding: EdgeInsets.all(24),
             child: Text('建立自己的歌单，从歌曲操作菜单加入音乐。'),
           ),
-        for (final item in library.playlists)
+        for (final item in lists)
           Card(
             child: ListTile(
               title: Text(item.name),

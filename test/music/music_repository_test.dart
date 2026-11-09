@@ -156,6 +156,7 @@ void _browserTests() {
           MyFreeMp3Client(DocumentClient(http), endpoint: server.baseUri),
         ),
       );
+      browser.selectProvider('myfreemp3');
       addTearDown(() async {
         browser.dispose();
         http.close();

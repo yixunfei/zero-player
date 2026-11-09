@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math';
+import '../data/music_library.dart';
 import 'package:flutter/material.dart';
 import '../../../app/app_services.dart';
 import '../application/music_browser.dart';
@@ -25,6 +27,7 @@ final class _MusicPageState extends State<MusicPage> {
   late final _query = TextEditingController(text: browser.query);
   final _scroll = ScrollController();
   late String _view;
+  String _searchKind = '综合';
 
   @override
   void initState() {
@@ -75,7 +78,15 @@ final class _MusicPageState extends State<MusicPage> {
         final preferred = downloads.localFor(track)?.track ?? track;
         merged.putIfAbsent(preferred.key, () => preferred);
       }
-      final tracks = merged.values.toList();
+      final tracks = merged.values
+          .where(
+            (track) =>
+                _searchKind != '歌手' ||
+                track.artist.toLowerCase().contains(
+                  browser.query.toLowerCase(),
+                ),
+          )
+          .toList();
       return Column(
         children: [
           _tabs(),
@@ -198,6 +209,40 @@ final class _MusicPageState extends State<MusicPage> {
 
   Widget _searchControls() => Column(
     children: [
+      Wrap(
+        spacing: 8,
+        children: [
+          for (final kind in ['综合', '歌手', '主题'])
+            ChoiceChip(
+              label: Text(kind),
+              selected: _searchKind == kind,
+              onSelected: (_) => setState(() => _searchKind = kind),
+            ),
+          if (_searchKind == '主题')
+            for (final theme in ['爵士', '钢琴', '助眠', '运动', '电影原声'])
+              ActionChip(label: Text(theme), onPressed: () => _search(theme)),
+          if (browser.result.tracks.isNotEmpty)
+            ActionChip(
+              avatar: const Icon(Icons.shuffle),
+              label: const Text('随机播放结果'),
+              onPressed: () => musicAction(context, () async {
+                final tracks = browser.result.tracks
+                    .where(widget.services.music.allowed)
+                    .where(
+                      (track) =>
+                          _searchKind != '歌手' ||
+                          track.artist.toLowerCase().contains(
+                            browser.query.toLowerCase(),
+                          ),
+                    )
+                    .toList();
+                if (tracks.isEmpty) return;
+                await player.setMode(MusicPlayMode.shuffle);
+                await player.select(tracks, Random().nextInt(tracks.length));
+              }),
+            ),
+        ],
+      ),
       MusicSourceSelector(
         services: widget.services,
         value: browser.provider,
@@ -210,7 +255,7 @@ final class _MusicPageState extends State<MusicPage> {
         maxLength: 100,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          labelText: '搜索歌名或歌手',
+          labelText: _searchKind == '主题' ? '搜索主题，如：爵士、钢琴、助眠' : '搜索歌名或歌手',
           counterText: '',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: IconButton(

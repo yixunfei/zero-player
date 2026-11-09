@@ -2,6 +2,10 @@
 
 当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
 
+## v0.0.13 源码版本（2026-11-09）
+
+当前版本 `0.0.13+13`，本轮仅更新源码并提交推送，未生成或发布安装包。下文 v0.0.12 构建与发行记录保留历史含义。新版本改动及验收边界见 [版本说明](RELEASE-0.0.13.md)。
+
 ## v0.0.12 预发行配置（2026-11-06）
 
 版本 `0.0.12+12`，提供 Windows x64 与 Android ARM64 开发测试包；已知原生问题和真机验收边界见 [版本说明](RELEASE-0.0.12.md)。本版标记为预发行，保留 v0.0.11 稳定版与旧附件。
@@ -108,12 +112,13 @@ v0.0.6 本轮只验收 Windows x64。先执行 `flutter build windows --release 
 
 ~~~powershell
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
+./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_direct_native_test.dart') -DartDefines @('RUN_MUSIC_DIRECT_ONLINE=true')
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_offline_native_test.dart')
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_discovery_native_test.dart', 'integration_test/lx_sources_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
 flutter test --no-pub test/music/public_sources_online_test.dart --dart-define=RUN_MUSIC_ONLINE=true
 ~~~
 
-第一项原生用例实际查询中英文歌曲并验证解码、进度跳转与暂停；第二项使用隔离合成音频，验证两首真实下载、音频完整性、关闭源站后的离线解码、历史续播、队列自动连播及队列弹窗操作。公开音源测试分别检查网易云、Audius 和 Internet Archive 的搜索/元数据解析，不将返回地址等同于真实解码成功；依赖源站当时可用性，默认跳过。所有 Flutter 平台测试和构建继续串行运行，完成原生测试后用普通 Release 构建恢复插件注册。
+第一个原生文件实际查询中英文歌曲并验证解码、进度跳转与暂停。直连渠道文件检查酷狗和网易云的实际解码，以及网易云同步歌词与公开歌单解析。离线文件使用隔离合成音频，验证下载、完整性、断源重播、续播和队列操作。公开接口单元测试检查网易云、Audius 和酷我试听的搜索与地址解析。所有 Flutter 平台测试和构建串行运行，完成原生测试后用普通 Release 构建恢复插件注册。
 
 推荐页原生用例检查真实榜单封面、所选渠道搜索、米兔解码并输出 `build/music-v3-home.png`；LX 原生用例分别检查 Hello World、HYW 和 musicBox 的固定公开样本解码。源站变化可能使联网用例失败，须保留失败证据。普通回归另覆盖三种尺寸和放大文字、推荐缓存降级、网站请求头、LX 固定请求/签名格式、拒绝动态指令、POST 禁止重定向和本机只读 API。内置音乐清单只保存已审阅版本的元数据与摘要，不包含可执行脚本。
 

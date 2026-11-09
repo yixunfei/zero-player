@@ -47,6 +47,7 @@ void main() {
       await _interactionExperience(tester);
       await _returnTopAndFonts(tester);
       await _pagination(tester);
+      await _sourcePausePreservesPosition(tester);
       await _categoryRefresh(tester);
       await _aggregateAndSave(tester);
       await _settingsAndFallback(tester);
@@ -135,10 +136,12 @@ Future<void> _curationExperience(WidgetTester tester) async {
   await tester.pumpAndSettle();
   expect(find.text('127.0.0.1'), findsOneWidget);
   expect(find.text('TCP Ping'), findsOneWidget);
-  expect(
-    find.descendant(of: find.byType(AlertDialog), matching: find.text('2 ms')),
-    findsOneWidget,
+  final tcpField = tester.widget<Column>(
+    find
+        .ancestor(of: find.text('TCP Ping'), matching: find.byType(Column))
+        .first,
   );
+  expect(tcpField.children.whereType<SelectableText>().single.data, '2 ms');
   await _screenshot('source-curation-details.png');
   await tester.tap(find.text('关闭'));
   await tester.pumpAndSettle();
@@ -428,6 +431,45 @@ Future<void> _categoryRefresh(WidgetTester tester) async {
     tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '美剧')).selected,
     isTrue,
   );
+}
+
+Future<void> _sourcePausePreservesPosition(WidgetTester tester) async {
+  await binding.setSurfaceSize(const Size(390, 844));
+  await tester.pumpAndSettle();
+  _scroll(tester).jumpTo(_scroll(tester).position.maxScrollExtent - 100);
+  await tester.pumpAndSettle();
+  final before = _scroll(tester).offset;
+  expect(before, greaterThan(1000));
+  await SourceDiagnosticsStore(services.db).save(
+    sourceId,
+    SourceDiagnostics(state: 'inconclusive', checkedAt: DateTime.now()),
+    applyPolicy: true,
+  );
+  await _until(
+    tester,
+    () => find.text('刷新频道', skipOffstage: false).evaluate().isNotEmpty,
+  );
+  expect(_scroll(tester).offset, closeTo(before, 1));
+  expect((await services.sources.find(sourceId))!.enabled, isFalse);
+  await _screenshot('home-paused-source-phone.png');
+  await services.sources.setEnabled(sourceId, true);
+  await tester.pumpAndSettle();
+  expect(_scroll(tester).offset, closeTo(before, 1));
+  final firstPages = requests.where((r) => r == ':1').length;
+  await tester.ensureVisible(find.text('刷新频道', skipOffstage: false));
+  await tester.pumpAndSettle();
+  await _screenshot('home-paused-source-footer-phone.png');
+  await tester.tap(find.text('刷新频道'));
+  await _until(
+    tester,
+    () => requests.where((r) => r == ':1').length > firstPages,
+  );
+  await tester.pumpAndSettle();
+  expect(_scroll(tester).offset, 0);
+  expect(find.text('刷新频道', skipOffstage: false), findsNothing);
+  await binding.setSurfaceSize(const Size(1280, 900));
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
 }
 
 Future<void> _aggregateAndSave(WidgetTester tester) async {

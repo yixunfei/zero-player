@@ -19,8 +19,10 @@ final class DiscoveryToolbar extends StatelessWidget {
     this.isFavorite = false,
     this.onFavorite,
     this.onDetails,
+    this.inactiveSource,
   });
   final List<VideoSource> sources;
+  final VideoSource? inactiveSource;
   final String channel;
   final String providerName;
   final bool aggregate;
@@ -102,8 +104,15 @@ final class DiscoveryToolbar extends StatelessWidget {
   Widget _channel(BuildContext context) => DropdownButtonFormField<String>(
     // Recreate an open menu when its allowed choices change. Flutter's popup
     // otherwise retains the old entries even after the parent is rebuilt.
-    key: ValueKey((channel, sources.map((s) => s.id).join(','))),
-    initialValue: sources.any((s) => s.id == channel) ? channel : '',
+    key: ValueKey((
+      channel,
+      inactiveSource?.id,
+      sources.map((s) => s.id).join(','),
+    )),
+    initialValue:
+        sources.any((s) => s.id == channel) || inactiveSource?.id == channel
+        ? channel
+        : '',
     isExpanded: true,
     itemHeight: 48,
     menuMaxHeight: (MediaQuery.sizeOf(context).height - 160)
@@ -115,6 +124,17 @@ final class DiscoveryToolbar extends StatelessWidget {
         value: '',
         child: Text(providerName, overflow: TextOverflow.ellipsis),
       ),
+      if (inactiveSource case final inactive?
+          when inactive.id == channel &&
+              !sources.any((s) => s.id == inactive.id))
+        DropdownMenuItem(
+          value: inactive.id,
+          enabled: false,
+          child: Text(
+            '${inactive.displayName} · 已停用',
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       for (final source in sources)
         DropdownMenuItem(
           value: source.id,

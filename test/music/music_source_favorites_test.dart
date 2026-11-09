@@ -25,15 +25,18 @@ void main() {
   _restoreTests(create, () => db);
   _earlySelectionTest(create, () => db);
 
-  test('MY FREE MP3 is selected and favorited on first use', () async {
-    final browser = create();
-    await browser.load();
-    expect(browser.provider, 'myfreemp3');
-    expect(browser.favoriteProviders, {'myfreemp3'});
-    expect(browser.orderedProviders.first, 'myfreemp3');
-    expect(() => browser.favoriteProviders.clear(), throwsUnsupportedError);
-    await browser.close();
-  });
+  test(
+    'aggregated search is selected and MY FREE MP3 is favorited initially',
+    () async {
+      final browser = create();
+      await browser.load();
+      expect(browser.provider, 'all');
+      expect(browser.favoriteProviders, {'myfreemp3'});
+      expect(browser.orderedProviders.first, 'myfreemp3');
+      expect(() => browser.favoriteProviders.clear(), throwsUnsupportedError);
+      await browser.close();
+    },
+  );
 
   test(
     'favorites and priority survive restart without changing selection',

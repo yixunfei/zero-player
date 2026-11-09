@@ -71,8 +71,7 @@ void main() {
         await library.close();
         await db.close();
       });
-      final id = await library.create('备份歌单');
-      await library.add(id, track('a'));
+      final id = await library.create('备份歌单', tracks: [track('a')]);
       final backup = BackupService(db);
       final text = await backup.export();
       await library.delete(id);

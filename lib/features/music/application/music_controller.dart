@@ -6,8 +6,10 @@ import '../../../core/platform/background_audio_session.dart';
 import '../../playback/domain/player_engine.dart';
 import '../data/music_repository.dart';
 import '../domain/music_track.dart';
+import '../domain/music_lyrics.dart';
 import '../data/music_library.dart';
 import 'music_downloads.dart';
+import 'music_multi_search.dart';
 import '../../../media/gateway/offline_server.dart';
 
 final class MusicController extends ChangeNotifier
@@ -46,10 +48,89 @@ final class MusicController extends ChangeNotifier
     if (!_closed) notifyListeners();
   }
 
+  bool autoSwitchSource = false;
+  bool switchingSource = false;
+  final _attemptedSources = <String>{};
+  void setAutoSwitchSource(bool value) {
+    autoSwitchSource = value;
+    notifyListeners();
+  }
+
+  Future<void> switchSource({String? provider, bool automatic = false}) async {
+    final original = selected;
+    if (_closed || original == null || switchingSource) return;
+    if (!automatic) _attemptedSources.clear();
+    final generation = _generation;
+    final position = snapshot.position;
+    final wasPlaying = playing || error != null;
+    final token = CancellationToken();
+    _request?.cancel();
+    _request = token;
+    switchingSource = true;
+    _attemptedSources.add(original.provider);
+    notifyListeners();
+    MusicTrack? replacement;
+    try {
+      String normalize(String value) =>
+          value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+      if (original.artist.trim().isEmpty) {
+        error = '缺少歌手信息，无法安全匹配其他渠道';
+        return;
+      }
+      for (final source
+          in provider == null ? MusicMultiSearch.providers : [provider]) {
+        if (source == original.provider || _attemptedSources.contains(source)) {
+          continue;
+        }
+        _attemptedSources.add(source);
+        try {
+          final result = await repository
+              .search(
+                '${original.title} ${original.artist}',
+                provider: source,
+                cancellation: token,
+              )
+              .timeout(const Duration(seconds: 12));
+          if (_closed || generation != _generation || token.isCancelled) return;
+          for (final track in result.tracks) {
+            if (normalize(track.title) == normalize(original.title) &&
+                normalize(track.artist) == normalize(original.artist) &&
+                repository.allowed(track)) {
+              replacement = track;
+              break;
+            }
+          }
+          if (replacement != null) break;
+        } catch (_) {
+          if (token.isCancelled) return;
+        }
+      }
+    } finally {
+      switchingSource = false;
+      if (!_closed) notifyListeners();
+    }
+    if (_closed || generation != _generation || token.isCancelled) return;
+    if (replacement == null) {
+      error = '未找到其他渠道的同名同歌手歌曲';
+      notifyListeners();
+      return;
+    }
+    final tracks = queue.toList();
+    tracks[index] = replacement;
+    await select(tracks, index, start: position, sourceSwitch: true);
+    if (!wasPlaying && selected?.key == replacement.key && error == null) {
+      await pause();
+    }
+  }
+
   PlayerEngine? _engine;
   StreamSubscription<PlaybackSnapshot>? _states;
   StreamSubscription<String>? _errors;
   CancellationToken? _request;
+  CancellationToken? _lyricsRequest;
+  MusicLyrics _lyrics = MusicLyrics.empty;
+  MusicLyrics lyrics = MusicLyrics.empty;
+  bool get lyricsLoading => _lyricsRequest != null;
   final _closing = Completer<void>();
   Completer<void>? _interrupt;
   Future<void> _pending = Future.value();
@@ -79,8 +160,14 @@ final class MusicController extends ChangeNotifier
       unawaited(stop());
       return;
     }
+    final hadLyrics = lyrics.lines.isNotEmpty;
+    lyrics = repository.visibleLyrics(_lyrics);
     final allowed = queue.where(repository.allowed).toList();
-    if (allowed.length != queue.length) _replaceQueue(allowed);
+    if (allowed.length != queue.length) {
+      _replaceQueue(allowed);
+    } else if (hadLyrics || lyrics.lines.isNotEmpty) {
+      notifyListeners();
+    }
   }
 
   void _replaceQueue(List<MusicTrack> tracks) {
@@ -159,11 +246,13 @@ final class MusicController extends ChangeNotifier
     List<MusicTrack> tracks,
     int selectedIndex, {
     bool refresh = false,
+    bool sourceSwitch = false,
     Duration start = Duration.zero,
   }) {
     if (_closed || selectedIndex < 0 || selectedIndex >= tracks.length) {
       return Future.value();
     }
+    if (!sourceSwitch) _attemptedSources.clear();
     final chosen = tracks[selectedIndex];
     if (!repository.allowed(chosen)) return Future.value();
     final filtered = _filteredQueue(tracks);
@@ -175,6 +264,7 @@ final class MusicController extends ChangeNotifier
       _visited.clear();
     }
     _cancelSelection();
+    _clearLyrics();
     final generation = ++_generation;
     final request = _request = CancellationToken();
     final interrupt = _interrupt = Completer<void>();
@@ -218,6 +308,9 @@ final class MusicController extends ChangeNotifier
           }
           if (!_closed && generation == _generation && error == null) {
             _needsOpen = false;
+            if (local == null && repository.supportsLyrics(track)) {
+              unawaited(_loadLyrics(track));
+            }
           }
         }(), interrupt: interrupt.future);
       } catch (_) {
@@ -232,6 +325,30 @@ final class MusicController extends ChangeNotifier
         }
       }
     });
+  }
+
+  void _clearLyrics() {
+    _lyricsRequest?.cancel();
+    _lyricsRequest = null;
+    _lyrics = lyrics = MusicLyrics.empty;
+  }
+
+  Future<void> _loadLyrics(MusicTrack track) async {
+    final token = _lyricsRequest = CancellationToken();
+    try {
+      final result = await repository.lyrics(track, token);
+      if (!token.isCancelled) {
+        _lyrics = result;
+        lyrics = repository.visibleLyrics(result);
+      }
+    } catch (_) {
+      // Lyrics are optional and must never interrupt playback.
+    } finally {
+      if (!token.isCancelled) {
+        _lyricsRequest = null;
+        notifyListeners();
+      }
+    }
   }
 
   void _listen(PlayerEngine engine, int generation) {
@@ -264,6 +381,17 @@ final class MusicController extends ChangeNotifier
     loading = false;
     _needsOpen = true;
     error = message;
+    if (autoSwitchSource && !switchingSource) {
+      final failedGeneration = _generation;
+      scheduleMicrotask(() {
+        if (!_closed &&
+            _generation == failedGeneration &&
+            autoSwitchSource &&
+            error == message) {
+          unawaited(switchSource(automatic: true));
+        }
+      });
+    }
     snapshot = PlaybackSnapshot(
       position: snapshot.position,
       duration: snapshot.duration,
@@ -362,6 +490,7 @@ final class MusicController extends ChangeNotifier
     );
     if (retire) _needsOpen = true;
     if (clear) {
+      _clearLyrics();
       _queue = const [];
       index = -1;
       error = null;
@@ -432,6 +561,7 @@ final class MusicController extends ChangeNotifier
   Future<void> _close() async {
     await _record();
     repository.policy?.removeListener(_policyChanged);
+    _clearLyrics();
     _closed = true;
     ++_generation;
     _cancelSelection();

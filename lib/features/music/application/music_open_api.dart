@@ -30,6 +30,9 @@ final class MusicOpenApi extends ChangeNotifier {
   Map<String, Object?> get snapshot {
     final track = player.selected;
     final visible = track != null && player.repository.allowed(track);
+    final lyrics = player.lyrics;
+    final index = visible ? lyrics.indexAt(player.snapshot.position) : -1;
+    final line = index < 0 ? null : lyrics.lines[index];
     return {
       'status': !visible
           ? 'stoped'
@@ -47,12 +50,15 @@ final class MusicOpenApi extends ChangeNotifier {
       'volume': player.volume,
       'mute': player.volume == 0,
       'picUrl': visible ? track.cover : '',
-      'lyric': '',
-      'tlyric': '',
+      'lyric': visible ? lyrics.originalLrc : '',
+      'tlyric': visible ? lyrics.translatedLrc : '',
       'rlyric': '',
       'lxlyric': '',
-      'lyricLineText': '',
-      'lyricLineAllText': '',
+      'lyricLineText': line?.text ?? '',
+      'lyricLineAllText': [
+        line?.text,
+        line?.translation,
+      ].whereType<String>().where((text) => text.isNotEmpty).join('\n'),
       'collect': false,
     };
   }
@@ -107,10 +113,14 @@ final class MusicOpenApi extends ChangeNotifier {
           'plain',
           charset: 'utf-8',
         );
+        response.write(state['lyric']);
       } else if (request.uri.path == '/lyric-all') {
         response.headers.contentType = ContentType.json;
         response.write(
-          jsonEncode({'lyric': '', 'tlyric': '', 'rlyric': '', 'lxlyric': ''}),
+          jsonEncode({
+            for (final field in ['lyric', 'tlyric', 'rlyric', 'lxlyric'])
+              field: state[field],
+          }),
         );
       } else if (request.uri.path == '/subscribe-player-status') {
         if (_clients.length >= 4) {
@@ -158,6 +168,7 @@ final class MusicOpenApi extends ChangeNotifier {
   }
 
   void _changed() {
+    if (_clients.isEmpty) return;
     final state = snapshot;
     for (final client in _clients.keys.toList()) {
       if (!_busy.contains(client)) unawaited(_emit(client, state));

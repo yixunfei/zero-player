@@ -23,7 +23,7 @@ final class MusicBrowser extends ChangeNotifier {
   CancellationToken? _request;
   bool _closed = false;
   String query = '';
-  String _provider = 'myfreemp3';
+  String _provider = 'all';
   String get provider => _provider;
   Set<String> get favoriteProviders => Set.unmodifiable(_favorites);
   List<String> get orderedProviders => [
@@ -146,10 +146,11 @@ final class MusicBrowser extends ChangeNotifier {
       await load();
       if (_closed || token.isCancelled) return;
       if (provider == 'all') {
+        final normalized = repository.validateSearchQuery(query);
         final tracks = <String, MusicTrack>{};
         var hasNext = false;
         await MusicMultiSearch(repository.search).run(
-          query,
+          normalized,
           page: page,
           cancellation: token,
           favorites: favoriteProviders,

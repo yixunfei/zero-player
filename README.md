@@ -6,9 +6,13 @@
 
 **v0.0.12 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.12) · [Android v0.0.12 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.12/zero-player-0.0.12-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.12.md)
 
+## v0.0.13 源码更新
+
+当前源码版本 **0.0.13+13**：新增音乐随机播放结果、自动／手动换源、歌手与主题搜索，整合直连音乐渠道、同步歌词、歌单导入及发现页滚动稳定性修复。详见[版本说明](docs/implementation/RELEASE-0.0.13.md)。本次未生成新安装包，下方下载仍指向已有发行版。
+
 ## v0.0.12 预发行变更
 
-当前版本为 **0.0.12+12**，修复原生警告误触发重播、异常清零后丢失进度、短资源续播归零、动态 HLS 旧缓存和旧媒体列表引用累积；纳入播放触摸、锁定与换集状态修复。新增手机横屏／自动旋转、软件解码恢复画面，以及重启后可导出的本机播放与内存诊断。沿用既有监管、内容过滤与网络访问策略。
+该预发行版本为 **0.0.12+12**，修复原生警告误触发重播、异常清零后丢失进度、短资源续播归零、动态 HLS 旧缓存和旧媒体列表引用累积；纳入播放触摸、锁定与换集状态修复。新增手机横屏／自动旋转、软件解码恢复画面，以及重启后可导出的本机播放与内存诊断。沿用既有监管、内容过滤与网络访问策略。
 
 本次为预发行，提供 Windows x64 和 Android ARM64 开发测试包。Android 名称「Zero Player 测试」，独立包名 `dev.zeroplayer.zero_player.devtest`，采用 Release 编译和已有本机测试签名，可覆盖同签名测试版并与正式版并存。原 Android 正式签名文件当前不可用，Android 最新正式版保持 v0.0.7。手机长时播放尚未验收；模拟器视频 EGL 与 Windows HLS 特征采样仍有未闭环项，不能宣称三个随机故障已全部消失。验收范围见[实施状态](docs/implementation/STATUS.md)。
 
@@ -23,7 +27,7 @@
 - 搜索默认查询全渠道，优先当前浏览来源；发现页推荐无当前来源，支持手动仅当前来源、失败重试与逐源进度。
 - 统一成人过滤，监管模式覆盖点播、直播和广播；支持频道/关键词屏蔽，每次敏感操作验证密码，恢复码由用户自行保管。
 - **在线广播（实验阶段）**：电台分组/搜索、收藏、广播与电视伴听分类、健康筛选/测活、失败换线、迷你播放器；离开页面继续播放，Windows 支持托盘收听与退出。
-- **在线音乐**：默认浏览 QQ 音乐热歌，可选择网易云新歌和 Apple Music 中国区热门歌曲；缓存先显示、慢请求最多 6 秒并提供本地编辑精选。点击后通过所选渠道搜索并记住本机选择，MY FREE MP3 默认收藏，收藏渠道优先调度；复用视频封面组件和缓存，采用 Flutter 本机界面，无需部署音乐服务器。当前可选 [MY FREE MP3](https://myfreemp3.ink)、网易云公开音频、Audius、[无损音乐下载](https://flac.music.hi.cn/)匿名酷我试听及近期有原生播放验证记录的实验性 LX Hello World/HYW 分支；支持歌单、可整理的播放队列/下一首播放、四种播放模式、历史续播、离线下载、迷你播放器与托盘收听。[LX 仓库](https://github.com/pdone/lx-music-source)的 16 项与本地 v6 修复包仅列明适配状态和固定摘要，不执行脚本。具体能力和源站失败情况见实施状态。
+- **在线音乐**：默认浏览 QQ 音乐热歌，可选择网易云新歌和 Apple Music 中国区热门歌曲。Flutter 客户端直接请求各播放渠道，无需部署音乐服务器。首次搜索默认聚合 MY FREE MP3、网易云公开音频、Audius、酷狗公开音频和酷我试听，优先查询收藏渠道。可在“我的歌单”导入网易云公开歌单，在播放器查看网易云歌曲的同步歌词和可用译文。另有播放队列、历史续播、离线下载、迷你播放器和 Windows 托盘控制。渠道限制与实验性 LX 适配见[使用指南](docs/implementation/USER-GUIDE.md#在线音乐当前源码新增)。
 - 渠道按实际诊断自动启停并持续复检，频道选择显示 TCP Ping；收藏和重复接口整理保持独立。
 - 受控媒体网关、私网访问拦截、HLS 引用校验、原生脚本/协议限制与有界退出清理。
 - 播放中特征跳过（默认关闭）：原画质直接播放，后台优先检测音频；没有规则、资源缺失或检测失败时继续播放。支持频道/全剧声画样本、保守/积极/提示策略、离线关键词检测。关键词始终先确认，默认跳过时长 20 秒，可调整并撤销。轻量关键词、OCR / ASR 资源在设置中手动下载，不随基础包安装。Android 实机性能待设备验收。详见 [实施记录](docs/implementation/VIDEO-CONTENT-FILTER-PLAN.md)。

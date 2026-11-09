@@ -1,15 +1,18 @@
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../../core/text/display_text.dart';
 import '../domain/music_track.dart';
 import 'website_music_sources.dart';
 import 'lx_native_sources.dart';
 import 'flac_music_sources.dart';
+import 'kugou_music_source.dart';
 
 const musicSources = {
   'myfreemp3': 'MY FREE MP3',
   'netease': '网易云公开音频',
   'audius': 'Audius',
   'flacHi': '无损音乐下载 · 酷我试听',
+  'kugou': '酷狗音乐 · 公开音频',
   'lxHelloWorld': '网易云 · LX/Hello World（实验）',
   'lxHyw': '网易云 · LX/HYW 公益（实验）',
 };
@@ -20,6 +23,7 @@ final class PublicMusicSources {
   late final websites = WebsiteMusicSources(network);
   late final lx = LxNativeSources(network);
   late final flac = FlacMusicSources(network);
+  late final kugou = KugouMusicSource(network);
   Future<MusicSearchResult> search(
     String provider,
     String query,
@@ -27,6 +31,9 @@ final class PublicMusicSources {
     CancellationToken? token,
   ) async {
     if (provider == 'flacHi') return flac.search(query, page, token);
+    if (provider == KugouMusicSource.provider) {
+      return kugou.search(query, page, token);
+    }
     if ({'qqmp3', 'musicBox', 'lxGrass'}.contains(provider)) {
       return websites.search(provider, query, page, token);
     }
@@ -64,6 +71,9 @@ final class PublicMusicSources {
 
   Future<MusicTrack> resolve(MusicTrack track, CancellationToken token) async {
     if (track.provider == 'flacHi') return flac.resolve(track, token);
+    if (track.provider == KugouMusicSource.provider) {
+      return kugou.resolve(track, token);
+    }
     if ({'qqmp3', 'musicBox'}.contains(track.provider)) {
       return websites.resolve(track, token);
     }
@@ -157,7 +167,8 @@ MusicSearchResult parsePublicMusicRows(
   List rows,
 ) {
   final tracks = <MusicTrack>[];
-  for (final row in rows.cast<Map>()) {
+  final netease = provider == 'netease' || provider.startsWith('lx');
+  for (final row in rows.whereType<Map>()) {
     if (provider == 'audius' &&
         (row['is_stream_gated'] == true ||
             row['is_available'] == false ||
@@ -166,17 +177,27 @@ MusicSearchResult parsePublicMusicRows(
       continue;
     }
     final id = '${row[provider == 'archive' ? 'identifier' : 'id']}';
-    final title =
-        '${row[provider == 'netease' || provider.startsWith('lx') ? 'name' : 'title'] ?? ''}';
-    if (id == 'null' || title.isEmpty) continue;
+    final title = _musicLabel(row[netease ? 'name' : 'title']);
+    if (id == 'null' || id.isEmpty || id.length > 512 || title.isEmpty) {
+      continue;
+    }
+    if (netease && !RegExp(r'^\d+$').hasMatch(id)) continue;
+    final user = row['user'];
+    final artists = row['artists'] ?? row['ar'];
     final artist = switch (provider) {
-      'audius' => '${(row['user'] as Map?)?['name'] ?? ''}',
-      'archive' => '${row['creator'] ?? ''}',
+      'audius' => _musicLabel(user is Map ? user['name'] : null),
+      'archive' => _musicLabel(row['creator']),
       _ =>
-        (row['artists'] as List? ?? [])
-            .cast<Map>()
-            .map((a) => a['name'])
-            .join(' / '),
+        artists is List
+            ? _musicLabel(
+                artists
+                    .take(20)
+                    .whereType<Map>()
+                    .map((a) => _musicLabel(a['name']))
+                    .where((a) => a.isNotEmpty)
+                    .join(' / '),
+              )
+            : '',
     };
     final url = switch (provider) {
       'audius' => Uri.https('api.audius.co', '/v1/tracks/$id/stream', {
@@ -187,17 +208,24 @@ MusicSearchResult parsePublicMusicRows(
         'id': '$id.mp3',
       }),
     };
+    final duration = row['duration'] ?? row['dt'];
+    final millis = duration is num && duration.isFinite
+        ? (duration.toInt() * (provider == 'audius' ? 1000 : 1)).clamp(
+            0,
+            86400000,
+          )
+        : 0;
+    final artwork = netease ? row['album'] ?? row['al'] : row['artwork'];
+    final cover = artwork is Map
+        ? artwork[netease ? 'picUrl' : '480x480']
+        : null;
     tracks.add(
       MusicTrack(
         id: id,
         title: title,
         artist: artist,
         url: url,
-        duration: Duration(
-          milliseconds: provider == 'audius'
-              ? (row['duration'] as num? ?? 0).toInt() * 1000
-              : (row['duration'] as num? ?? 0).toInt(),
-        ),
+        duration: Duration(milliseconds: millis),
         query: query,
         page: page,
         fetchedAt: DateTime.now(),
@@ -205,9 +233,7 @@ MusicSearchResult parsePublicMusicRows(
         downloadable: provider == 'audius'
             ? row['is_downloadable'] == true && row['is_download_gated'] != true
             : !provider.startsWith('lx'),
-        cover: provider == 'netease' || provider.startsWith('lx')
-            ? '${(row['album'] as Map?)?['picUrl'] ?? ''}'
-            : '${(row['artwork'] as Map?)?['480x480'] ?? ''}',
+        cover: cover is String && cover.length <= 2048 ? cover : '',
         explicit:
             row['parental_warning'] == true ||
             row['parental_warning_type'] != null,
@@ -219,3 +245,6 @@ MusicSearchResult parsePublicMusicRows(
     hasNext: rows.length == 30,
   );
 }
+
+String _musicLabel(Object? value) =>
+    value is String && value.length <= 1000 ? displayText(value) : '';

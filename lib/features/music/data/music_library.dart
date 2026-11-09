@@ -104,7 +104,10 @@ final class MusicLibrary extends ChangeNotifier {
     return future;
   }
 
-  Future<String> create(String name) async {
+  Future<String> create(
+    String name, {
+    List<MusicTrack> tracks = const [],
+  }) async {
     final id = List.generate(
       16,
       (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
@@ -112,7 +115,7 @@ final class MusicLibrary extends ChangeNotifier {
     await _write(() async {
       if (playlists.length >= 100) throw const FormatException('最多创建 100 个歌单');
       await _save(
-        MusicPlaylist.fromJson({'id': id, 'name': name.trim(), 'tracks': []}),
+        MusicPlaylist.fromJson(MusicPlaylist(id, name.trim(), tracks).toJson()),
       );
     });
     return id;

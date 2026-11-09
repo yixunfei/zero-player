@@ -93,7 +93,7 @@ void main() {
           db: db,
         );
         await browser.load();
-        expect(browser.provider, 'myfreemp3');
+        expect(browser.provider, 'all');
         await browser.close();
       }
     },

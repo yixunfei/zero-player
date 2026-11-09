@@ -32,6 +32,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
   final _scroll = ScrollController();
   late Future<List<WatchEntry>> _history;
   List<VideoSource> _sources = [];
+  VideoSource? _inactiveSource;
   String _type = 'movie';
   String _channel = '';
   late String _provider;
@@ -124,6 +125,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
               .toList()
             ..sort(compareRecommendedSources);
       _notice = null;
+      _inactiveSource = null;
       if (_channel.isNotEmpty && !_sources.any((s) => s.id == _channel)) {
         _channel = '';
         _notice = '默认频道已移除、停用或被过滤，本次使用精选推荐';
@@ -190,7 +192,21 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
               )
               .toList()
             ..sort(compareRecommendedSources);
-      setState(() => _sources = visible);
+      final source = sources.where((s) => s.id == _channel).firstOrNull;
+      // Background health checks may disable a source during browsing. Retain
+      // its allowed snapshot until refresh, and cancel further page requests.
+      final inactive =
+          source != null &&
+              !source.enabled &&
+              !source.suppressed &&
+              widget.services.contentPolicy.sourceAllowed(source) &&
+              _feed.count > 0
+          ? source
+          : null;
+      setState(() {
+        _sources = visible;
+        _inactiveSource = inactive;
+      });
       if (preferred != _channel) {
         _channel = preferred;
         await widget.services.settings.load();
@@ -200,6 +216,10 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
       if (_ready &&
           _channel.isNotEmpty &&
           !visible.any((s) => s.id == _channel)) {
+        if (inactive != null) {
+          _feed.suspend();
+          return;
+        }
         await _refresh();
       }
     } catch (error, stack) {
@@ -440,12 +460,18 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
     final current = visible
         .where((source) => source.id == _channel)
         .firstOrNull;
+    final inactive = _inactiveSource;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DiscoveryToolbar(
           onSearch: () => context.push('/search'),
           sources: visible,
+          inactiveSource:
+              inactive != null &&
+                  widget.services.contentPolicy.sourceAllowed(inactive)
+              ? inactive
+              : null,
           channel: _channel,
           providerName: recommendationNames[_provider] ?? '精选推荐',
           isFavorite: current?.favorite ?? false,
@@ -468,6 +494,7 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
           onRefresh: () => unawaited(_refresh()),
           onSaveDefault: () => unawaited(_saveDefault()),
           onChannel: (value) {
+            if (value == _channel) return;
             if (value.isNotEmpty &&
                 !visible.any(
                   (s) =>
@@ -486,9 +513,10 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
             unawaited(_reload(discoverCategories: true));
           },
           onLayout: (value) {
+            if (value == _aggregate) return;
             _aggregate = value;
             _resetScroll();
-            unawaited(_reload());
+            unawaited(_feed.suspended ? _refresh() : _reload());
           },
         ),
         const SizedBox(height: 12),
@@ -504,11 +532,14 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
                   ChoiceChip(
                     label: Text(entry.value),
                     selected: entry.key == _type,
-                    onSelected: (_) {
-                      _type = entry.key;
-                      _resetScroll();
-                      unawaited(_reload());
-                    },
+                    onSelected: _feed.suspended
+                        ? null
+                        : (_) {
+                            if (_type == entry.key) return;
+                            _type = entry.key;
+                            _resetScroll();
+                            unawaited(_reload());
+                          },
                   ),
               ],
             ),
@@ -585,13 +616,22 @@ final class _DiscoveryPageState extends State<DiscoveryPage> {
         child: Column(
           children: [
             Text(
-              _feed.atLimit && _feed.hasMore
+              _feed.suspended
+                  ? '已展示 ${_feed.count} 部'
+                  : _feed.atLimit && _feed.hasMore
                   ? '已展示 ${_feed.count} 部 · 自动加载已暂停。继续加载会增加流量和列表内存；离屏封面会自动回收。'
                   : _feed.hasMore
                   ? '已展示 ${_feed.count} 部 · 滚动继续浏览'
                   : '已展示全部 ${_feed.count} 部',
             ),
-            if (_feed.hasMore)
+            if (_feed.suspended) ...[
+              const Text('频道状态已变化，自动加载已暂停；刷新或切换频道继续浏览。'),
+              TextButton.icon(
+                onPressed: () => unawaited(_refresh()),
+                icon: const Icon(Icons.refresh),
+                label: const Text('刷新频道'),
+              ),
+            ] else if (_feed.hasMore)
               TextButton.icon(
                 onPressed: () => unawaited(
                   _feed.loadMore(
