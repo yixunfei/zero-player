@@ -2,13 +2,13 @@
 
 更新：2026-11-09（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
-## v0.0.13 安装包与预发行准备（2026-11-09）
+## v0.0.13 安装包与预发行（2026-11-09，已发布）
 
 - 源码提交 cffe704 已推送 origin/main。用户追加授权生成安装包并发布 Release，沿用预发行边界；补充 .gitignore 的版本说明例外，确保 RELEASE-0.0.13.md 纳入源码。
 - Windows Release 构建成功（build/v13-windows.log），版本 0.0.13+13；mpv/ANGLE 缓存摘要、FFmpegKit ZIP 与 225 个解包文件、17 个输出 DLL 一致。安装器及便携包已生成，便携包 289 个文件与暂存逐字节一致，ZIP CRC 通过；工具测试 14 项通过。
 - Android 在线构建因 Gradle 依赖版本查询重试停滞，保留日志并改用已有缓存离线构建。首次离线命令参数转义失败，修正后完成 Dart Release 编译，Java 编译发现生成的 integration_test 残留注册；备份后仅移除该测试注册，使用相同参数与 -x compileFlutterBuildRelease 复用本轮编译结果完成打包（build/v13-android-offline-package.log，退出码 0）。未改变业务源码、依赖版本或签名。
 - APK 为 68,203,043 字节，版本、独立测试包名、ARM64 ABI、压缩原生库、字体与可选模型排除检查通过（build/v13-apk-verify.log），ZIP CRC 和 v2 签名通过，签名证书与 v0.0.12 测试包相同。
-- 附件位于 artifacts/release/0.0.13/，包含 Windows 安装器／便携包、Android 开发测试 APK 与说明、源码、第三方声明、原生来源及 SHA256SUMS.txt。上传后按远端大小和 SHA-256 复核后公开预发行。未新增真机、长时播放或安装卸载验收；历史限制仍适用。
+- 附件位于 artifacts/release/0.0.13/，包含 Windows 安装器／便携包、Android 开发测试 APK 与说明、源码、第三方声明、原生来源及 SHA256SUMS.txt。8 个附件远端大小和 SHA-256 均与本地一致，已公开 [v0.0.13 预发行](https://github.com/yixunfei/zero-player/releases/tag/v0.0.13)。标签指向 d35fcb852fd28bb931c7f5c22ba717b188f8983e，源码 ZIP 的 745 个文件与该提交 Git blob 一致。未新增真机、长时播放或安装卸载验收；历史限制仍适用。
 
 ## v0.0.13 源码版本更新（2026-11-09）
 
