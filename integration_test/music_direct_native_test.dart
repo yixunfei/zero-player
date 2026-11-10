@@ -51,7 +51,13 @@ Future<void> _exerciseSource(
       audioReadAhead: const Duration(seconds: 8),
     ),
   );
+  final semantics = tester.ensureSemantics();
   try {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MusicPlayer(controller: player)),
+      ),
+    );
     if (provider == 'kugou') {
       await browser.search(query);
     } else {
@@ -65,13 +71,16 @@ Future<void> _exerciseSource(
     final watch = Stopwatch()..start();
     while (watch.elapsed < const Duration(seconds: 25) &&
         player.error == null &&
-        (player.snapshot.position < const Duration(seconds: 1) ||
+        (player.snapshot.position < const Duration(seconds: 9) ||
             player.lyricsLoading)) {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(player.error, isNull);
     expect(player.snapshot.duration, greaterThan(const Duration(seconds: 20)));
-    expect(player.snapshot.position, greaterThan(Duration.zero));
+    expect(
+      player.snapshot.position,
+      greaterThanOrEqualTo(const Duration(seconds: 9)),
+    );
     expect(gateway.requests, greaterThan(0));
     await _checkLyrics(tester, player);
     if (provider == 'netease') {
@@ -84,6 +93,8 @@ Future<void> _exerciseSource(
       expect(list.tracks.every((track) => track.provider == 'netease'), isTrue);
     }
   } finally {
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
     await browser.close();
     await player.close();
     await gateway.close();
@@ -107,7 +118,7 @@ Future<void> _checkLyrics(WidgetTester tester, MusicController player) async {
   final text = [
     line.text,
     line.translation,
-  ].where((s) => s.isNotEmpty).join('\n');
+  ].where((s) => s.isNotEmpty).join(' · ');
   expect(text, isNotEmpty);
   expect(find.text(text), findsOneWidget);
   await tester.tap(find.text(player.selected!.title).first);

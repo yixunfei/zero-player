@@ -19,6 +19,10 @@ void main() {
     testWidgets(
       'queue controls and one seek on drag release at $size',
       (tester) => _exercise(tester, size),
+      variant: TargetPlatformVariant({
+        TargetPlatform.android,
+        TargetPlatform.windows,
+      }),
     );
   }
 }
@@ -86,9 +90,13 @@ Future<void> _exercise(WidgetTester tester, Size size) async {
           )
           .first,
     );
-    await tester.tap(
-      find.descendant(of: last, matching: find.byType(PopupMenuButton<String>)),
+    final menu = find.descendant(
+      of: last,
+      matching: find.byType(PopupMenuButton<String>),
     );
+    await Scrollable.ensureVisible(tester.element(menu), alignment: .5);
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
     await tester.pumpAndSettle();
     await tester.tap(find.text('移出队列'));
     await tester.pumpAndSettle();

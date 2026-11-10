@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../application/music_controller.dart';
@@ -21,26 +22,35 @@ final class MusicPlayer extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: controller,
-    builder: (context, _) {
-      final track = controller.selected;
-      if (track == null) return const SizedBox.shrink();
-      return Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _header(context),
-              if (!compact) ...[_currentLyric(context), _timeline(context)],
-            ],
+  Widget build(BuildContext context) {
+    final controls = ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final track = controller.selected;
+        if (track == null) return const SizedBox.shrink();
+        return Material(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _header(context),
+                if (!compact) ...[_currentLyric(context), _timeline(context)],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+    if (defaultTargetPlatform != TargetPlatform.windows) return controls;
+    // Keep tooltips and the seek indicator inside the player's semantics subtree.
+    return Overlay.wrap(
+      alwaysSizeToContent: true,
+      clipBehavior: Clip.none,
+      child: controls,
+    );
+  }
 
   Widget _header(BuildContext context) {
     final track = controller.selected!;
@@ -124,22 +134,24 @@ final class MusicPlayer extends StatelessWidget {
 
   Widget _currentLyric(BuildContext context) {
     final lyric = controller.lyrics.lineAt(controller.snapshot.position);
-    if (lyric == null && !controller.lyricsLoading) {
-      return const SizedBox.shrink();
-    }
+    // Keep the strip height and its accessibility node stable while lyrics load.
+    final text = lyric == null
+        ? controller.lyricsLoading
+              ? '正在查找同步歌词…'
+              : ''
+        : [
+            lyric.text,
+            lyric.translation,
+          ].where((text) => text.isNotEmpty).join(' · ');
     return InkWell(
       onTap: () => showMusicLyrics(context, controller),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         child: Text(
-          lyric == null
-              ? '正在查找同步歌词…'
-              : [
-                  lyric.text,
-                  lyric.translation,
-                ].where((text) => text.isNotEmpty).join('\n'),
+          text.isEmpty ? ' ' : text,
+          semanticsLabel: text.isEmpty ? '打开同步歌词' : text,
           textAlign: TextAlign.center,
-          maxLines: 2,
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.primary,

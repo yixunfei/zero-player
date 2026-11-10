@@ -2,6 +2,16 @@
 
 更新：2026-11-10（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
+## v0.7.2 预发行（2026-11-10）
+
+- 源码版本更新为 `0.7.2+72`，包含下文 Windows 闪退缓解。Windows x64 Release 和 Android ARM64 开发测试 Release 串行构建通过。版本一致性回归通过，日志为 `build/v072-*.log`。Android/TV 真机与 Windows 长时间播放待验收。
+
+## Windows 在线音乐闪退排查（2026-11-10）
+
+- 三次 v0.0.14 Release 进程崩溃的 Windows 应用事件均为 `flutter_windows.dll+0x3e735`、`0xc0000005`。使用与两份安装包 DLL SHA-256 一致的 Flutter Release 产物及配套 PDB，定位为 `flutter::FlutterPlatformNodeDelegate::ChildAtIndex+0x3f`，与 [Flutter #195399](https://github.com/flutter/flutter/issues/195399) 相同。尚未确认触发查询的客户端。
+- 应用侧缓解包括稳定歌词条高度、限制播放器浮层范围，以及进度变化时仅刷新播放器，歌曲列表只响应选中项或播放状态变化。保留进度条的键盘及无障碍行为。
+- 音乐回归 88 项通过、9 项按配置跳过（`build/music-crash-module-verified.log`）。Windows 原生酷狗及网易云播放与歌词用例通过，两首各覆盖至少 9 秒并启用语义树（`.dart_tool/native-fc43f4ea/music_direct_native_test.log`）。测试仍记录 AXTree 更新告警。Windows x64 Release 构建通过（`build/music-crash-release.log`），原用户长时复现路径尚未验收。
+
 ## 网易云歌单补齐与完整歌词页（2026-11-10）
 
 - 网易云公开歌单详情内嵌的 10 首是预览。按曲目 ID 分批补齐并按原顺序展示，最多 500 首。网易云风格歌单列表支持加载下一页。公网“爵士”首个歌单已从 10 首补齐到 100 首。

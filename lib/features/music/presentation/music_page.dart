@@ -30,10 +30,13 @@ final class _MusicPageState extends State<MusicPage> {
   final _scroll = ScrollController();
   late String _view;
   String _searchKind = '综合';
+  (String?, bool) _selection = (null, false);
 
   @override
   void initState() {
     super.initState();
+    _selection = (player.selected?.key, player.playing);
+    player.addListener(_updateSelection);
     _view = browser.query.isEmpty ? 'discover' : 'search';
     browser.addListener(_prepareSearchResults);
     widget.services.settings.addListener(_prepareSearchResults);
@@ -60,11 +63,17 @@ final class _MusicPageState extends State<MusicPage> {
 
   @override
   void dispose() {
+    player.removeListener(_updateSelection);
     browser.removeListener(_prepareSearchResults);
     widget.services.settings.removeListener(_prepareSearchResults);
     _query.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _updateSelection() {
+    final selection = (player.selected?.key, player.playing);
+    if (_selection != selection) setState(() => _selection = selection);
   }
 
   void _prepareSearchResults() {
@@ -103,7 +112,6 @@ final class _MusicPageState extends State<MusicPage> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
       browser,
-      player,
       widget.services.musicDownloads,
       widget.services.contentPolicy,
       widget.services.settings,
@@ -300,8 +308,9 @@ final class _MusicPageState extends State<MusicPage> {
   Widget _track(List<List<MusicTrack>> groups, int index) {
     final group = groups[index];
     final track = group.first;
-    final selected = player.selected?.key == track.key;
+    final selected = _selection.$1 == track.key;
     return Card(
+      key: ValueKey(track.key),
       child: ListTile(
         key: ValueKey('music-${track.id}'),
         selected: selected,
@@ -318,7 +327,7 @@ final class _MusicPageState extends State<MusicPage> {
                 ),
               )
             : Icon(
-                selected && player.playing
+                selected && _selection.$2
                     ? Icons.equalizer
                     : Icons.music_note_outlined,
               ),
