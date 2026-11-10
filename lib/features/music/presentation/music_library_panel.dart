@@ -103,6 +103,8 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
                   context,
                   () => action == 'remove'
                       ? library.remove(list.id, tracks[i].key)
+                      : action == 'playlist'
+                      ? addToMusicPlaylist(context, services, tracks[i])
                       : action == 'download'
                       ? services.musicDownloads.download(tracks[i])
                       : action == 'next' || action == 'queue'
@@ -119,6 +121,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'next', child: Text('下一首播放')),
                   const PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
+                  const PopupMenuItem(value: 'playlist', child: Text('加入指定歌单')),
                   const PopupMenuItem(value: 'up', child: Text('上移')),
                   const PopupMenuItem(value: 'down', child: Text('下移')),
                   PopupMenuItem(
@@ -269,6 +272,11 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
                 () => switch (action) {
                   'pause' => services.musicDownloads.pause(item.track),
                   'remove' => services.musicDownloads.remove(item.track),
+                  'playlist' => addToMusicPlaylist(
+                    context,
+                    services,
+                    item.track,
+                  ),
                   'next' => services.musicPlayer.enqueue(
                     item.track,
                     playNext: true,
@@ -281,6 +289,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
                 if (item.status == 'complete') ...[
                   const PopupMenuItem(value: 'next', child: Text('下一首播放')),
                   const PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
+                  const PopupMenuItem(value: 'playlist', child: Text('加入指定歌单')),
                 ],
                 if ({'downloading', 'queued'}.contains(item.status))
                   const PopupMenuItem(value: 'pause', child: Text('暂停下载')),

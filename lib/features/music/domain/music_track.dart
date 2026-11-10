@@ -1,3 +1,9 @@
+const musicPlaylistProviders = {
+  'neteasePlaylist': '网易云歌单',
+  'qqPlaylist': 'QQ 音乐歌单',
+  'kugouPlaylist': '酷狗歌单',
+};
+
 final class MusicTrack {
   const MusicTrack({
     required this.id,
@@ -27,8 +33,10 @@ final class MusicTrack {
   final bool explicit;
   final String cover;
   String get key => '$provider:$id';
+  bool get searchOnly => musicPlaylistProviders.containsKey(provider);
   bool get canDownload =>
       downloadable &&
+      !searchOnly &&
       !provider.startsWith('lx') &&
       !{'qqmp3', 'kugou'}.contains(provider);
   MusicTrack withUrl(Uri value) => MusicTrack(
@@ -87,6 +95,7 @@ final class MusicTrack {
           'lxFlower',
           'lxGrass',
           'lxJuhe',
+          ...musicPlaylistProviders.keys,
         }.contains(value['provider']) ||
         value['duration'] is! int ||
         (value['duration'] as int) < 0 ||

@@ -4,6 +4,7 @@ import '../../supervision/application/content_policy.dart';
 import '../../supervision/domain/supervision_rules.dart';
 import '../domain/music_track.dart';
 import '../domain/music_lyrics.dart';
+import '../domain/music_match.dart';
 import 'netease_music_details.dart';
 import 'music_parser.dart';
 import 'myfreemp3_client.dart';
@@ -16,17 +17,25 @@ final class MusicRepository {
   final ContentPolicy? policy;
   late final public = PublicMusicSources(client.network);
   late final _netease = NeteaseMusicDetails(client.network);
-  VideoSource sourceFor(String provider) => provider == 'myfreemp3'
+  VideoSource sourceFor(String provider) => provider == 'neteasePlaylist'
+      ? sourceFor('netease')
+      : provider == 'kugouPlaylist'
+      ? sourceFor('kugou')
+      : provider == 'myfreemp3'
       ? source
       : VideoSource(
           id: 'music-$provider',
-          name: musicSources[provider] ?? provider,
+          name:
+              musicSources[provider] ??
+              musicPlaylistProviders[provider] ??
+              provider,
           kind: 'music',
           enabled: true,
           endpoint: Uri.parse(switch (provider) {
             'audius' => 'https://audius.co',
             'flacHi' => 'https://flac.music.hi.cn',
             'kugou' => 'https://www.kugou.com',
+            'qqPlaylist' => 'https://y.qq.com',
             'archive' => 'https://archive.org',
             'lxHuibq' => 'https://lxmusicapi.onrender.com',
             'qqmp3' => 'https://www.qqmp3.vip',
@@ -55,21 +64,61 @@ final class MusicRepository {
   );
 
   bool allowed(MusicTrack track) =>
-      musicSources.containsKey(track.provider) &&
+      (musicSources.containsKey(track.provider) || track.searchOnly) &&
       !(track.explicit && (policy?.filterAdult ?? true)) &&
       (policy?.sourceAllowed(sourceFor(track.provider)) ?? true) &&
       (policy?.textAllowed('${track.title} ${track.artist}') ?? true);
 
   bool supportsLyrics(MusicTrack track) =>
-      NeteaseMusicDetails.supportsLyrics(track.provider) && allowed(track);
+      allowed(track) &&
+      (NeteaseMusicDetails.supportsLyrics(track.provider) ||
+          track.artist.trim().isNotEmpty) &&
+      (policy?.sourceAllowed(sourceFor('netease')) ?? true);
 
   Future<MusicLyrics> lyrics(MusicTrack track, CancellationToken token) async {
     if (!supportsLyrics(track)) return MusicLyrics.empty;
-    policy?.requireSource(sourceFor('netease'));
-    final lyrics = await _netease.lyrics(track.id, token);
-    token.check();
-    policy?.requireSource(sourceFor('netease'));
-    return allowed(track) ? lyrics : MusicLyrics.empty;
+    if (NeteaseMusicDetails.supportsLyrics(track.provider)) {
+      final direct = await _tryLyrics(track, token);
+      if (direct.lines.isNotEmpty) return direct;
+    }
+    if (track.artist.trim().isEmpty) return MusicLyrics.empty;
+    final results = await search(
+      '${track.title} ${track.artist}',
+      provider: 'netease',
+      cancellation: token,
+    );
+    final matches = results.tracks.where((candidate) {
+      if (!matchesMusic(track, candidate)) return false;
+      if (NeteaseMusicDetails.supportsLyrics(track.provider) &&
+          track.id == candidate.id) {
+        return false;
+      }
+      return track.duration == Duration.zero ||
+          candidate.duration == Duration.zero ||
+          (track.duration - candidate.duration).abs() <=
+              const Duration(seconds: 12);
+    });
+    for (final candidate in matches.take(2)) {
+      final lyrics = await _tryLyrics(candidate, token);
+      if (lyrics.lines.isNotEmpty) {
+        return supportsLyrics(track) ? lyrics : MusicLyrics.empty;
+      }
+    }
+    return MusicLyrics.empty;
+  }
+
+  Future<MusicLyrics> _tryLyrics(
+    MusicTrack track,
+    CancellationToken token,
+  ) async {
+    try {
+      final lyrics = await _netease.lyrics(track.id, token);
+      token.check();
+      if (supportsLyrics(track)) return lyrics;
+    } catch (_) {
+      token.check();
+    }
+    return MusicLyrics.empty;
   }
 
   MusicLyrics visibleLyrics(MusicLyrics lyrics) {
@@ -151,6 +200,7 @@ final class MusicRepository {
     bool refresh = false,
   }) async {
     if (!allowed(track)) throw const ContentBlocked();
+    if (track.searchOnly) throw const FormatException('请先匹配可播放的音乐渠道');
     if (track.provider != 'myfreemp3') {
       return public.resolve(track, cancellation);
     }

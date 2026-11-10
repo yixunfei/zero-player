@@ -14,6 +14,7 @@ import 'disclaimer_dialog.dart';
 import 'adult_filter_setting.dart';
 import 'content_filter_setting.dart';
 import 'lan_access_dialog.dart';
+import '../../music/domain/music_match.dart';
 
 final class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.services});
@@ -57,6 +58,7 @@ final class SettingsPage extends StatelessWidget {
           ),
           _toggle(context, '自动播放下一集', 'autoplay', settings.autoplay),
           HomePreferences(services: services),
+          ..._musicOptions(context),
           _toggle(
             context,
             '片段自动跳过',
@@ -111,6 +113,35 @@ final class SettingsPage extends StatelessWidget {
         for (final value in {1024, 4096, 8192, 16384, limit})
           '$value': '$value MiB',
       }, numeric: true);
+
+  List<Widget> _musicOptions(BuildContext context) {
+    final settings = services.settings.value;
+    return [
+      _toggle(
+        context,
+        '聚合相同歌曲',
+        'musicAggregate',
+        settings.musicAggregate,
+        subtitle: '歌名和歌手完全相同的结果合为一条',
+      ),
+      _toggle(
+        context,
+        '音乐预检与自动换源',
+        'musicAutoFallback',
+        settings.musicAutoFallback,
+        subtitle: '预检即将播放的歌曲，遇到长时间卡顿或失败时尝试其他渠道',
+      ),
+      if (settings.musicAggregate || settings.musicAutoFallback)
+        _choice(
+          context,
+          '音乐选源策略',
+          'musicSourceStrategy',
+          settings.musicSourceStrategy,
+          musicSourceStrategies,
+        ),
+    ];
+  }
+
   List<Widget> _appearanceOptions(BuildContext context) {
     final settings = services.settings.value;
     return [

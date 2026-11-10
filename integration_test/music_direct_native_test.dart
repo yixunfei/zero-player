@@ -48,6 +48,7 @@ Future<void> _exerciseSource(
       videoOutput: false,
       gateway: gateway,
       networkTimeout: const Duration(seconds: 30),
+      audioReadAhead: const Duration(seconds: 8),
     ),
   );
   try {
@@ -72,8 +73,8 @@ Future<void> _exerciseSource(
     expect(player.snapshot.duration, greaterThan(const Duration(seconds: 20)));
     expect(player.snapshot.position, greaterThan(Duration.zero));
     expect(gateway.requests, greaterThan(0));
+    await _checkLyrics(tester, player);
     if (provider == 'netease') {
-      await _checkLyrics(tester, player);
       final list = await repository.importPlaylist(
         '3778678',
         CancellationToken(),
@@ -98,9 +99,6 @@ Future<void> _checkLyrics(WidgetTester tester, MusicController player) async {
       home: Scaffold(body: MusicPlayer(controller: player)),
     ),
   );
-  await tester.tap(find.byTooltip('同步歌词'));
-  await tester.pumpAndSettle();
-  expect(find.text('同步歌词'), findsOneWidget);
   await player.seek(const Duration(seconds: 35));
   await tester.pump(const Duration(milliseconds: 300));
   final index = player.lyrics.indexAt(player.snapshot.position);
@@ -111,6 +109,9 @@ Future<void> _checkLyrics(WidgetTester tester, MusicController player) async {
     line.translation,
   ].where((s) => s.isNotEmpty).join('\n');
   expect(text, isNotEmpty);
-  expect(find.text(text), findsWidgets);
+  expect(find.text(text), findsOneWidget);
+  await tester.tap(find.byTooltip('同步歌词'));
+  await tester.pumpAndSettle();
+  expect(find.text('同步歌词'), findsOneWidget);
   await tester.pumpWidget(const SizedBox.shrink());
 }

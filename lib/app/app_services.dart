@@ -115,12 +115,14 @@ final class AppServices {
           videoOutput: false,
           gateway: gateway,
           networkTimeout: const Duration(seconds: 30),
+          audioReadAhead: const Duration(seconds: 8),
           isTrustedResource: offline.isRegisteredResource,
           isTrustedPlaylist: offline.isRegisteredPlaylist,
         ),
     beforePlay: () async => _radioPlayer?.pause(),
     libraryFactory: () => musicLibrary,
     downloadsFactory: () => musicDownloads,
+    settings: settings,
   );
   BackgroundAudioGroup? _backgroundAudio;
   RadioController? _radioPlayer;

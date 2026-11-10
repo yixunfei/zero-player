@@ -1,4 +1,5 @@
 import '../../../app/app_fonts.dart';
+import '../../music/domain/music_match.dart';
 
 void validateSetting(String key, Object? value) {
   final choices = <String, Set<String>>{
@@ -9,6 +10,7 @@ void validateSetting(String key, Object? value) {
     'recommendation': {'douban', 'off'},
     'homeLayout': {'single', 'aggregate'},
     'filterStrategy': {'conservative', 'aggressive', 'confirm'},
+    'musicSourceStrategy': musicSourceStrategies.keys.toSet(),
   };
   if (choices.containsKey(key)) {
     if (!choices[key]!.contains(value)) throw const FormatException('设置选项无效');
@@ -66,6 +68,8 @@ void validateSetting(String key, Object? value) {
     'filterAdult',
     'allowMetered',
     'cacheWhilePaused',
+    'musicAggregate',
+    'musicAutoFallback',
   }.contains(key)) {
     if (value is! bool) throw const FormatException('开关设置无效');
   } else {

@@ -32,7 +32,10 @@ final class MusicPlayer extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [_header(context), if (!compact) _timeline(context)],
+            children: [
+              _header(context),
+              if (!compact) ...[_currentLyric(context), _timeline(context)],
+            ],
           ),
         ),
       );
@@ -49,7 +52,7 @@ final class MusicPlayer extends StatelessWidget {
         controller.error ??
             (controller.loading
                 ? '连接中…'
-                : '${track.artist} · ${controller.snapshot.completed
+                : '${track.artist} · ${musicSources[controller.playingTrack?.provider] ?? ''} · ${controller.snapshot.completed
                       ? '已播完'
                       : controller.snapshot.buffering
                       ? '缓冲中…'
@@ -119,6 +122,33 @@ final class MusicPlayer extends StatelessWidget {
     );
   }
 
+  Widget _currentLyric(BuildContext context) {
+    final lyric = controller.lyrics.lineAt(controller.snapshot.position);
+    if (lyric == null && !controller.lyricsLoading) {
+      return const SizedBox.shrink();
+    }
+    return InkWell(
+      onTap: () => showMusicLyrics(context, controller),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        child: Text(
+          lyric == null
+              ? '正在查找同步歌词…'
+              : [
+                  lyric.text,
+                  lyric.translation,
+                ].where((text) => text.isNotEmpty).join('\n'),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _timeline(BuildContext context) {
     final state = controller.snapshot;
     final progress = <Widget>[
@@ -136,34 +166,30 @@ final class MusicPlayer extends StatelessWidget {
         tooltip: controller.switchingSource ? '正在换源…' : '歌曲换源',
         enabled: !controller.switchingSource && !controller.loading,
         icon: const Icon(Icons.swap_horiz),
-        onSelected: (value) {
-          if (value == 'auto') {
-            controller.setAutoSwitchSource(!controller.autoSwitchSource);
-          } else {
-            musicAction(
-              context,
-              () => controller.switchSource(
-                provider: value == 'next' ? null : value,
-              ),
-            );
-          }
-        },
+        onSelected: (value) => musicAction(
+          context,
+          () => value == 'auto'
+              ? controller.setAutoSwitchSource(!controller.autoSwitchSource)
+              : controller.switchSource(
+                  provider: value == 'next' ? null : value,
+                ),
+        ),
         itemBuilder: (_) => [
           CheckedPopupMenuItem(
             value: 'auto',
             checked: controller.autoSwitchSource,
-            child: const Text('播放失败自动换源'),
+            child: const Text('音乐预检与自动换源'),
           ),
           const PopupMenuItem(value: 'next', child: Text('查找其他可用渠道')),
           for (final source in MusicMultiSearch.providers)
-            if (source != controller.selected?.provider)
+            if (source != controller.playingTrack?.provider)
               PopupMenuItem(
                 value: source,
                 child: Text(musicSources[source] ?? source),
               ),
         ],
       ),
-      if (controller.repository.supportsLyrics(controller.selected!))
+      if (controller.repository.supportsLyrics(controller.playingTrack!))
         IconButton(
           tooltip: '同步歌词',
           onPressed: () => showMusicLyrics(context, controller),

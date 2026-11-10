@@ -18,6 +18,7 @@ final class MediaKitEngine implements PlayerEngine, VideoRecoveryEngine {
     this.isTrustedResource,
     this.isFilteredPlaylist,
     this.networkTimeout = const Duration(seconds: 30),
+    this.audioReadAhead,
   }) {
     if (videoOutput) video = VideoController(player);
     if (videoOutput) {
@@ -64,6 +65,7 @@ final class MediaKitEngine implements PlayerEngine, VideoRecoveryEngine {
 
   /// A gateway may need more than mpv's five-second default to contact upstream.
   final Duration? networkTimeout;
+  final Duration? audioReadAhead;
   GatewaySession? _session;
   Future<void>? _securityReady;
   Future<void>? _disposing;
@@ -142,6 +144,12 @@ final class MediaKitEngine implements PlayerEngine, VideoRecoveryEngine {
       'cache-on-disk': 'no',
     }.entries) {
       await _setVerified(entry.key, entry.value);
+    }
+    if (audioReadAhead case final ahead?) {
+      final native = player.platform as NativePlayer;
+      await native.setProperty('cache', 'yes');
+      await native.setProperty('cache-secs', '${ahead.inSeconds}');
+      await native.setProperty('cache-pause-initial', 'yes');
     }
     if (networkTimeout case final timeout?) {
       final seconds = timeout.inSeconds.clamp(1, 60);

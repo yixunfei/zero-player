@@ -111,13 +111,26 @@ Future<void> addToMusicPlaylist(
     ),
   );
   if (selected == null || !context.mounted) return;
-  var id = selected;
+  if (!services.music.allowed(track)) throw const FormatException('歌曲已被过滤');
+  final id = selected;
   if (id == 'new') {
     final name = await musicName(context, '新建歌单');
     if (name == null) return;
-    id = await services.musicLibrary.create(name);
+    if (!services.music.allowed(track) ||
+        !services.contentPolicy.textAllowed(name)) {
+      throw const FormatException('歌单或歌曲已被过滤');
+    }
+    await services.musicLibrary.create(name, tracks: [track]);
+  } else {
+    final list = services.musicLibrary.playlists
+        .where((list) => list.id == id)
+        .firstOrNull;
+    if (list == null || !services.contentPolicy.textAllowed(list.name)) {
+      throw const FormatException('歌单已不可用');
+    }
+    await services.musicLibrary.add(id, track);
   }
-  await services.musicLibrary.add(id, track);
+  services.musicPlayer.prepareAddedTrack(track);
 }
 
 final class MusicTrackMenu extends StatelessWidget {
@@ -125,9 +138,11 @@ final class MusicTrackMenu extends StatelessWidget {
     super.key,
     required this.services,
     required this.track,
+    this.alternatives = const [],
   });
   final AppServices services;
   final MusicTrack track;
+  final List<MusicTrack> alternatives;
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
     tooltip: '歌曲操作',
@@ -135,13 +150,20 @@ final class MusicTrackMenu extends StatelessWidget {
       context,
       () => switch (value) {
         'playlist' => addToMusicPlaylist(context, services, track),
-        'next' => services.musicPlayer.enqueue(track, playNext: true),
-        'queue' => services.musicPlayer.enqueue(track),
+        'next' => services.musicPlayer.enqueue(
+          track,
+          playNext: true,
+          alternatives: alternatives,
+        ),
+        'queue' => services.musicPlayer.enqueue(
+          track,
+          alternatives: alternatives,
+        ),
         _ => services.musicDownloads.download(track),
       },
     ),
     itemBuilder: (_) => [
-      const PopupMenuItem(value: 'playlist', child: Text('加入歌单')),
+      const PopupMenuItem(value: 'playlist', child: Text('加入指定歌单')),
       const PopupMenuItem(value: 'next', child: Text('下一首播放')),
       const PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
       PopupMenuItem(

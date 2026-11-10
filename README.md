@@ -6,9 +6,13 @@
 
 **v0.0.13 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.13) · [Android v0.0.13 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.0.13/zero-player-0.0.13-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.0.13.md)
 
+## v0.0.14 源码版本
+
+当前源码版本 **0.0.14+14**，新增在线同步歌词、风格歌单、队列预检及按延迟和音质选源。详见[版本说明](docs/implementation/RELEASE-0.0.14.md)。上方下载链接对应 v0.0.13 预发行附件。
+
 ## v0.0.13 预发行
 
-当前源码版本 **0.0.13+13**：新增音乐随机播放结果、自动／手动换源、歌手与主题搜索，整合直连音乐渠道、同步歌词、歌单导入及发现页滚动稳定性修复。详见[版本说明](docs/implementation/RELEASE-0.0.13.md)。提供 Windows x64 安装器／便携包和 Android ARM64 开发测试包。下文 v0.0.12 段落保留历史说明。
+源码版本 **0.0.13+13**：新增音乐随机播放结果、自动／手动换源、歌手与主题搜索，整合直连音乐渠道、同步歌词、歌单导入及发现页滚动稳定性修复。详见[版本说明](docs/implementation/RELEASE-0.0.13.md)。提供 Windows x64 安装器／便携包和 Android ARM64 开发测试包。下文 v0.0.12 段落保留历史说明。
 
 ## v0.0.12 预发行变更
 

@@ -2,9 +2,13 @@
 
 当前进度见 [实施状态](STATUS.md)。下文各功能章节的测试数量属于当时快照，不代表重装后重新执行。
 
+## v0.0.14 源码构建
+
+当前源码版本为 `0.0.14+14`。构建及版本校验使用版本号 0.0.14 和构建号 14。功能与验证记录见[版本说明](RELEASE-0.0.14.md)。
+
 ## v0.0.13 预发行（2026-11-09）
 
-当前版本 `0.0.13+13`，提供 Windows x64 安装器／便携包及 Android ARM64 开发测试包，按下述既有流程串行构建，使用当前版本 0.0.13 和构建号 13 校验。下文 v0.0.12 构建与发行记录保留历史含义。新版本改动及验收边界见 [版本说明](RELEASE-0.0.13.md)。
+该预发行版本 `0.0.13+13`，提供 Windows x64 安装器／便携包及 Android ARM64 开发测试包，按下述既有流程串行构建，使用版本 0.0.13 和构建号 13 校验。下文 v0.0.12 构建与发行记录保留历史含义。新版本改动及验收边界见 [版本说明](RELEASE-0.0.13.md)。
 
 ## v0.0.12 预发行配置（2026-11-06）
 
@@ -114,6 +118,7 @@ v0.0.6 本轮只验收 Windows x64。先执行 `flutter build windows --release 
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_direct_native_test.dart') -DartDefines @('RUN_MUSIC_DIRECT_ONLINE=true')
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_offline_native_test.dart')
+flutter test --no-pub test/music/music_style_online_test.dart --dart-define=RUN_MUSIC_STYLE_ONLINE=true
 ./tool/run_windows_native.ps1 -TestFiles @('integration_test/music_discovery_native_test.dart', 'integration_test/lx_sources_native_test.dart') -DartDefines @('RUN_MUSIC_ONLINE=true')
 flutter test --no-pub test/music/public_sources_online_test.dart --dart-define=RUN_MUSIC_ONLINE=true
 ~~~

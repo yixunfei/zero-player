@@ -42,6 +42,9 @@ final class UserSettings {
     this.downloadConcurrency = 2,
     this.gestures = true,
     this.playerOrientation = 'system',
+    this.musicAggregate = true,
+    this.musicAutoFallback = true,
+    this.musicSourceStrategy = 'balanced',
   });
   final String theme;
   final String font;
@@ -77,6 +80,8 @@ final class UserSettings {
   final int downloadConcurrency;
   final bool gestures;
   final String playerOrientation;
+  final bool musicAggregate, musicAutoFallback;
+  final String musicSourceStrategy;
 
   Map<String, Object> toMap() => {
     'theme': theme,
@@ -114,6 +119,9 @@ final class UserSettings {
     'downloadConcurrency': downloadConcurrency,
     'gestures': gestures,
     'playerOrientation': playerOrientation,
+    'musicAggregate': musicAggregate,
+    'musicAutoFallback': musicAutoFallback,
+    'musicSourceStrategy': musicSourceStrategy,
   };
 
   factory UserSettings.fromMap(Map<String, Object?> map) => UserSettings(
@@ -191,6 +199,12 @@ final class UserSettings {
     downloadConcurrency: ((map['downloadConcurrency'] as num?)?.toInt() ?? 2)
         .clamp(1, 4),
     gestures: map['gestures'] != false,
+    musicAggregate: map['musicAggregate'] != false,
+    musicAutoFallback: map['musicAutoFallback'] != false,
+    musicSourceStrategy:
+        {'balanced', 'fastest', 'quality'}.contains(map['musicSourceStrategy'])
+        ? map['musicSourceStrategy'] as String
+        : 'balanced',
     playerOrientation:
         {'system', 'landscape', 'auto'}.contains(map['playerOrientation'])
         ? map['playerOrientation'] as String

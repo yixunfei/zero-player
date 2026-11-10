@@ -87,6 +87,11 @@ final class MusicLyrics {
     return low - 1;
   }
 
+  MusicLyricLine? lineAt(Duration position) {
+    final index = indexAt(position);
+    return index < 0 ? null : lines[index];
+  }
+
   String _toLrc({required bool translated}) => [
     for (final line in lines)
       if (translated ? line.translation.isNotEmpty : line.text.isNotEmpty)

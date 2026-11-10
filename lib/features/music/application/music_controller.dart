@@ -3,13 +3,15 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/platform/background_audio_session.dart';
+import '../../settings/application/settings_controller.dart';
 import '../../playback/domain/player_engine.dart';
+import '../data/music_audio_probe.dart';
 import '../data/music_repository.dart';
 import '../domain/music_track.dart';
 import '../domain/music_lyrics.dart';
 import '../data/music_library.dart';
 import 'music_downloads.dart';
-import 'music_multi_search.dart';
+import 'music_preflight.dart';
 import '../../../media/gateway/offline_server.dart';
 
 final class MusicController extends ChangeNotifier
@@ -20,14 +22,22 @@ final class MusicController extends ChangeNotifier
     this.beforePlay,
     this.libraryFactory,
     this.downloadsFactory,
+    this.settings,
+    MusicProbe? probe,
+    this.stallTimeout = const Duration(seconds: 12),
     this.operationTimeout = const Duration(seconds: 25),
-  }) {
+  }) : _preflight = MusicPreflight(repository, probe: probe) {
+    _lastAutoPolicy = autoSwitchSource;
     repository.policy?.addListener(_policyChanged);
+    settings?.addListener(_settingsChanged);
   }
   final MusicRepository repository;
   final PlayerEngine Function() createEngine;
   final Future<void> Function()? beforePlay;
   final Duration operationTimeout;
+  final Duration stallTimeout;
+  final SettingsController? settings;
+  final MusicPreflight _preflight;
   final MusicLibrary Function()? libraryFactory;
   final MusicDownloads Function()? downloadsFactory;
   MusicLibrary? _library;
@@ -36,29 +46,102 @@ final class MusicController extends ChangeNotifier
   MusicDownloads? get downloads => _downloads ??= downloadsFactory?.call();
   OfflineSession? _offline;
   DateTime _lastRecord = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastPreflight = DateTime.fromMillisecondsSinceEpoch(0);
   final _visited = <int>{};
+  final _playNext = <String>[];
+  Map<String, List<MusicTrack>> _queueVariants = const {};
+  int? _shuffleNext;
   MusicPlayMode get mode => library?.mode ?? _mode;
   MusicPlayMode _mode = MusicPlayMode.sequential;
   bool get hasNext =>
-      active && (index + 1 < queue.length || mode != MusicPlayMode.sequential);
+      active &&
+      (_playNext.isNotEmpty ||
+          index + 1 < queue.length ||
+          mode != MusicPlayMode.sequential);
   Future<void> setMode(MusicPlayMode value) async {
     _mode = value;
     await library?.setMode(value);
     _visited.clear();
+    _shuffleNext = null;
+    _prepareUpcoming();
     if (!_closed) notifyListeners();
   }
 
-  bool autoSwitchSource = false;
+  bool _autoSwitchSource = false;
+  late bool _lastAutoPolicy;
+  bool get autoSwitchSource =>
+      settings?.value.musicAutoFallback ?? _autoSwitchSource;
+  String get _strategy => settings?.value.musicSourceStrategy ?? 'balanced';
+  bool get _aggregationEnabled => settings?.value.musicAggregate ?? true;
   bool switchingSource = false;
   final _attemptedSources = <String>{};
-  void setAutoSwitchSource(bool value) {
-    autoSwitchSource = value;
-    notifyListeners();
+  Future<void> setAutoSwitchSource(bool value) async {
+    if (settings case final settings?) {
+      await settings.update({'musicAutoFallback': value});
+    } else {
+      _autoSwitchSource = value;
+      _settingsChanged();
+    }
   }
 
+  void _settingsChanged() {
+    if (!autoSwitchSource) {
+      _stall?.cancel();
+      if (switchingSource && _automaticSwitch) _request?.cancel();
+      if (_lastAutoPolicy || !_aggregationEnabled) _preflight.reset();
+    } else if (_engine != null) {
+      _watchStall(_generation, progressed: false);
+    }
+    _lastAutoPolicy = autoSwitchSource;
+    _prepareUpcoming();
+    if (!_closed) notifyListeners();
+  }
+
+  void prepareResults(Iterable<List<MusicTrack>> groups) {
+    if (_closed || !_aggregationEnabled) return;
+    for (final group in groups.where((group) => group.length > 1).take(8)) {
+      unawaited(_preflight.prepare(group.first, alternatives: group.skip(1)));
+    }
+  }
+
+  void prepareAddedTrack(MusicTrack track) {
+    if (_closed || downloads?.localFor(track) != null) return;
+    if (!autoSwitchSource && !_ranked(track)) return;
+    unawaited(_prepareTrack(track));
+  }
+
+  bool _ranked(MusicTrack track) =>
+      _aggregationEnabled && _queueVariants.containsKey(track.key);
+
+  Future<void> _prepareTrack(MusicTrack track) async {
+    await _preflight.prepare(
+      track,
+      alternatives: _ranked(track) ? _queueVariants[track.key]! : const [],
+      findMatches: track.searchOnly,
+    );
+    if (!_closed && autoSwitchSource && _preflight.unavailable(track)) {
+      await _preflight.prepare(track, findMatches: true);
+    }
+  }
+
+  void _prepareUpcoming() {
+    if ((!autoSwitchSource && !_aggregationEnabled) || index < 0) return;
+    _lastPreflight = DateTime.now();
+    final next = _nextIndex(automatic: true);
+    for (final i in {?next, index + 1, index + 2}) {
+      if (i < queue.length && i != index) prepareAddedTrack(queue[i]);
+    }
+  }
+
+  bool _automaticSwitch = false;
   Future<void> switchSource({String? provider, bool automatic = false}) async {
     final original = selected;
-    if (_closed || original == null || switchingSource) return;
+    if (_closed ||
+        original == null ||
+        switchingSource ||
+        (automatic && (!_wantsPlayback || !autoSwitchSource))) {
+      return;
+    }
     if (!automatic) _attemptedSources.clear();
     final generation = _generation;
     final position = snapshot.position;
@@ -67,59 +150,67 @@ final class MusicController extends ChangeNotifier
     _request?.cancel();
     _request = token;
     switchingSource = true;
-    _attemptedSources.add(original.provider);
+    _automaticSwitch = automatic;
+    _attemptedSources.add(playingTrack!.provider);
     notifyListeners();
-    MusicTrack? replacement;
+    MusicAudioSample? replacement;
     try {
-      String normalize(String value) =>
-          value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
       if (original.artist.trim().isEmpty) {
         error = '缺少歌手信息，无法安全匹配其他渠道';
         return;
       }
-      for (final source
-          in provider == null ? MusicMultiSearch.providers : [provider]) {
-        if (source == original.provider || _attemptedSources.contains(source)) {
-          continue;
-        }
-        _attemptedSources.add(source);
-        try {
-          final result = await repository
-              .search(
-                '${original.title} ${original.artist}',
-                provider: source,
-                cancellation: token,
-              )
-              .timeout(const Duration(seconds: 12));
-          if (_closed || generation != _generation || token.isCancelled) return;
-          for (final track in result.tracks) {
-            if (normalize(track.title) == normalize(original.title) &&
-                normalize(track.artist) == normalize(original.artist) &&
-                repository.allowed(track)) {
-              replacement = track;
-              break;
-            }
-          }
-          if (replacement != null) break;
-        } catch (_) {
-          if (token.isCancelled) return;
-        }
-      }
+      replacement = await _pickReplacement(original, token, provider: provider);
     } finally {
       switchingSource = false;
       if (!_closed) notifyListeners();
     }
     if (_closed || generation != _generation || token.isCancelled) return;
     if (replacement == null) {
-      error = '未找到其他渠道的同名同歌手歌曲';
+      if (!playing) error = '未找到其他渠道的可播放版本';
       notifyListeners();
       return;
     }
-    final tracks = queue.toList();
-    tracks[index] = replacement;
-    await select(tracks, index, start: position, sourceSwitch: true);
-    if (!wasPlaying && selected?.key == replacement.key && error == null) {
+    final opening = _select(
+      queue,
+      index,
+      start: position,
+      replacement: replacement.track,
+    );
+    final openedGeneration = _generation;
+    await opening;
+    if (!wasPlaying && openedGeneration == _generation && error == null) {
       await pause();
+    }
+  }
+
+  Future<MusicAudioSample?> _pickReplacement(
+    MusicTrack original,
+    CancellationToken token, {
+    String? provider,
+  }) async {
+    MusicAudioSample? best() => _preflight.best(
+      original,
+      _strategy,
+      excludedProviders: _attemptedSources,
+      provider: provider,
+    );
+    if (best() case final cached?) return cached;
+    final cancelled = Completer<void>();
+    final unlink = token.listen(cancelled.complete);
+    final ready = Completer<void>();
+    final updates = _preflight.updates.listen((_) {
+      if (!ready.isCompleted && best() != null) ready.complete();
+    });
+    try {
+      await Future.any([
+        _preflight.prepare(original, findMatches: true, urgent: true),
+        cancelled.future,
+        ready.future,
+      ]).timeout(const Duration(seconds: 10), onTimeout: () {});
+      return token.isCancelled ? null : best();
+    } finally {
+      unlink();
+      await updates.cancel();
     }
   }
 
@@ -138,6 +229,10 @@ final class MusicController extends ChangeNotifier
   int _generation = 0;
   bool _closed = false;
   bool _needsOpen = false;
+  bool _wantsPlayback = false;
+  Timer? _stall;
+  MusicTrack? _playingTrack;
+  MusicTrack? get playingTrack => _playingTrack ?? selected;
   List<MusicTrack> _queue = const [];
   List<MusicTrack> get queue => _queue;
   int index = -1;
@@ -156,7 +251,9 @@ final class MusicController extends ChangeNotifier
   double volume = 80;
 
   void _policyChanged() {
-    if (selected != null && !repository.allowed(selected!)) {
+    _preflight.reset();
+    if ((selected != null && !repository.allowed(selected!)) ||
+        (playingTrack != null && !repository.allowed(playingTrack!))) {
       unawaited(stop());
       return;
     }
@@ -168,6 +265,7 @@ final class MusicController extends ChangeNotifier
     } else if (hadLyrics || lyrics.lines.isNotEmpty) {
       notifyListeners();
     }
+    _prepareUpcoming();
   }
 
   void _replaceQueue(List<MusicTrack> tracks) {
@@ -175,22 +273,49 @@ final class MusicController extends ChangeNotifier
     _queue = List.unmodifiable(tracks);
     index = _queue.indexWhere((track) => track.key == key);
     _visited.clear();
+    _shuffleNext = null;
+    _playNext.removeWhere((key) => !tracks.any((track) => track.key == key));
+    _queueVariants = {
+      for (final track in tracks) track.key: ?_queueVariants[track.key],
+    };
+    _prepareUpcoming();
     notifyListeners();
   }
 
-  Future<void> enqueue(MusicTrack track, {bool playNext = false}) async {
+  Future<void> enqueue(
+    MusicTrack track, {
+    bool playNext = false,
+    List<MusicTrack> alternatives = const [],
+  }) async {
     if (_closed) return;
     if (!repository.allowed(track)) throw const FormatException('歌曲已被过滤');
-    if (!active) return select([track], 0);
     final existing = queue.indexWhere((item) => item.key == track.key);
-    if (existing == index || (existing >= 0 && !playNext)) return;
+    if (existing >= 0 && (existing == index || !playNext)) return;
     if (existing < 0 && queue.length >= 500) {
       throw const FormatException('播放队列最多 500 首');
+    }
+    if (_aggregationEnabled && alternatives.isNotEmpty) {
+      _queueVariants = {
+        ..._queueVariants,
+        track.key: List.unmodifiable(alternatives),
+      };
+    }
+    prepareAddedTrack(track);
+    if (!active) {
+      _queue = List.unmodifiable([track]);
+      index = 0;
+      _needsOpen = true;
+      notifyListeners();
+      return;
     }
     final current = selected!.key;
     final tracks = queue.where((item) => item.key != track.key).toList();
     final currentIndex = tracks.indexWhere((item) => item.key == current);
     tracks.insert(playNext ? currentIndex + 1 : tracks.length, track);
+    if (playNext) {
+      _playNext.remove(track.key);
+      _playNext.insert(0, track.key);
+    }
     _replaceQueue(tracks);
   }
 
@@ -214,7 +339,11 @@ final class MusicController extends ChangeNotifier
     } else if (remaining.isEmpty) {
       await stop();
     } else {
-      await select(remaining, from.clamp(0, remaining.length - 1));
+      await select(
+        remaining,
+        from.clamp(0, remaining.length - 1),
+        variants: _queueVariants,
+      );
     }
   }
 
@@ -229,6 +358,7 @@ final class MusicController extends ChangeNotifier
   }
 
   void _cancelSelection() {
+    _stall?.cancel();
     _request?.cancel();
     if (_interrupt?.isCompleted == false) _interrupt!.complete();
   }
@@ -246,16 +376,35 @@ final class MusicController extends ChangeNotifier
     List<MusicTrack> tracks,
     int selectedIndex, {
     bool refresh = false,
-    bool sourceSwitch = false,
     Duration start = Duration.zero,
+    Map<String, List<MusicTrack>>? variants,
+  }) => _select(
+    tracks,
+    selectedIndex,
+    refresh: refresh,
+    start: start,
+    variants: variants,
+  );
+
+  Future<void> _select(
+    List<MusicTrack> tracks,
+    int selectedIndex, {
+    bool refresh = false,
+    Duration start = Duration.zero,
+    Map<String, List<MusicTrack>>? variants,
+    MusicTrack? replacement,
   }) {
     if (_closed || selectedIndex < 0 || selectedIndex >= tracks.length) {
       return Future.value();
     }
-    if (!sourceSwitch) _attemptedSources.clear();
     final chosen = tracks[selectedIndex];
     if (!repository.allowed(chosen)) return Future.value();
     final filtered = _filteredQueue(tracks);
+    if (replacement == null) _attemptedSources.clear();
+    if (!identical(tracks, queue)) {
+      _queueVariants = variants ?? const {};
+      _playNext.clear();
+    }
     unawaited(_record());
     if (!listEquals(
       queue.map((t) => t.key).toList(),
@@ -270,52 +419,39 @@ final class MusicController extends ChangeNotifier
     final interrupt = _interrupt = Completer<void>();
     _queue = filtered;
     index = queue.indexWhere((track) => track.key == chosen.key);
+    _playNext.remove(chosen.key);
+    _shuffleNext = null;
+    _playingTrack = null;
+    _wantsPlayback = true;
     loading = true;
     error = null;
     snapshot = const PlaybackSnapshot();
     _needsOpen = true;
+    if (_ranked(chosen)) prepareAddedTrack(chosen);
+    _prepareUpcoming();
     notifyListeners();
     return _enqueue(() async {
       if (_closed || generation != _generation) return;
       try {
         await _discardEngine();
-        await _bounded(() async {
-          await beforePlay?.call();
-          if (_closed || generation != _generation) return;
-          await library?.load();
-          final local = await downloads?.open(chosen);
-          if (_closed || generation != _generation) {
-            local?.close();
-            return;
-          }
-          _offline = local;
-          final track = local == null
-              ? await repository.resolve(chosen, request, refresh: refresh)
-              : chosen.withUrl(local.uri);
-          if (_closed || generation != _generation) return;
-          if (!repository.allowed(track)) return;
-          final engine = _engine = createEngine();
-          _listen(engine, generation);
-          await engine.setVolume(volume);
-          if (_closed || generation != _generation) return;
-          if (!repository.allowed(track)) return;
-          await engine.open(
-            track.url,
-            headers: local == null ? repository.headers(track) : const {},
-          );
-          if (start > Duration.zero && !_closed && generation == _generation) {
-            await engine.seek(start);
-          }
-          if (!_closed && generation == _generation && error == null) {
-            _needsOpen = false;
-            if (local == null && repository.supportsLyrics(track)) {
-              unawaited(_loadLyrics(track));
-            }
-          }
-        }(), interrupt: interrupt.future);
-      } catch (_) {
+        await _bounded(
+          _openTrack(
+            chosen,
+            request,
+            generation,
+            replacement: replacement,
+            refresh: refresh,
+            start: start,
+          ),
+          interrupt: interrupt.future,
+        );
+      } catch (failure) {
         if (!_closed && generation == _generation) {
-          _playbackFailed('歌曲暂时无法播放，请重试或选择其他歌曲。');
+          _playbackFailed(
+            failure is FormatException
+                ? failure.message
+                : '歌曲暂时无法播放，请重试或选择其他歌曲。',
+          );
           await _discardEngine();
         }
       } finally {
@@ -327,6 +463,73 @@ final class MusicController extends ChangeNotifier
     });
   }
 
+  Future<void> _openTrack(
+    MusicTrack chosen,
+    CancellationToken request,
+    int generation, {
+    required MusicTrack? replacement,
+    required bool refresh,
+    required Duration start,
+  }) async {
+    bool current() => !_closed && generation == _generation;
+    await beforePlay?.call();
+    if (!current()) return;
+    await library?.load();
+    final localTrack = downloads?.localFor(chosen)?.track ?? chosen;
+    final local = replacement == null
+        ? await downloads?.open(localTrack)
+        : null;
+    if (!current()) {
+      local?.close();
+      return;
+    }
+    _offline = local;
+    final track = local != null
+        ? localTrack.withUrl(local.uri)
+        : replacement ?? await _resolve(chosen, request, refresh: refresh);
+    if (!current()) return;
+    if (!repository.allowed(track)) throw const FormatException('歌曲已被过滤');
+    _playingTrack = track;
+    if (local == null && repository.supportsLyrics(track)) {
+      unawaited(_loadLyrics(track));
+    }
+    final engine = _engine = createEngine();
+    _listen(engine, generation);
+    await engine.setVolume(volume);
+    if (!current() || !repository.allowed(track)) return;
+    _watchStall(generation, progressed: true);
+    await engine.open(
+      track.url,
+      headers: local == null ? repository.headers(track) : const {},
+    );
+    if (start > Duration.zero && current()) await engine.seek(start);
+    if (current() && error == null) _needsOpen = false;
+  }
+
+  Future<MusicTrack> _resolve(
+    MusicTrack chosen,
+    CancellationToken token, {
+    required bool refresh,
+  }) async {
+    final ranked = _ranked(chosen);
+    final fallback = autoSwitchSource && _preflight.unavailable(chosen);
+    if (!refresh) {
+      final sample = chosen.searchOnly || ranked || fallback
+          ? _preflight.best(chosen, _strategy)
+          : autoSwitchSource
+          ? _preflight.prepared(chosen)
+          : null;
+      if (sample != null) return sample.track;
+    }
+    if (chosen.searchOnly || (!refresh && fallback)) {
+      final sample = await _pickReplacement(chosen, token);
+      token.check();
+      if (sample != null) return sample.track;
+      if (chosen.searchOnly) throw const FormatException('未匹配到可播放的同名同歌手歌曲');
+    }
+    return repository.resolve(chosen, token, refresh: refresh);
+  }
+
   void _clearLyrics() {
     _lyricsRequest?.cancel();
     _lyricsRequest = null;
@@ -335,6 +538,7 @@ final class MusicController extends ChangeNotifier
 
   Future<void> _loadLyrics(MusicTrack track) async {
     final token = _lyricsRequest = CancellationToken();
+    final deadline = Timer(const Duration(seconds: 12), token.cancel);
     try {
       final result = await repository.lyrics(track, token);
       if (!token.isCancelled) {
@@ -344,7 +548,8 @@ final class MusicController extends ChangeNotifier
     } catch (_) {
       // Lyrics are optional and must never interrupt playback.
     } finally {
-      if (!token.isCancelled) {
+      deadline.cancel();
+      if (!_closed && identical(_lyricsRequest, token)) {
         _lyricsRequest = null;
         notifyListeners();
       }
@@ -355,7 +560,16 @@ final class MusicController extends ChangeNotifier
     var completed = false;
     _states = engine.states.listen((state) {
       if (_closed || generation != _generation || _engine != engine) return;
+      final progressed = snapshot.position != state.position;
       snapshot = state;
+      _watchStall(generation, progressed: progressed);
+      if (progressed &&
+          _wantsPlayback &&
+          !state.completed &&
+          DateTime.now().difference(_lastPreflight) >=
+              const Duration(seconds: 20)) {
+        _prepareUpcoming();
+      }
       if (state.playing &&
           state.position > Duration.zero &&
           DateTime.now().difference(_lastRecord) > const Duration(seconds: 5)) {
@@ -375,17 +589,48 @@ final class MusicController extends ChangeNotifier
     });
   }
 
+  void _watchStall(int generation, {required bool progressed}) {
+    if (!autoSwitchSource ||
+        !_wantsPlayback ||
+        snapshot.completed ||
+        _offline != null) {
+      _stall?.cancel();
+      return;
+    }
+    if (progressed) _stall?.cancel();
+    if (_stall?.isActive == true) return;
+    _stall = Timer(stallTimeout, () {
+      if (_closed ||
+          generation != _generation ||
+          !_wantsPlayback ||
+          !autoSwitchSource) {
+        return;
+      }
+      _playbackFailed('音乐缓冲超时，正在查找可用渠道。');
+      unawaited(_enqueue(_discardEngine));
+    });
+  }
+
   void _playbackFailed(String message) {
+    final failedTrack = _playingTrack;
+    if (_offline == null && failedTrack != null && autoSwitchSource) {
+      _preflight.markFailed(failedTrack);
+    }
     ++_generation;
     _cancelSelection();
+    _clearLyrics();
     loading = false;
     _needsOpen = true;
     error = message;
-    if (autoSwitchSource && !switchingSource) {
+    if (autoSwitchSource &&
+        _offline == null &&
+        !switchingSource &&
+        _wantsPlayback) {
       final failedGeneration = _generation;
       scheduleMicrotask(() {
         if (!_closed &&
             _generation == failedGeneration &&
+            _wantsPlayback &&
             autoSwitchSource &&
             error == message) {
           unawaited(switchSource(automatic: true));
@@ -410,10 +655,18 @@ final class MusicController extends ChangeNotifier
     final generation = _generation;
     await _record();
     if (_closed || generation != _generation) return;
-    int target;
-    if (automatic && mode == MusicPlayMode.repeatOne) {
-      target = index;
-    } else if (mode == MusicPlayMode.shuffle) {
+    final target = _nextIndex(automatic: automatic);
+    if (target != null) await select(queue, target);
+  }
+
+  int? _nextIndex({required bool automatic}) {
+    if (_playNext.isNotEmpty) {
+      final next = queue.indexWhere((track) => track.key == _playNext.first);
+      if (next >= 0 && next != index) return next;
+    }
+    if (automatic && mode == MusicPlayMode.repeatOne) return index;
+    if (mode == MusicPlayMode.shuffle) {
+      if (_shuffleNext case final next?) return next;
       _visited.add(index);
       var candidates = [
         for (var i = 0; i < queue.length; i++)
@@ -426,16 +679,14 @@ final class MusicController extends ChangeNotifier
             if (i != index || queue.length == 1) i,
         ];
       }
-      target = candidates[Random().nextInt(candidates.length)];
-    } else if (index + 1 < queue.length) {
-      target = index + 1;
-    } else if (mode == MusicPlayMode.repeatAll ||
-        (!automatic && mode == MusicPlayMode.repeatOne)) {
-      target = 0;
-    } else {
-      return;
+      return _shuffleNext = candidates[Random().nextInt(candidates.length)];
     }
-    if (!_closed) await select(queue, target);
+    if (index + 1 < queue.length) return index + 1;
+    if (mode == MusicPlayMode.repeatAll ||
+        (!automatic && mode == MusicPlayMode.repeatOne)) {
+      return 0;
+    }
+    return null;
   }
 
   Future<void> _record() async {
@@ -461,14 +712,25 @@ final class MusicController extends ChangeNotifier
   Future<void> toggle() {
     if (!active || loading) return Future.value();
     if (!repository.allowed(selected!)) return stop();
-    if (_needsOpen) return retry();
+    if (_needsOpen) {
+      return error == null
+          ? select(queue, index, start: snapshot.position)
+          : retry();
+    }
     if (snapshot.completed) return select(queue, index);
     final generation = _generation;
     return _command((engine) async {
-      if (!playing) await beforePlay?.call();
+      final resume = !_wantsPlayback;
+      if (resume) await beforePlay?.call();
       if (_closed || generation != _generation || selected == null) return;
       if (!repository.allowed(selected!)) return;
-      await engine.playOrPause();
+      _wantsPlayback = resume;
+      _watchStall(generation, progressed: true);
+      if (resume) {
+        await engine.play();
+      } else {
+        await engine.pause();
+      }
     });
   }
 
@@ -479,6 +741,7 @@ final class MusicController extends ChangeNotifier
     if (_closed) return Future.value();
     unawaited(_record());
     final retire = loading || clear;
+    _wantsPlayback = false;
     _cancelSelection();
     // Retire pending opens. Paused engines retain their state subscriptions.
     if (retire) ++_generation;
@@ -491,6 +754,10 @@ final class MusicController extends ChangeNotifier
     if (retire) _needsOpen = true;
     if (clear) {
       _clearLyrics();
+      _preflight.reset();
+      _playingTrack = null;
+      _playNext.clear();
+      _queueVariants = const {};
       _queue = const [];
       index = -1;
       error = null;
@@ -561,12 +828,14 @@ final class MusicController extends ChangeNotifier
   Future<void> _close() async {
     await _record();
     repository.policy?.removeListener(_policyChanged);
+    settings?.removeListener(_settingsChanged);
     _clearLyrics();
     _closed = true;
     ++_generation;
     _cancelSelection();
     _closing.complete();
     try {
+      await _preflight.close();
       await _discardEngine();
     } finally {
       super.dispose();

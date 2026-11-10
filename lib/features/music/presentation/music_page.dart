@@ -6,12 +6,14 @@ import '../../../app/app_services.dart';
 import '../application/music_browser.dart';
 import '../application/music_controller.dart';
 import '../domain/music_track.dart';
+import '../domain/music_match.dart';
 import '../data/public_music_sources.dart';
 import 'music_player.dart';
 import 'music_actions.dart';
 import 'music_library_panel.dart';
 import 'music_discovery.dart';
 import 'music_source_selector.dart';
+import 'music_style_playlists.dart';
 import '../../../app/poster_image.dart';
 
 final class MusicPage extends StatefulWidget {
@@ -33,6 +35,9 @@ final class _MusicPageState extends State<MusicPage> {
   void initState() {
     super.initState();
     _view = browser.query.isEmpty ? 'discover' : 'search';
+    browser.addListener(_prepareSearchResults);
+    widget.services.settings.addListener(_prepareSearchResults);
+    _prepareSearchResults();
     unawaited(browser.load());
     unawaited(widget.services.musicLibrary.load());
     unawaited(widget.services.musicDownloads.load());
@@ -55,9 +60,43 @@ final class _MusicPageState extends State<MusicPage> {
 
   @override
   void dispose() {
+    browser.removeListener(_prepareSearchResults);
+    widget.services.settings.removeListener(_prepareSearchResults);
     _query.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _prepareSearchResults() {
+    if (browser.result.tracks.isEmpty) return;
+    player.prepareResults(
+      groupMusicTracks(
+        browser.result.tracks.where(widget.services.music.allowed),
+        enabled: widget.services.settings.value.musicAggregate,
+      ),
+    );
+  }
+
+  List<List<MusicTrack>> _groups(Iterable<MusicTrack> tracks) =>
+      groupMusicTracks(
+        tracks.where(
+          (track) =>
+              _searchKind != '歌手' ||
+              track.artist.toLowerCase().contains(browser.query.toLowerCase()),
+        ),
+        enabled: widget.services.settings.value.musicAggregate,
+      );
+
+  Future<void> _playResults(List<List<MusicTrack>> groups, int index) {
+    player.prepareResults([groups[index], ...groups.skip(index + 1).take(2)]);
+    return player.select(
+      groups.map((group) => group.first).toList(),
+      index,
+      variants: {
+        for (final group in groups)
+          if (group.length > 1) group.first.key: group.skip(1).toList(),
+      },
+    );
   }
 
   @override
@@ -67,6 +106,7 @@ final class _MusicPageState extends State<MusicPage> {
       player,
       widget.services.musicDownloads,
       widget.services.contentPolicy,
+      widget.services.settings,
     ]),
     builder: (context, _) {
       final downloads = widget.services.musicDownloads;
@@ -75,18 +115,9 @@ final class _MusicPageState extends State<MusicPage> {
       for (final track in browser.result.tracks.where(
         widget.services.music.allowed,
       )) {
-        final preferred = downloads.localFor(track)?.track ?? track;
-        merged.putIfAbsent(preferred.key, () => preferred);
+        merged.putIfAbsent(track.key, () => track);
       }
-      final tracks = merged.values
-          .where(
-            (track) =>
-                _searchKind != '歌手' ||
-                track.artist.toLowerCase().contains(
-                  browser.query.toLowerCase(),
-                ),
-          )
-          .toList();
+      final groups = _groups(merged.values);
       return Column(
         children: [
           _tabs(),
@@ -97,6 +128,8 @@ final class _MusicPageState extends State<MusicPage> {
                     onSearch: _search,
                     controls: _searchControls(),
                   )
+                : _view == 'styles'
+                ? MusicStylePlaylists(services: widget.services)
                 : _view != 'search'
                 ? SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -109,11 +142,11 @@ final class _MusicPageState extends State<MusicPage> {
                     key: const PageStorageKey('music-results'),
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                    itemCount: tracks.length + 2,
+                    itemCount: groups.length + 2,
                     itemBuilder: (context, index) {
                       if (index == 0) return _header(context);
-                      if (index == tracks.length + 1) return _footer();
-                      return _track(tracks, index - 1);
+                      if (index == groups.length + 1) return _footer();
+                      return _track(groups, index - 1);
                     },
                   ),
           ),
@@ -133,6 +166,7 @@ final class _MusicPageState extends State<MusicPage> {
           for (final item in const [
             ('discover', '发现音乐'),
             ('search', '搜索'),
+            ('styles', '风格歌单'),
             ('playlists', '我的歌单'),
             ('history', '播放历史'),
             ('downloads', '离线音乐'),
@@ -226,19 +260,12 @@ final class _MusicPageState extends State<MusicPage> {
               avatar: const Icon(Icons.shuffle),
               label: const Text('随机播放结果'),
               onPressed: () => musicAction(context, () async {
-                final tracks = browser.result.tracks
-                    .where(widget.services.music.allowed)
-                    .where(
-                      (track) =>
-                          _searchKind != '歌手' ||
-                          track.artist.toLowerCase().contains(
-                            browser.query.toLowerCase(),
-                          ),
-                    )
-                    .toList();
-                if (tracks.isEmpty) return;
+                final groups = _groups(
+                  browser.result.tracks.where(widget.services.music.allowed),
+                );
+                if (groups.isEmpty) return;
                 await player.setMode(MusicPlayMode.shuffle);
-                await player.select(tracks, Random().nextInt(tracks.length));
+                await _playResults(groups, Random().nextInt(groups.length));
               }),
             ),
         ],
@@ -270,8 +297,9 @@ final class _MusicPageState extends State<MusicPage> {
     ],
   );
 
-  Widget _track(List<MusicTrack> tracks, int index) {
-    final track = tracks[index];
+  Widget _track(List<List<MusicTrack>> groups, int index) {
+    final group = groups[index];
+    final track = group.first;
     final selected = player.selected?.key == track.key;
     return Card(
       child: ListTile(
@@ -296,7 +324,11 @@ final class _MusicPageState extends State<MusicPage> {
               ),
         title: Text(track.title, maxLines: 2, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          '${track.artist} · ${widget.services.musicDownloads.completed(track) != null ? '已下载 · 本地播放' : musicSources[track.provider] ?? track.provider}',
+          '${track.artist} · ${widget.services.musicDownloads.completed(track) != null
+              ? '已下载 · 本地播放'
+              : group.length > 1
+              ? '${group.length} 个版本 · 自动选源'
+              : musicSources[track.provider] ?? track.provider}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -309,10 +341,14 @@ final class _MusicPageState extends State<MusicPage> {
                 child: Icon(Icons.offline_pin_outlined, size: 20),
               ),
             Text(musicTime(track.duration)),
-            MusicTrackMenu(services: widget.services, track: track),
+            MusicTrackMenu(
+              services: widget.services,
+              track: track,
+              alternatives: group.skip(1).toList(),
+            ),
           ],
         ),
-        onTap: () => player.select(tracks, index),
+        onTap: () => _playResults(groups, index),
       ),
     );
   }
