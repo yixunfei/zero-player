@@ -105,7 +105,9 @@ final class MusicController extends ChangeNotifier
   }
 
   void prepareAddedTrack(MusicTrack track) {
-    if (_closed || downloads?.localFor(track) != null) return;
+    if (_closed || (!track.searchOnly && downloads?.localFor(track) != null)) {
+      return;
+    }
     if (!autoSwitchSource && !_ranked(track)) return;
     unawaited(_prepareTrack(track));
   }
@@ -475,8 +477,10 @@ final class MusicController extends ChangeNotifier
     await beforePlay?.call();
     if (!current()) return;
     await library?.load();
-    final localTrack = downloads?.localFor(chosen)?.track ?? chosen;
-    final local = replacement == null
+    final localTrack = chosen.searchOnly
+        ? chosen
+        : downloads?.localFor(chosen)?.track ?? chosen;
+    final local = replacement == null && !chosen.searchOnly
         ? await downloads?.open(localTrack)
         : null;
     if (!current()) {

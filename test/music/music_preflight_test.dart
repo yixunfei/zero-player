@@ -87,6 +87,33 @@ void main() {
     },
   );
 
+  test(
+    'playlist entries cannot reuse a direct track as a search result',
+    () async {
+      final http = MediaHttpClient();
+      final repository = _repository(http);
+      final original = _track('netease');
+      final entry = MusicTrack.fromJson(original.forPlaylistSearch().toJson());
+      final picker = MusicPreflight(
+        repository,
+        probe: (track, _) async => _sample(track, 50),
+      );
+      addTearDown(() async {
+        await picker.close();
+        http.close();
+      });
+      await picker.prepare(original);
+      await picker.prepare(entry);
+      expect(entry.key, original.key);
+      expect(entry.searchOnly, isTrue);
+      expect(picker.best(original, 'fastest')?.track, original);
+      expect(picker.best(entry, 'fastest'), isNull);
+      await expectLater(
+        repository.resolve(entry, CancellationToken()),
+        throwsFormatException,
+      );
+    },
+  );
   _controllerTests();
   _probeTest();
 }

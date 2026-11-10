@@ -64,17 +64,50 @@ final class NeteaseMusicDetails {
     if (name.isEmpty || name.length > 80 || rows is! List) {
       throw const FormatException('网易云歌单数据无效');
     }
-    final tracks = parsePublicMusicRows(
-      'netease',
-      '',
-      1,
-      rows.take(500).toList(),
-    ).tracks;
+    final ordered = await _completePlaylist(list, rows, token);
+    final tracks = parsePublicMusicRows('netease', '', 1, ordered).tracks;
     return (
       name: name,
       tracks: tracks,
       total: total is int && total >= rows.length ? total : rows.length,
     );
+  }
+
+  Future<List<Map>> _completePlaylist(
+    Map list,
+    List preview,
+    CancellationToken token,
+  ) async {
+    final ids = list['trackIds'];
+    final rows = <String, Map>{
+      for (final row in preview.take(500).whereType<Map>()) '${row['id']}': row,
+    };
+    if (ids is! List || ids.isEmpty) return rows.values.toList();
+    final order = [
+      for (final entry in ids.take(500).whereType<Map>())
+        if (_id.hasMatch('${entry['id']}')) '${entry['id']}',
+    ];
+    if (order.isEmpty) return rows.values.toList();
+    final missing = order.where((id) => !rows.containsKey(id)).toSet().toList();
+    for (var start = 0; start < missing.length; start += 100) {
+      final batch = missing.skip(start).take(100).toSet();
+      final data = (await network.get(
+        endpoint
+            .resolve('/api/song/detail')
+            .replace(queryParameters: {'ids': '[${batch.join(',')}]'}),
+        cancellation: token,
+        maxBytes: 2 * 1024 * 1024,
+        networkTimeout: const Duration(seconds: 10),
+      )).json;
+      if (data is! Map || data['code'] != 200 || data['songs'] is! List) {
+        throw const FormatException('网易云歌单曲目暂时无法补齐');
+      }
+      for (final row in (data['songs'] as List).whereType<Map>()) {
+        final id = '${row['id']}';
+        if (batch.contains(id)) rows[id] = row;
+      }
+    }
+    return [for (final id in order) ?rows[id]];
   }
 
   String _playlistId(String input) {

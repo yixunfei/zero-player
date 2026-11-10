@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+
 import '../application/music_controller.dart';
 import '../data/music_library.dart';
 import 'music_queue.dart';
@@ -62,7 +62,7 @@ final class MusicPlayer extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      onTap: compact ? () => context.go('/music') : null,
+      onTap: () => showMusicLyrics(context, controller),
     );
     final controls = <Widget>[
       if (!compact)

@@ -25,6 +25,9 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
   MusicStylePlaylist? _selected;
   List<MusicTrack> _tracks = [];
   String? _error;
+  String _searched = '';
+  int _page = 1;
+  bool _hasMore = false;
 
   @override
   void initState() {
@@ -44,12 +47,37 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
       _query.text = value;
       _selected = null;
       _lists = [];
+      _hasMore = false;
     },
     (token) async {
       final lists = await _catalog.search(_provider, value, token);
-      if (mounted && !token.isCancelled) setState(() => _lists = lists);
+      if (mounted && !token.isCancelled) {
+        setState(() {
+          _lists = lists;
+          _searched = value;
+          _page = 1;
+          _hasMore = _provider == 'neteasePlaylist' && lists.isNotEmpty;
+        });
+      }
     },
   );
+
+  Future<void> _more() => _load(() {}, (token) async {
+    final page = _page + 1;
+    final lists = await _catalog.search(
+      _provider,
+      _searched,
+      token,
+      page: page,
+    );
+    if (!mounted || token.isCancelled) return;
+    setState(() {
+      final known = _lists.map((list) => list.id).toSet();
+      _lists = [..._lists, ...lists.where((list) => known.add(list.id))];
+      _page = page;
+      _hasMore = lists.isNotEmpty && page < 100;
+    });
+  });
 
   Future<void> _open(MusicStylePlaylist list) => _load(
     () {
@@ -109,9 +137,15 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
       return ListView.builder(
         key: const PageStorageKey('music-style-lists'),
         padding: const EdgeInsets.all(16),
-        itemCount: lists.length + 1,
+        itemCount: lists.length + (_hasMore ? 2 : 1),
         itemBuilder: (context, i) {
           if (i == 0) return _controls(lists.isEmpty);
+          if (i > lists.length) {
+            return TextButton(
+              onPressed: _request == null ? _more : null,
+              child: Text(_request == null ? '加载更多歌单' : '正在加载…'),
+            );
+          }
           final list = lists[i - 1];
           return ListTile(
             leading: const Icon(Icons.library_music_outlined),

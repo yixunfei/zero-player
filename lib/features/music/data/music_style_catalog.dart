@@ -37,8 +37,10 @@ final class MusicStyleCatalog {
   Future<List<MusicStylePlaylist>> search(
     String provider,
     String style,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    int page = 1,
+  }) async {
+    if (page < 1 || page > 100) throw const FormatException('歌单页码无效');
     if (!musicPlaylistProviders.containsKey(provider)) {
       throw const FormatException('未知歌单平台');
     }
@@ -101,7 +103,7 @@ final class MusicStyleCatalog {
           's': style,
           'type': '1000',
           'limit': '16',
-          'offset': '0',
+          'offset': '${(page - 1) * 16}',
         });
         final data = (await network.get(uri, cancellation: token)).json;
         if (_field(data, 'code') != 200) {

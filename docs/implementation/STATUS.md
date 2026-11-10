@@ -2,6 +2,20 @@
 
 更新：2026-11-10（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
+## 网易云歌单补齐与完整歌词页（2026-11-10）
+
+- 网易云公开歌单详情内嵌的 10 首是预览。按曲目 ID 分批补齐并按原顺序展示，最多 500 首。网易云风格歌单列表支持加载下一页。公网“爵士”首个歌单已从 10 首补齐到 100 首。
+- 我的歌单与风格歌单的点播、连播和下一首预检均走同曲搜索匹配，播放失败时可自动尝试其他已通过检测的渠道。点击播放条歌曲名称打开完整歌词页，当前行自动居中，点击歌词可跳转。
+- Windows 原生酷狗与网易云公开音频两项通过，覆盖歌曲名称打开全屏歌词页（`.dart_tool/native-254e8238/music_direct_native_test.log`）。Android/TV 真机未验收。
+- 修复后的 `0.0.14+14` 已重建为 Windows x64 Release 和 Android ARM64 开发测试 Release，产物位于 `artifacts/device-test/0.0.14-20261110-202542/`。5 个附件的 SHA-256、ZIP/APK CRC、289 个便携文件及 93 个 Windows 构建文件逐一核对通过。Android 包名为 `dev.zeroplayer.zero_player.devtest`，v2 签名通过且证书与上一份 v0.0.14 测试包一致。
+- Android 首次构建因生成文件残留测试插件注册失败，备份并只移除该测试注册后重试通过。构建、打包与校验日志为 `build/v14-rebuild-*.log`，音乐模块 87 项通过、6 项按配置跳过（`build/music-playlist-lyrics.log`）。
+
+## v0.0.14 本地安装包（2026-11-10）
+
+- Windows x64 Release 和 Android ARM64 Release 串行构建成功。Windows 产品版本为 `0.0.14+14`，Android 测试包为 `dev.zeroplayer.zero_player.devtest`、构建号 14，APK v2 签名与 v0.0.13 测试包同证书。
+- 产物位于 `artifacts/device-test/0.0.14-20261110-195752/`，包括 Windows 安装器和便携包、Android 开发测试 APK、原生来源、第三方声明和 SHA-256 清单。校验了附件摘要、压缩包 CRC 及便携包与暂存目录的逐文件一致性。构建与打包日志为 `build/v14-windows.log`、`build/v14-android.log` 和 `build/v14-package.log`。
+- 上一版本的本地发行目录移到 `artifacts/archive/0.0.13/`。远端仍提供 v0.0.13 预发行附件。本轮未验收安装卸载或 Android/TV 实机运行。
+
 ## v0.0.14 源码版本（2026-11-10）
 
 - 源码版本更新为 `0.0.14+14`，同步应用版本、构建入口及[版本说明](RELEASE-0.0.14.md)。已发布下载仍对应 v0.0.13。

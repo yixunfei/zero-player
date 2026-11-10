@@ -64,7 +64,8 @@ final class MusicRepository {
   );
 
   bool allowed(MusicTrack track) =>
-      (musicSources.containsKey(track.provider) || track.searchOnly) &&
+      (musicSources.containsKey(track.provider) ||
+          musicPlaylistProviders.containsKey(track.provider)) &&
       !(track.explicit && (policy?.filterAdult ?? true)) &&
       (policy?.sourceAllowed(sourceFor(track.provider)) ?? true) &&
       (policy?.textAllowed('${track.title} ${track.artist}') ?? true);

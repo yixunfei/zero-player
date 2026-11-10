@@ -99,6 +99,20 @@ void _playlistTest() {
       var privacy = 0;
       final server = await HttpTestServer.start((request) {
         requests++;
+        if (request.uri.path == '/api/song/detail') {
+          expect(jsonDecode(request.uri.queryParameters['ids']!), [20, 30]);
+          request.response.write(
+            jsonEncode({
+              'code': 200,
+              'songs': [
+                {'id': 30, 'name': '第三首'},
+                {'id': 20, 'name': '第一首'},
+                {'id': 40, 'name': '不在歌单'},
+              ],
+            }),
+          );
+          return;
+        }
         expect(request.uri.path, '/api/v6/playlist/detail');
         expect(request.uri.queryParameters['id'], '3778678');
         request.response.write(
@@ -107,7 +121,12 @@ void _playlistTest() {
             'playlist': {
               'privacy': privacy,
               'name': '公开歌单',
-              'trackCount': 2,
+              'trackCount': 3,
+              'trackIds': [
+                {'id': 20},
+                {'id': 287935},
+                {'id': 30},
+              ],
               'tracks': [
                 {
                   'id': 287935,
@@ -145,9 +164,10 @@ void _playlistTest() {
         'https://music.163.com/#/playlist?id=3778678',
         token,
       );
-      expect(result.total, 2);
-      expect(result.tracks.single.artist, '苏芮');
-      expect(result.tracks.single.duration.inMinutes, 3);
+      expect(result.total, 3);
+      expect(result.tracks.map((track) => track.id), ['20', '287935', '30']);
+      expect(result.tracks[1].artist, '苏芮');
+      expect(result.tracks[1].duration.inMinutes, 3);
       privacy = 10;
       await expectLater(
         details.playlist('3778678', token),

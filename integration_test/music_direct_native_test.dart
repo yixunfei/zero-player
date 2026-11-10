@@ -110,8 +110,9 @@ Future<void> _checkLyrics(WidgetTester tester, MusicController player) async {
   ].where((s) => s.isNotEmpty).join('\n');
   expect(text, isNotEmpty);
   expect(find.text(text), findsOneWidget);
-  await tester.tap(find.byTooltip('同步歌词'));
+  await tester.tap(find.text(player.selected!.title).first);
   await tester.pumpAndSettle();
   expect(find.text('同步歌词'), findsOneWidget);
+  expect(find.byType(CloseButton), findsOneWidget);
   await tester.pumpWidget(const SizedBox.shrink());
 }

@@ -28,7 +28,8 @@ final class MusicPreflight {
   Stream<void> get updates => _updates.stream;
   CancellationToken _session = CancellationToken();
 
-  Object _identity(MusicTrack track) => musicIdentity(track) ?? track.key;
+  Object _identity(MusicTrack track) =>
+      (track.searchOnly, musicIdentity(track) ?? track.key);
 
   Iterable<MusicTrack> _known(MusicTrack track) =>
       _candidates[_identity(track)]?.values ?? const [];
@@ -48,7 +49,8 @@ final class MusicPreflight {
       if (!item.searchOnly &&
           repository.allowed(item) &&
           (item.key == track.key ||
-              (key is (String, String) && musicIdentity(item) == key))) {
+              (musicIdentity(track) != null &&
+                  musicIdentity(item) == musicIdentity(track)))) {
         known[item.key] = item;
       }
     }

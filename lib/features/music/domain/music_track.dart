@@ -18,6 +18,7 @@ final class MusicTrack {
     this.downloadable = true,
     this.explicit = false,
     this.cover = '',
+    this.lookupOnPlay = false,
   });
 
   final String id;
@@ -32,27 +33,37 @@ final class MusicTrack {
   final bool downloadable;
   final bool explicit;
   final String cover;
+  final bool lookupOnPlay;
   String get key => '$provider:$id';
-  bool get searchOnly => musicPlaylistProviders.containsKey(provider);
+  bool get searchOnly =>
+      lookupOnPlay || musicPlaylistProviders.containsKey(provider);
   bool get canDownload =>
       downloadable &&
       !searchOnly &&
       !provider.startsWith('lx') &&
       !{'qqmp3', 'kugou'}.contains(provider);
-  MusicTrack withUrl(Uri value) => MusicTrack(
-    id: id,
-    title: title,
-    artist: artist,
-    url: value,
-    duration: duration,
-    query: query,
-    page: page,
-    fetchedAt: DateTime.now(),
-    provider: provider,
-    downloadable: downloadable,
-    explicit: explicit,
-    cover: cover,
-  );
+  MusicTrack forPlaylistSearch() =>
+      searchOnly ? this : _copy(url, fetchedAt, lookup: true);
+
+  MusicTrack withUrl(Uri value) =>
+      _copy(value, DateTime.now(), lookup: lookupOnPlay);
+
+  MusicTrack _copy(Uri value, DateTime timestamp, {required bool lookup}) =>
+      MusicTrack(
+        id: id,
+        title: title,
+        artist: artist,
+        url: value,
+        duration: duration,
+        query: query,
+        page: page,
+        fetchedAt: timestamp,
+        provider: provider,
+        downloadable: downloadable,
+        explicit: explicit,
+        cover: cover,
+        lookupOnPlay: lookup,
+      );
   Map<String, Object?> toJson() => {
     'id': id,
     'title': title,
@@ -66,6 +77,7 @@ final class MusicTrack {
     'downloadable': downloadable,
     'explicit': explicit,
     'cover': cover,
+    if (lookupOnPlay) 'lookupOnPlay': true,
   };
   factory MusicTrack.fromJson(Map value) {
     for (final field in ['id', 'title', 'artist', 'url', 'query', 'provider']) {
@@ -129,6 +141,7 @@ final class MusicTrack {
       downloadable: value['downloadable'] == true,
       explicit: value['explicit'] == true,
       cover: value['cover'] as String? ?? '',
+      lookupOnPlay: value['lookupOnPlay'] == true,
     );
   }
 }

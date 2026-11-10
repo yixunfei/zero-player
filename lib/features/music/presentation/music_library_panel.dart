@@ -74,6 +74,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
       return _playlistList();
     }
     final tracks = list.tracks.where(services.music.allowed).toList();
+    final playable = tracks.map((track) => track.forPlaylistSearch()).toList();
     return Column(
       children: [
         Row(
@@ -87,7 +88,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
             TextButton(
               onPressed: tracks.isEmpty
                   ? null
-                  : () => services.musicPlayer.select(tracks, 0),
+                  : () => services.musicPlayer.select(playable, 0),
               child: const Text('播放全部'),
             ),
           ],
@@ -97,7 +98,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
             child: ListTile(
               title: Text(tracks[i].title),
               subtitle: Text(tracks[i].artist),
-              onTap: () => services.musicPlayer.select(tracks, i),
+              onTap: () => services.musicPlayer.select(playable, i),
               trailing: PopupMenuButton<String>(
                 onSelected: (action) => musicAction(
                   context,
@@ -109,7 +110,7 @@ final class _MusicLibraryPanelState extends State<MusicLibraryPanel> {
                       ? services.musicDownloads.download(tracks[i])
                       : action == 'next' || action == 'queue'
                       ? services.musicPlayer.enqueue(
-                          tracks[i],
+                          playable[i],
                           playNext: action == 'next',
                         )
                       : library.move(
