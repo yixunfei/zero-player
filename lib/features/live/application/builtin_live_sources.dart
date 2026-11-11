@@ -71,8 +71,28 @@ final class BuiltinLiveSources {
         );
       }
     });
+    await _quarantineLists();
     await _seedSnapshots();
     await _retireLists();
+  }
+
+  Future<void> _quarantineLists() async {
+    final entries = ((await _catalog)['quarantined'] as List? ?? [])
+        .cast<Map>();
+    await repository.db.atomic(() async {
+      for (final entry in entries) {
+        final id = stableId(entry['url'] as String);
+        await repository.db.customStatement(
+          'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+          ['builtin_live_quarantined:$id', entry['reason']],
+        );
+        await repository.db.customStatement(
+          """INSERT OR REPLACE INTO app_meta(key,value)
+            SELECT ?, 'false' FROM live_lists WHERE id=?""",
+          ['live_list_enabled:$id', id],
+        );
+      }
+    }, tables: const {'app_meta'});
   }
 
   Future<void> _retireLists() async {

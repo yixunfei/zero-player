@@ -40,17 +40,31 @@ final class LiveRepository {
   })?
   verifyUpdates;
 
-  Future<List<Map<String, Object?>>> lists() => db.rows(
-    '''SELECT l.*, CASE WHEN m.value='false' THEN 0 ELSE 1 END AS enabled
-        FROM live_lists l LEFT JOIN app_meta m ON m.key='live_list_enabled:'||l.id
-        ORDER BY l.name''',
-  );
-  Future<void> setListEnabled(String id, bool enabled) async {
-    if (enabled) authorize?.call();
-    await db.write('INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)', [
-      'live_list_enabled:$id',
-      jsonEncode(enabled),
+  Future<List<Map<String, Object?>>> lists() =>
+      db.rows('''SELECT l.*, q.value AS quarantine_reason,
+        CASE WHEN q.key IS NOT NULL OR m.value='false' THEN 0 ELSE 1 END AS enabled
+        FROM live_lists l
+        LEFT JOIN app_meta m ON m.key='live_list_enabled:'||l.id
+        LEFT JOIN app_meta q ON q.key='builtin_live_quarantined:'||l.id
+        ORDER BY l.name''');
+  Future<void> setListEnabled(String id, bool enabled) => db.atomic(() async {
+    if (enabled) {
+      authorize?.call();
+      await _requireListAvailable(id);
+    }
+    await db.customStatement(
+      'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+      ['live_list_enabled:$id', jsonEncode(enabled)],
+    );
+  }, tables: const {'app_meta'});
+
+  Future<void> _requireListAvailable(String id) async {
+    final marker = await db.rows('SELECT value FROM app_meta WHERE key=?', [
+      'builtin_live_quarantined:$id',
     ]);
+    if (marker.isNotEmpty) {
+      throw FormatException(marker.single['value'] as String);
+    }
   }
 
   Future<void> removeList(String id) => db.atomic(() async {
@@ -87,6 +101,7 @@ final class LiveRepository {
         (await db.rows('SELECT id FROM live_lists WHERE id=?', [id])).isEmpty) {
       return;
     }
+    await _requireListAvailable(id);
     try {
       if (headers.isEmpty) {
         final saved = await db.rows('SELECT value FROM app_meta WHERE key=?', [
@@ -180,6 +195,7 @@ final class LiveRepository {
     await db.atomic(() async {
       cancellation?.check();
       if (!existingOnly) authorize?.call();
+      await _requireListAvailable(id);
       if (existingOnly &&
           (await db.rows('SELECT id FROM live_lists WHERE id=?', [
             id,
@@ -293,7 +309,8 @@ final class LiveRepository {
       LEFT JOIN app_meta m ON m.key='live_state:'||c.id
       LEFT JOIN app_meta d ON d.key='live_metadata:'||c.id
       LEFT JOIN app_meta s ON s.key='live_list_enabled:'||l.id
-      WHERE s.value IS NULL OR s.value!='false' ''',
+      LEFT JOIN app_meta q ON q.key='builtin_live_quarantined:'||l.id
+      WHERE q.key IS NULL AND (s.value IS NULL OR s.value!='false') ''',
     );
     var available = rows
         .map(

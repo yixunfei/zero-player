@@ -19,11 +19,6 @@
       "origin": "https://github.com/iptv-org/iptv"
     },
     {
-      "url": "http://193.123.86.190:14888/TV/iptv.php",
-      "name": "王二小新 · 综合电视精选",
-      "origin": "https://9280.kstore.vip/newwex.json"
-    },
-    {
       "url": "https://cdn.jsdelivr.net/gh/Guovin/iptv-api@gd/output/result.m3u",
       "name": "分享 · 综合电视精选",
       "origin": "https://raw.githubusercontent.com/maoystv/6/main/000.json"
@@ -32,11 +27,6 @@
       "url": "https://down.nigx.cn/raw.githubusercontent.com/Kimentanm/aptv/master/m3u/iptv.m3u",
       "name": "Kimentanm · 电视精选",
       "origin": "https://9280.kstore.vip/newwex.json"
-    },
-    {
-      "url": "http://lisha521.dynv6.net.fh4u.org/tv.txt",
-      "name": "分享 · 地方电视补充",
-      "origin": "https://raw.githubusercontent.com/maoystv/6/main/000.json"
     },
     {
       "url": "https://pan.29o.cn/down.php/aa846bceb7a1b4adb0385b1f61b192e8.txt",
@@ -55,21 +45,10 @@
       "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free"
     },
     {
-      "url": "http://124.71.19.220/live/1/0?v=1794247117",
-      "name": "追剧资源 · 影仓 · 平台直播",
-      "origin": "http://124.71.19.220/c/1",
-      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free"
-    },
-    {
       "url": "https://szyyds.cn/tv/live/x.txt",
       "name": "追剧资源 · 小马 · 手动不知何时更新",
       "origin": "https://szyyds.cn/tv/x.json",
       "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free"
-    },
-    {
-      "url": "https://xixitv.live/api/config",
-      "name": "xixitv · xixitv.live",
-      "origin": "https://xixitv.live/"
     },
     {
       "url": "https://raw.githubusercontent.com/imDazui/Tvlist-awesome-m3u-m3u8/master/m3u/%E5%8F%B0%E6%B9%BE%E9%A6%99%E6%B8%AF%E6%BE%B3%E9%97%A8202506.m3u",
@@ -80,11 +59,6 @@
       "url": "https://iptv-org.github.io/iptv/categories/sports.m3u",
       "name": "iptv-org · 国际体育精选",
       "origin": "https://github.com/iptv-org/iptv"
-    },
-    {
-      "url": "https://zoo.ink/tvbox.html",
-      "name": "Zoo.ink · 体育精选",
-      "origin": "https://zoo.ink/tvbox.html"
     },
     {
       "url": "https://urlzf.zone.id/iptv-api/output/user_result.m3u",
@@ -110,6 +84,38 @@
       "url": "https://raw.liucn.cc/box/libs/tv/tvlive.txt",
       "name": "Zoo.ink · raw.liucn.cc",
       "origin": "https://zoo.ink/tvbox.html"
+    }
+  ],
+  "quarantined": [
+    {
+      "url": "http://193.123.86.190:14888/TV/iptv.php",
+      "name": "王二小新 · 综合电视精选",
+      "origin": "https://9280.kstore.vip/newwex.json",
+      "reason": "已隔离：王二小新多台节目输出相同画面，内容与频道名不符"
+    },
+    {
+      "url": "https://zoo.ink/tvbox.html",
+      "name": "Zoo.ink · 体育精选",
+      "origin": "https://zoo.ink/tvbox.html",
+      "reason": "已隔离：该体育精选中的两条风云足球线路与其他节目输出相同画面"
+    },
+    {
+      "url": "http://lisha521.dynv6.net.fh4u.org/tv.txt",
+      "name": "分享 · 地方电视补充",
+      "origin": "https://raw.githubusercontent.com/maoystv/6/main/000.json",
+      "reason": "已隔离：随包线路将浙江新闻标为内蒙古卫视"
+    },
+    {
+      "url": "http://124.71.19.220/live/1/0?v=1794247117",
+      "name": "追剧资源 · 影仓 · 平台直播",
+      "origin": "http://124.71.19.220/c/1",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "reason": "已停用：随包线路带有时效参数，两轮实测均已失效"
+    },
+    {
+      "url": "https://xixitv.live/api/config",
+      "name": "西西电视 · 直连精选",
+      "reason": "已按用户要求下架，存在内容完整性疑虑"
     }
   ]
 }

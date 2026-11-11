@@ -83,6 +83,33 @@ void _crossSubscriptionTests() {
     },
   );
   test(
+    'disabling one channel source preserves the other source and programs',
+    () async {
+      await live.importText(
+        'one',
+        Uri.parse('https://list.test/a'),
+        'CCTV-1,https://one.test/1.ts\nCCTV-2,https://one.test/2.ts',
+      );
+      await live.importText(
+        'two',
+        Uri.parse('https://list.test/b'),
+        'CCTV-1,https://two.test/1.ts',
+      );
+      final merged = (await live.channels()).singleWhere(
+        (c) => c.entries.length == 2,
+      );
+      final entry = merged.entries.singleWhere((e) => e.listName == 'one');
+      await health.setEnabled([entry.id], false);
+      final channels = await live.channels();
+      final active = channels.where((c) => matchesChannel(c, '央视', ''));
+      expect(
+        active.expand((c) => c.urls).map((uri) => uri.toString()),
+        unorderedEquals(['https://two.test/1.ts', 'https://one.test/2.ts']),
+      );
+      expect(channels.singleWhere((c) => !c.health.enabled).id, entry.id);
+    },
+  );
+  test(
     'deleting a source keeps other programme lines and survives renamed refresh',
     () async {
       final one = Uri.parse('https://list.test/a');

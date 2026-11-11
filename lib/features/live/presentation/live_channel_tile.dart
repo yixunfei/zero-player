@@ -71,7 +71,12 @@ final class _LiveChannelTileState extends State<LiveChannelTile> {
                     ? Icon(
                         channel.health.enabled ? Icons.live_tv : Icons.tv_off,
                       )
-                    : PosterImage(url: channel.logo, fit: BoxFit.contain),
+                    : PosterImage(
+                        url: channel.logo,
+                        fit: BoxFit.contain,
+                        placeholderIcon: Icons.live_tv,
+                        showRetry: false,
+                      ),
               ),
               title: Text(
                 channel.name,
@@ -125,7 +130,7 @@ final class _LiveChannelTileState extends State<LiveChannelTile> {
       const PopupMenuItem(value: LiveChannelAction.epg, child: Text('节目单')),
       PopupMenuItem(
         value: LiveChannelAction.toggle,
-        child: Text(channel.health.enabled ? '停用频道' : '重新启用'),
+        child: Text(channel.health.enabled ? '停用整个频道' : '重新启用'),
       ),
     ],
   );

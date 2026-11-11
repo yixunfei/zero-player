@@ -31,7 +31,12 @@ Future<void> perform(
   }
 }
 
-Future<bool> confirm(BuildContext context, String title, String text) async =>
+Future<bool> confirm(
+  BuildContext context,
+  String title,
+  String text, {
+  String action = '确认',
+}) async =>
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -44,7 +49,7 @@ Future<bool> confirm(BuildContext context, String title, String text) async =>
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('确认'),
+            child: Text(action),
           ),
         ],
       ),

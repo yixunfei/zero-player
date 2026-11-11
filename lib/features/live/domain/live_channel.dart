@@ -53,6 +53,8 @@ final class LiveChannel {
       else if (entry.metadata.resolution.isNotEmpty)
         entry.metadata.resolution,
   }.toList();
+  String get sourceLabel =>
+      listName.isNotEmpty ? listName : headerOrigin?.host ?? '未知渠道';
   List<LiveChannel> get entries => members.isEmpty ? [this] : members;
   List<String> get preferenceIds => entries.map((c) => c.id).toList();
 

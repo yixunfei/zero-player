@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../app/list_keyboard_navigation.dart';
+import '../../../app/widgets.dart';
 import 'live_channel_tile.dart';
 import 'live_channel_filters.dart';
 import 'live_channel_details.dart';
@@ -20,6 +21,7 @@ final class LiveBrowser extends StatelessWidget {
     required this.onPlay,
     required this.onFavorite,
     required this.onToggle,
+    required this.onDisableSource,
     required this.onEpg,
     required this.onProbe,
     this.selectedId,
@@ -32,6 +34,7 @@ final class LiveBrowser extends StatelessWidget {
   final ScrollController controller;
   final ValueChanged<String> onGroup, onSelect;
   final ValueChanged<LiveChannel> onPlay, onFavorite, onToggle, onEpg, onProbe;
+  final Future<bool> Function(List<LiveChannel>) onDisableSource;
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +205,7 @@ final class LiveBrowser extends StatelessWidget {
           LiveChannelAction.favorite => onFavorite(channel),
           LiveChannelAction.probe => onProbe(channel),
           LiveChannelAction.epg => onEpg(channel),
-          LiveChannelAction.toggle => onToggle(channel),
+          LiveChannelAction.toggle => _toggle(context, channel),
         },
       );
 
@@ -228,9 +231,10 @@ final class LiveBrowser extends StatelessWidget {
           icon: const Icon(Icons.info_outline),
         ),
         IconButton(
-          tooltip: channel.health.enabled ? '停用频道' : '检测此频道',
-          onPressed: () =>
-              channel.health.enabled ? onToggle(channel) : onProbe(channel),
+          tooltip: channel.health.enabled ? '停用整个频道' : '检测此频道',
+          onPressed: () => channel.health.enabled
+              ? _toggle(context, channel)
+              : onProbe(channel),
           icon: Icon(
             channel.health.enabled ? Icons.block : Icons.network_check,
           ),
@@ -243,7 +247,7 @@ final class LiveBrowser extends StatelessWidget {
         IconButton.filled(
           tooltip: channel.health.enabled ? '播放选中频道' : '重新启用',
           onPressed: !channel.health.enabled
-              ? () => onToggle(channel)
+              ? () => _toggle(context, channel)
               : channel.urls.isNotEmpty
               ? () => onPlay(channel)
               : null,
@@ -289,11 +293,11 @@ final class LiveBrowser extends StatelessWidget {
                 label: const Text('播放频道'),
               ),
               TextButton.icon(
-                onPressed: () => onToggle(channel),
+                onPressed: () => _toggle(context, channel),
                 icon: Icon(
                   channel.health.enabled ? Icons.block : Icons.restore,
                 ),
-                label: Text(channel.health.enabled ? '停用频道' : '重新启用'),
+                label: Text(channel.health.enabled ? '停用整个频道' : '重新启用'),
               ),
               TextButton.icon(
                 onPressed: () => onFavorite(channel),
@@ -313,11 +317,47 @@ final class LiveBrowser extends StatelessWidget {
             ],
           ),
           const Divider(),
-          LiveChannelDetails(channel: channel),
+          LiveChannelDetails(
+            channel: channel,
+            onDisableSource: (entries) => _disableSource(context, entries),
+          ),
         ],
       ),
     ),
   );
+
+  Future<void> _toggle(BuildContext context, LiveChannel channel) async {
+    if (channel.health.enabled) {
+      final sourceCount = channel.entries.map((e) => e.listId).toSet().length;
+      if (!await confirm(
+            context,
+            '停用整个频道「${channel.name}」',
+            '将停用这个频道当前的全部 $sourceCount 个渠道，并从浏览和换台列表中隐藏。可在「已停用」分组恢复。',
+            action: '停用整个频道',
+          ) ||
+          !context.mounted) {
+        return;
+      }
+    }
+    onToggle(channel);
+  }
+
+  Future<bool> _disableSource(
+    BuildContext context,
+    List<LiveChannel> entries,
+  ) async {
+    final entry = entries.first;
+    if (!await confirm(
+          context,
+          '停用渠道「${entry.sourceLabel}」',
+          '仅停用「${entry.name}」在该渠道下的线路。该频道的其他渠道可继续播放。',
+          action: '停用此渠道',
+        ) ||
+        !context.mounted) {
+      return false;
+    }
+    return onDisableSource(entries);
+  }
 
   void _info(BuildContext context, LiveChannel channel) {
     onSelect(channel.id);
@@ -326,7 +366,14 @@ final class LiveBrowser extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text(channel.name),
         content: SingleChildScrollView(
-          child: LiveChannelDetails(channel: channel),
+          child: LiveChannelDetails(
+            channel: channel,
+            onDisableSource: (entries) async {
+              final disabled = await _disableSource(context, entries);
+              if (disabled && context.mounted) Navigator.pop(context);
+              return disabled;
+            },
+          ),
         ),
         actions: [
           TextButton(

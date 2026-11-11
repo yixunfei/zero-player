@@ -1,8 +1,8 @@
 {
   "checkedAt": "2026-11-11T05:23:23.089283Z",
   "scope": "Curated live snapshots. Every packaged route passed two 20-second video decode samples through the media gateway.",
-  "channels": 133,
-  "routes": 143,
+  "channels": 105,
+  "routes": 106,
   "results": [
     {
       "url": "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u",
@@ -12,15 +12,6 @@
       "status": "available",
       "channels": 53,
       "routes": 53
-    },
-    {
-      "url": "http://193.123.86.190:14888/TV/iptv.php",
-      "name": "王二小新 · 综合电视精选",
-      "origin": "https://9280.kstore.vip/newwex.json",
-      "defaultEnabled": true,
-      "status": "available",
-      "channels": 24,
-      "routes": 24
     },
     {
       "url": "https://cdn.jsdelivr.net/gh/Guovin/iptv-api@gd/output/result.m3u",
@@ -41,22 +32,13 @@
       "routes": 2
     },
     {
-      "url": "http://lisha521.dynv6.net.fh4u.org/tv.txt",
-      "name": "分享 · 地方电视补充",
-      "origin": "https://raw.githubusercontent.com/maoystv/6/main/000.json",
-      "defaultEnabled": true,
-      "status": "available",
-      "channels": 1,
-      "routes": 1
-    },
-    {
       "url": "https://pan.29o.cn/down.php/aa846bceb7a1b4adb0385b1f61b192e8.txt",
       "name": "哈基米 · 地方频道精选",
       "origin": "https://17264.kstore.space/%E5%93%88%E5%9F%BA%E7%B1%B3.png",
       "defaultEnabled": true,
       "status": "available",
-      "channels": 6,
-      "routes": 6
+      "channels": 4,
+      "routes": 4
     },
     {
       "url": "https://www.iyouhun.com/tv/zb",
@@ -74,18 +56,8 @@
       "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
       "defaultEnabled": true,
       "status": "available",
-      "channels": 13,
-      "routes": 13
-    },
-    {
-      "url": "http://124.71.19.220/live/1/0?v=1794247117",
-      "name": "追剧资源 · 影仓 · 平台直播",
-      "origin": "http://124.71.19.220/c/1",
-      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
-      "defaultEnabled": true,
-      "status": "available",
-      "channels": 3,
-      "routes": 3
+      "channels": 10,
+      "routes": 10
     },
     {
       "url": "https://szyyds.cn/tv/live/x.txt",
@@ -96,15 +68,6 @@
       "status": "available",
       "channels": 1,
       "routes": 1
-    },
-    {
-      "url": "https://xixitv.live/api/config",
-      "name": "xixitv · xixitv.live",
-      "origin": "https://xixitv.live/",
-      "defaultEnabled": true,
-      "status": "available",
-      "channels": 2,
-      "routes": 2
     },
     {
       "url": "https://raw.githubusercontent.com/imDazui/Tvlist-awesome-m3u-m3u8/master/m3u/%E5%8F%B0%E6%B9%BE%E9%A6%99%E6%B8%AF%E6%BE%B3%E9%97%A8202506.m3u",
@@ -123,15 +86,6 @@
       "status": "available",
       "channels": 12,
       "routes": 12
-    },
-    {
-      "url": "https://zoo.ink/tvbox.html",
-      "name": "Zoo.ink · 体育精选",
-      "origin": "https://zoo.ink/tvbox.html",
-      "defaultEnabled": true,
-      "status": "available",
-      "channels": 2,
-      "routes": 2
     },
     {
       "url": "https://urlzf.zone.id/iptv-api/output/user_result.m3u",
@@ -178,5 +132,6 @@
       "channels": 1,
       "routes": 1
     }
-  ]
+  ],
+  "integrityReviewedAt": "2026-11-11T06:31:11.948148Z"
 }

@@ -12,11 +12,13 @@ final class PosterImage extends ConsumerStatefulWidget {
     this.width = 440,
     this.fit = BoxFit.cover,
     this.placeholderIcon = Icons.movie_outlined,
+    this.showRetry = true,
   });
   final String url;
   final int width;
   final BoxFit fit;
   final IconData placeholderIcon;
+  final bool showRetry;
   @override
   ConsumerState<PosterImage> createState() => _PosterImageState();
 }
@@ -76,10 +78,10 @@ final class _PosterImageState extends ConsumerState<PosterImage> {
         children: [
           Icon(
             widget.placeholderIcon,
-            size: 36,
+            size: widget.showRetry ? 36 : 24,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          if (failed)
+          if (failed && widget.showRetry)
             TextButton(
               onPressed: () => setState(() {
                 _repository.retry(widget.url);

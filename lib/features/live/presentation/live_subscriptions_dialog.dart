@@ -71,6 +71,7 @@ final class _LiveSubscriptionsDialogState
 
   Widget _subscription(Map<String, Object?> row) {
     final id = row['id'] as String;
+    final quarantineReason = row['quarantine_reason'] as String?;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
@@ -81,25 +82,27 @@ final class _LiveSubscriptionsDialogState
               title: Text(row['name'] as String),
               value: row['enabled'] == 1,
               subtitle: Text(row['enabled'] == 1 ? '已启用' : '已停用'),
-              onChanged: (enabled) => perform(context, () async {
-                if (!await runSensitive(
-                  context,
-                  widget.services.supervision,
-                  SensitiveOperation.channels,
-                  () => widget.services.live.setListEnabled(id, enabled),
-                  needed: enabled,
-                )) {
-                  return;
-                }
-                if (enabled && row['snapshot'] == null && mounted) {
-                  await _refresh(row);
-                }
-              }),
+              onChanged: quarantineReason != null
+                  ? null
+                  : (enabled) => perform(context, () async {
+                      if (!await runSensitive(
+                        context,
+                        widget.services.supervision,
+                        SensitiveOperation.channels,
+                        () => widget.services.live.setListEnabled(id, enabled),
+                        needed: enabled,
+                      )) {
+                        return;
+                      }
+                      if (enabled && row['snapshot'] == null && mounted) {
+                        await _refresh(row);
+                      }
+                    }),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                row['error'] as String? ?? '已保存频道列表',
+                quarantineReason ?? (row['error'] as String? ?? '已保存频道列表'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -130,7 +133,8 @@ final class _LiveSubscriptionsDialogState
                   label: const Text('设置节目表'),
                 ),
                 TextButton.icon(
-                  onPressed: _refreshing.contains(id)
+                  onPressed:
+                      quarantineReason != null || _refreshing.contains(id)
                       ? null
                       : () => _refresh(row),
                   icon: const Icon(Icons.refresh),

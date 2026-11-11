@@ -21,6 +21,7 @@ void main() {
   _backupHeadersTest();
   _builtinInitializationTest();
   _upgradeTest();
+  _quarantineUpgradeTest();
   test(
     'invalid or empty refresh cannot erase an existing live snapshot',
     () async {
@@ -168,6 +169,63 @@ void _upgradeTest() {
         (row) => row['url'] == '$retired',
       );
       expect(restored['enabled'], 1);
+    },
+  );
+}
+
+void _quarantineUpgradeTest() {
+  test(
+    'upgrade isolates confirmed wrong-content lists after legacy migration',
+    () async {
+      final db = AppDatabase.memory();
+      final http = MediaHttpClient();
+      final live = LiveRepository(db, DocumentClient(http));
+      final builtin = BuiltinLiveSources(live);
+      addTearDown(() async {
+        await builtin.close();
+        http.close();
+        await db.close();
+      });
+      final catalog =
+          jsonDecode(await rootBundle.loadString('assets/live_candidates.json'))
+              as Map;
+      final quarantined = (catalog['quarantined'] as List).cast<Map>();
+      final retired = Uri.parse((catalog['retired'] as List).first);
+      const old = 'CCTV-14,https://media.test/old.m3u8';
+      for (final entry in quarantined) {
+        await live.importText(entry['name'], Uri.parse(entry['url']), old);
+      }
+      await live.importText('Restored legacy', retired, old);
+      await db.write('INSERT INTO app_meta VALUES(?,?)', [
+        "builtin_live_retired:${catalog['version']}",
+        '1',
+      ]);
+
+      await builtin.initialize(restore: true);
+
+      final lists = {for (final row in await live.lists()) row['url']: row};
+      expect(lists['$retired']!['enabled'], 1);
+      for (final entry in quarantined) {
+        final row = lists[entry['url']]!;
+        expect(row['enabled'], 0);
+        expect(row['snapshot'], old);
+        expect(row['quarantine_reason'], entry['reason']);
+        await expectLater(
+          live.setListEnabled(row['id'] as String, true),
+          throwsFormatException,
+        );
+        await expectLater(
+          live.importText(entry['name'], Uri.parse(entry['url']), old),
+          throwsFormatException,
+        );
+      }
+      final allowed = (await live.channels()).expand((c) => c.entries);
+      for (final entry in quarantined) {
+        expect(
+          allowed.map((c) => c.headerOrigin.toString()),
+          isNot(contains(entry['url'])),
+        );
+      }
     },
   );
 }

@@ -50,6 +50,7 @@ migrate_working_dir/
 /docs/implementation/*
 !/docs/implementation/BUILD.md
 !/docs/implementation/STATUS.md
+!/docs/implementation/LIVE_SOURCES.md
 !/docs/implementation/USER-GUIDE.md
 !/docs/implementation/RELEASE-0.0.1.md
 !/docs/implementation/RELEASE-0.0.6.md

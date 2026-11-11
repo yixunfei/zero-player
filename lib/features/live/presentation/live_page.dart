@@ -122,6 +122,7 @@ final class _LivePageState extends State<LivePage> {
                           () => widget.services.live.favorite(c, !c.favorite),
                         ),
                         onToggle: _toggle,
+                        onDisableSource: _disableSource,
                         onEpg: _epg,
                         onProbe: (c) => _showProbe([c]),
                       ),
@@ -164,20 +165,23 @@ final class _LivePageState extends State<LivePage> {
         PopupMenuButton<String>(
           tooltip: '直播管理',
           onSelected: _manage,
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'add', child: Text('添加 M3U / TXT')),
-            PopupMenuItem(value: 'catalog', child: Text('导入直播单仓 / 多仓')),
-            PopupMenuItem(
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'add', child: Text('添加 M3U / TXT')),
+            const PopupMenuItem(value: 'catalog', child: Text('导入直播单仓 / 多仓')),
+            const PopupMenuItem(
               value: 'awesome',
               child: Text('awesome-zhuiju-free 手动同步'),
             ),
-            PopupMenuItem(value: 'lists', child: Text('管理订阅 / EPG')),
-            PopupMenuItem(value: 'probeAll', child: Text('检测所有频道')),
-            PopupMenuItem(value: 'recover', child: Text('一键检测并启用已停用频道')),
-            PopupMenuItem(value: 'disableUncertain', child: Text('一键停用未确定频道')),
-            PopupMenuItem(value: 'restore', child: Text('恢复 / 刷新内置直播')),
-            PopupMenuItem(value: 'search', child: Text('在线电视 IPTV 搜索')),
-            PopupMenuItem(value: 'export', child: Text('导出频道')),
+            const PopupMenuItem(value: 'lists', child: Text('管理订阅 / EPG')),
+            const PopupMenuItem(value: 'probeAll', child: Text('检测所有频道')),
+            const PopupMenuItem(value: 'recover', child: Text('一键检测并启用已停用频道')),
+            const PopupMenuItem(
+              value: 'disableUncertain',
+              child: Text('一键停用未确定频道'),
+            ),
+            const PopupMenuItem(value: 'restore', child: Text('恢复 / 刷新内置直播')),
+            const PopupMenuItem(value: 'search', child: Text('在线电视 IPTV 搜索')),
+            const PopupMenuItem(value: 'export', child: Text('导出频道')),
           ],
         ),
       ],
@@ -248,12 +252,22 @@ final class _LivePageState extends State<LivePage> {
     }
   }
 
+  Future<bool> _disableSource(List<LiveChannel> entries) async {
+    final entry = entries.first;
+    final source = entry.sourceLabel;
+    var disabled = false;
+    await perform(context, () async {
+      await widget.services.liveHealth.setEnabled(
+        entries.map((e) => e.id),
+        false,
+      );
+      disabled = true;
+      if (mounted) message(context, '已停用「${entry.name}」的渠道「$source」');
+    });
+    return disabled;
+  }
+
   Future<void> _toggle(LiveChannel channel) => perform(context, () async {
-    if (channel.health.enabled &&
-        !await confirm(context, '停用频道', '停用后从正常浏览和换台列表隐藏，收藏保留；可在已停用分组恢复。')) {
-      return;
-    }
-    if (!mounted) return;
     final enable = !channel.health.enabled || channel.health.removed;
     if (enable && channel.health.verifiedOnly) {
       if (channel.health.removed) {
