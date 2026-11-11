@@ -17,6 +17,8 @@ const _destinations = [
   ('/live', '直播', Icons.live_tv),
   ('/radio', '广播（实验）', Icons.radio_outlined),
   ('/music', '在线音乐', Icons.library_music_outlined),
+  ('/reading', '阅读', Icons.auto_stories_outlined),
+  ('/audiobooks', '听书', Icons.headphones_outlined),
   ('/history', '记录', Icons.history),
   ('/downloads', '下载', Icons.download_outlined),
   ('/local', '本地视频', Icons.video_file_outlined),

@@ -15,6 +15,24 @@ import 'media_exporter.dart';
 final class FfmpegExporter implements MediaExporter {
   final _active = <String>{};
 
+  Future<void> validateAudiobook(
+    File file,
+    CancellationToken token,
+    String extension,
+  ) async {
+    if (extension == 'm4a') {
+      token.check();
+      final probe = await _inspectLocal(file.path);
+      token.check();
+      final streams = probe.getMediaInformation()?.getStreams() ?? [];
+      if (!streams.any((stream) => stream.getType() == 'audio') ||
+          streams.any((stream) => stream.getType() == 'video')) {
+        throw const FormatException('有声书容器包含不支持的轨道');
+      }
+    }
+    await validateAudio(file, token);
+  }
+
   Future<void> validateAudio(File file, CancellationToken token) async {
     final session = await _execute([
       '-hide_banner',

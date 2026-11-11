@@ -133,6 +133,7 @@ final class DocumentClient {
     bool gzip = false,
     void Function(bool active)? onActivity,
     Duration networkTimeout = const Duration(seconds: 25),
+    void Function(Uri target)? validateTarget,
   }) async {
     final token = CancellationToken();
     final unlink = cancellation?.listen(token.cancel);
@@ -148,6 +149,7 @@ final class DocumentClient {
             priority: priority,
             gzip: gzip,
             onActivity: budget.activity,
+            validateTarget: validateTarget,
           );
         } on RemoteFailure catch (failure) {
           final transient =
@@ -214,6 +216,7 @@ final class DocumentClient {
     RequestPriority priority = RequestPriority.interactive,
     bool gzip = false,
     void Function(bool active)? onActivity,
+    void Function(Uri target)? validateTarget,
   }) async {
     try {
       final response = await http.open(
@@ -222,6 +225,7 @@ final class DocumentClient {
         cancellation: cancellation,
         priority: priority,
         onActivity: onActivity,
+        validateTarget: validateTarget,
       );
       if (response.response.statusCode != 200) {
         await response.body.take(0).drain<void>();

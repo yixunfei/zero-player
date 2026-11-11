@@ -46,6 +46,7 @@ import '../features/music/application/music_downloads.dart';
 import '../features/music/data/music_recommendations.dart';
 import '../features/music/application/music_open_api.dart';
 import '../features/playback/domain/player_engine.dart';
+import '../features/books/data/books_repository.dart';
 import '../media/engine/media_kit_engine.dart';
 import '../features/live/data/live_health_repository.dart';
 import '../features/live/application/live_probe.dart';
@@ -123,7 +124,10 @@ final class AppServices {
           isTrustedResource: offline.isRegisteredResource,
           isTrustedPlaylist: offline.isRegisteredPlaylist,
         ),
-    beforePlay: () async => _radioPlayer?.pause(),
+    beforePlay: () async {
+      await _radioPlayer?.pause();
+      await _pauseAudiobook?.call();
+    },
     libraryFactory: () => musicLibrary,
     downloadsFactory: () => musicDownloads,
     settings: settings,
@@ -133,12 +137,45 @@ final class AppServices {
   RadioController get radioPlayer => _radioPlayer ??= RadioController(
     radioEngine ?? () => MediaKitEngine(videoOutput: false, gateway: gateway),
     policy: contentPolicy,
-    beforePlay: () async => _musicPlayer?.pause(),
+    beforePlay: () async {
+      await _musicPlayer?.pause();
+      await _pauseAudiobook?.call();
+    },
   );
   Future<void> pauseAudioForVideo() async {
     await _radioPlayer?.pause();
     await _musicPlayer?.pause();
+    await _pauseAudiobook?.call();
   }
+
+  BooksRepository? _books;
+  BooksRepository get books => _books ??= BooksRepository(
+    db,
+    root,
+    offline,
+    contentPolicy,
+    exporter.validateAudiobook,
+  );
+  Future<void> Function()? _pauseAudiobook;
+  Future<void> Function()? _closeAudiobook;
+  void setAudiobookControls({
+    Future<void> Function()? pause,
+    Future<void> Function()? close,
+  }) {
+    _pauseAudiobook = pause;
+    _closeAudiobook = close;
+  }
+
+  Future<void> pauseForAudiobook() async {
+    await _radioPlayer?.pause();
+    await _musicPlayer?.pause();
+  }
+
+  PlayerEngine createAudiobookEngine() => MediaKitEngine(
+    videoOutput: false,
+    gateway: gateway,
+    isTrustedResource: offline.isRegisteredResource,
+  );
 
   final Stream<String>? openRequests;
   Stream<String> get localOpenRequests =>
@@ -455,6 +492,8 @@ final class AppServices {
           await _musicBrowser?.close();
         },
         () => _musicRecommendations?.close(),
+        () => _closeAudiobook?.call(),
+        () => _books?.close(),
         () async {
           await _musicOpenApi?.close();
         },

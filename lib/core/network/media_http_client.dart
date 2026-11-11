@@ -68,6 +68,7 @@ final class MediaHttpClient {
     CancellationToken? cancellation,
     RequestPriority priority = RequestPriority.playback,
     void Function(bool active)? onActivity,
+    void Function(Uri target)? validateTarget,
   }) async {
     if (!{'GET', 'POST'}.contains(method) ||
         (body != null && (method != 'POST' || body.length > 65536))) {
@@ -76,6 +77,7 @@ final class MediaHttpClient {
     final initialOrigin = HeaderPolicy.origin(uri);
     for (var redirects = 0; redirects <= 5; redirects++) {
       cancellation?.check();
+      validateTarget?.call(uri);
       targetPolicy.validateAccess(
         uri,
         originalOrigin:

@@ -18,6 +18,7 @@ Future<void> downloadMp4({
   void Function(int)? reserveBytes,
   required Future<void> Function(int, int, int) progress,
   required Future<void> Function(File, CancellationToken) validate,
+  void Function(Uri)? validateTarget,
   String fileName = 'video.mp4',
 }) => _Mp4Transfer(
   uri,
@@ -29,6 +30,7 @@ Future<void> downloadMp4({
   reserveBytes,
   progress,
   validate,
+  validateTarget,
   fileName,
 ).run();
 
@@ -43,6 +45,7 @@ final class _Mp4Transfer {
     this.reserveBytes,
     this.progress,
     this.validate,
+    this.validateTarget,
     this.fileName,
   );
   final Uri uri;
@@ -54,6 +57,7 @@ final class _Mp4Transfer {
   final void Function(int)? reserveBytes;
   final Future<void> Function(int, int, int) progress;
   final Future<void> Function(File, CancellationToken) validate;
+  final void Function(Uri)? validateTarget;
   final String fileName;
   late final part = File(p.join(directory.path, '$fileName.part'));
   late final checkpoint = File(p.join(directory.path, 'mp4-state.json'));
@@ -74,6 +78,7 @@ final class _Mp4Transfer {
         uri,
         policy: policy,
         cancellation: cancellation,
+        validateTarget: validateTarget,
         priority: RequestPriority.background,
         range: offset > 0 ? 'bytes=$offset-' : null,
         ifRange: offset > 0 ? state['etag'] as String : null,

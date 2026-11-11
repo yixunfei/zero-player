@@ -1,6 +1,16 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-11（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-12（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+
+## 阅读与听书（2026-11-12）
+
+- 功能分支 `codex/reading-audiobooks` 新增两个独立入口，各含发现、书架和源管理。支持搜索、检测、收藏与分组、目录筛选、同书换源和批量下载。换源按规范化后的书名和作者匹配，跨源下载只回退到章节名唯一对应的版本。阅读器支持 TXT、无 DRM 的文本 EPUB、离线章节和进度恢复。听书章节通过本机校验后离线播放，支持进度跳转和倍速。
+- 抽查 [书源](https://www.yckceo.com/yuedu/shuyuan/index.html)、[书源合集](https://www.yckceo.com/yuedu/shuyuans/index.html)、[订阅源](https://www.yckceo.com/yuedu/rss/index.html) 和 [订阅源合集](https://www.yckceo.com/yuedu/rsss/index.html) 共 70 份可解析 JSON、672 条原始记录。初筛按类型、规范化主机及订阅路径识别 140 条重复、66 条无法作为 HTTP(S) 地址使用的记录。根据规则、站点行为和实际样本继续过滤。
+- 内置 [UU 看书](https://www.yckceo.com/yuedu/shuyuan/content/id/8081.html) 和 [速读谷](https://www.yckceo.com/yuedu/shuyuans/content/id/1320.html) 的静态选择器。由 [爱范儿条目](https://www.yckceo.com/yuedu/rss/content/id/887.html) 与 [订阅精选合集](https://www.yckceo.com/yuedu/rsss/content/id/174.html) 找到爱范儿和少数派，接入两家发布者的官方 RSS。内置不随包复制正文。
+- 源仓库抽测的听书源涉及脚本、网页播放器、鉴权、证书错误或未返回可验证音频。内置听书使用 Project Gutenberg 的两部英语公版朗读 [《孙子兵法》](https://www.gutenberg.org/ebooks/20594) 与 [《爱丽丝梦游仙境》](https://www.gutenberg.org/ebooks/23716)。标准音频 RSS/Atom 和无脚本的直连听书源可手动添加。
+- 参考 [Legado](https://github.com/LegadoTeam/legado) 的源、目录和正文分层，兼容其部分静态 HTML 规则。导入源默认停用。模块专用网络客户端限 HTTPS、公网地址和已声明的媒体域，每次跳转前校验，并复用应用的 DNS 钉扎和取消机制。正文以纯文本渲染。离线音频限制大小、探测容器、验证解码和摘要，原生播放器只接收本机能力地址。监管开启时阅读限审核内置源并保留内容过滤，听书暂禁用。
+- 全量回归 717 项通过，11 项按配置跳过，静态分析和源码规模检查通过。Windows 原生 `./tool/run_windows_native.ps1 -TestFiles integration_test/books_native_test.dart` 验证 4 个阅读源的发现、搜索、目录、正文及下载和 2 部听书的完整文件校验与离线解码，驱动仍报告既有 integration_test 插件提示。
+- Windows x64 Release 和 Android ARM64 开发测试 Release 构建通过。Android 首次在线依赖解析遇到本机代理拒绝连接，使用既有 Gradle 缓存以 `gradlew --offline :app:assembleRelease` 和 ARM64 发布参数重试通过。两端的随包源清单与源码字节一致，Android APK 包名、版本、ABI、ZIP CRC 及 v2 签名已核对，开发测试证书与 v0.7.2 一致。日志及源抽样数据在 `build/reading-audit/`，原生运行日志在 `.dart_tool/native-c1c721ae/`。Android/TV 真机、全部章节和长期可用率待验收。
 
 ## v0.7.3 直播精修与预发行（2026-11-11）
 

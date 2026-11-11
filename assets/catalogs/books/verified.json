@@ -1,0 +1,100 @@
+[
+  {
+    "name": "UU看书",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.uukan.org/",
+    "search": "/search/{key}.html",
+    "discover": "/",
+    "sample": "三体",
+    "originNote": "源仓库书源 8081",
+    "rules": {
+      "list": ".bookbox",
+      "title": ".bookname a@text",
+      "author": ".author@text",
+      "book": ".bookname a@href",
+      "description": ".update@text",
+      "discoverList": "#fengtui .item",
+      "discoverTitle": "dt a[href^='/book/']@text",
+      "discoverAuthor": "dt a[href^='/search/']@text",
+      "discoverBook": "dt a[href^='/book/']@href",
+      "discoverDescription": "dd@text",
+      "toc": "#allchapter dd:not([data-num]) a[href^='/chapter/']@href",
+      "chapters": "#allchapter a[href]",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "nextToc": "#linkNext@href",
+      "content": "#content@text",
+      "nextContent": "@next"
+    }
+  },
+  {
+    "name": "速读谷",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.suduguu.com/",
+    "search": "/i/sor.aspx?key={key}",
+    "discover": "/",
+    "sample": "三体",
+    "originNote": "源仓库书源合集 1320",
+    "rules": {
+      "list": ".item",
+      "title": ".itemtxt h3 a, .itemtxt h1 a@text",
+      "author": ".itemtxt p a@text",
+      "book": ".itemtxt h3 a, .itemtxt h1 a@href",
+      "description": ".des bb@text",
+      "chapters": "#list li a",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "content": ".con@text",
+      "nextContent": "@next"
+    }
+  },
+  {
+    "name": "少数派",
+    "group": "科技阅读",
+    "kind": "text",
+    "format": "feed",
+    "url": "https://sspai.com/feed",
+    "originNote": "源仓库订阅源合集 174，使用官方 RSS"
+  },
+  {
+    "name": "爱范儿",
+    "group": "科技阅读",
+    "kind": "text",
+    "format": "feed",
+    "url": "https://www.ifanr.com/feed",
+    "originNote": "源仓库订阅源条目，使用发布者官方全文 RSS"
+  },
+  {
+    "name": "Project Gutenberg 公版有声书",
+    "group": "公版经典",
+    "kind": "audio",
+    "format": "featured",
+    "url": "https://www.gutenberg.org/",
+    "sample": "孙子兵法",
+    "originNote": "Project Gutenberg 发布的公版人工朗读",
+    "directAudio": true,
+    "featured": [
+      {
+        "title": "孙子兵法 · The Art of War",
+        "author": "孙武 / Sun Tzu",
+        "url": "/ebooks/20594",
+        "description": "英语朗读"
+      },
+      {
+        "title": "爱丽丝梦游仙境 · Alice’s Adventures in Wonderland",
+        "author": "Lewis Carroll",
+        "url": "/ebooks/23716",
+        "description": "英语朗读"
+      }
+    ],
+    "rules": {
+      "chapters": "a[type='audio/mp4'][href$='.m4b']",
+      "chapterTitle": "@filename",
+      "chapterUrl": "@href"
+    }
+  }
+]

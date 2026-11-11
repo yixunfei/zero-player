@@ -15,6 +15,8 @@ import '../features/library/presentation/history_page.dart';
 import '../features/live/presentation/live_page.dart';
 import '../features/radio/presentation/radio_page.dart';
 import '../features/music/presentation/music_page.dart';
+import '../features/books/domain/book.dart';
+import '../features/books/presentation/books_page.dart';
 import '../features/playback/application/playback_controller.dart';
 import '../features/playback/presentation/player_page.dart';
 import '../features/search/presentation/search_page.dart';
@@ -103,6 +105,11 @@ final class _ProductAppState extends ConsumerState<ProductApp>
     }
   }
 
+  GoRoute _bookRoute(String path, BookKind kind) => GoRoute(
+    path: path,
+    builder: (_, _) => BooksPage(services: services, kind: kind),
+  );
+
   GoRouter _createRouter() => GoRouter(
     routes: [
       ShellRoute(
@@ -140,6 +147,8 @@ final class _ProductAppState extends ConsumerState<ProductApp>
             path: '/music',
             builder: (_, state) => MusicPage(services: services),
           ),
+          _bookRoute('/reading', BookKind.text),
+          _bookRoute('/audiobooks', BookKind.audio),
           GoRoute(
             path: '/calendar',
             builder: (_, _) => ReleaseCalendarPage(services: services),

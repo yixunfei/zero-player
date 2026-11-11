@@ -96,6 +96,7 @@ flutter:
     - assets/catalogs/live/
     - assets/catalogs/radio/
     - assets/catalogs/music/
+    - assets/catalogs/books/
     - assets/fonts/OFL.txt
     - assets/fonts/NotoSans-OFL.txt
     - assets/fonts/NotoSerif-OFL.txt
