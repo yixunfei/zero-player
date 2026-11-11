@@ -57,6 +57,17 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('开始检测'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('等待检测'),
+          60,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(find.text('等待检测'), findsOneWidget);
+        final list = tester.state<ScrollableState>(
+          find.byType(Scrollable).last,
+        );
+        list.position.jumpTo(0);
+        await tester.pumpAndSettle();
         final dropdown = find.byType(DropdownButton<int>);
         await tester.tap(dropdown);
         await tester.pumpAndSettle();

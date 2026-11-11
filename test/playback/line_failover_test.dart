@@ -9,6 +9,10 @@ import '../../test_support/http_test_server.dart';
 
 void main() {
   test(
+    'live channel switches keep headers scoped to each shared URL entry',
+    _sharedUrlHeadersTest,
+  );
+  test(
     'failover skips broken and ambiguous lines and preserves progress and pause',
     () async {
       final root = await Directory.systemTemp.createTemp('zero-failover-');
@@ -85,4 +89,51 @@ void main() {
       expect(server.calls['/good.mp4'], 1);
     },
   );
+}
+
+Future<void> _sharedUrlHeadersTest() async {
+  final root = await Directory.systemTemp.createTemp('zero-live-headers-');
+  final observed = <String?>[];
+  final server = await HttpTestServer.start((request) {
+    observed.add(request.headers.value(HttpHeaders.authorizationHeader));
+    request.response.headers.contentType = ContentType('video', 'mp4');
+    request.response.add([0, 0, 0, 24, 102, 116, 121, 112]);
+  });
+  final services = AppServices.scoped(
+    root,
+    AppDatabase.memory(),
+    allowPrivateNetworks: true,
+  );
+  final player = PlaybackController(services, FakePlayerEngine());
+  addTearDown(() async {
+    await player.close();
+    await services.close();
+    await server.close();
+    await root.delete(recursive: true);
+  });
+  await services.gateway.start();
+  final uri = server.baseUri.resolve('shared');
+  await player.open(
+    PlaybackRequest(
+      CatalogItem(
+        sourceId: 'live',
+        id: 'live',
+        title: '直播',
+        lines: [
+          PlayLine('Private', [
+            Episode(
+              '线路 1',
+              uri,
+              headers: const {'Authorization': 'Bearer private'},
+            ),
+          ]),
+          PlayLine('Public', [Episode('线路 1', uri, headers: const {})]),
+        ],
+      ),
+      live: true,
+    ),
+  );
+  await player.select(1, 0);
+  expect(player.error, isNull);
+  expect(observed, ['Bearer private', null]);
 }

@@ -56,10 +56,18 @@ final class PlayLine {
 }
 
 final class Episode {
-  const Episode(this.label, this.uri, {this.requiresResolution = false});
+  const Episode(
+    this.label,
+    this.uri, {
+    this.requiresResolution = false,
+    this.headers,
+  });
   final String label;
   final Uri uri;
   final bool requiresResolution;
+
+  /// Scoped to this entry, since different channels may share a URI.
+  final Map<String, String>? headers;
   bool get playable => requiresResolution || directlyPlayable;
   bool get directlyPlayable =>
       {'http', 'https'}.contains(uri.scheme) &&

@@ -7,6 +7,53 @@ import 'package:zero_player/features/live/presentation/live_channel_tile.dart';
 
 void main() {
   _sourceControlsTest();
+  testWidgets('live search offers all groups and fits a narrow screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(280, 620);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    var group = '央视';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => LiveBrowser(
+              channels: [
+                LiveChannel(
+                  id: 'local',
+                  listId: 'local',
+                  name: '内江综合',
+                  urls: [Uri.parse('https://media.test/local.ts')],
+                ),
+              ],
+              group: group,
+              query: '内江',
+              controller: controller,
+              onGroup: (value) => setState(() => group = value),
+              onSelect: (_) {},
+              onPlay: (_) {},
+              onFavorite: (_) {},
+              onToggle: (_) {},
+              onDisableSource: (_) async => true,
+              onEpg: (_) {},
+              onProbe: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('在全部频道中搜索'));
+    await tester.pumpAndSettle();
+    expect(group, '全部');
+    expect(find.text('已选 内江综合'), findsOneWidget);
+    expect(find.byTooltip('播放选中频道'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('selection never plays; double click and Enter explicitly play', (
     tester,
   ) async {

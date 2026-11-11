@@ -143,7 +143,7 @@ final class _LivePageState extends State<LivePage> {
             controller: _searchText,
             onChanged: (value) => setState(() => query = value),
             decoration: InputDecoration(
-              labelText: '查找电视频道',
+              labelText: '搜索当前分组',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 tooltip: '清空频道搜索',
@@ -321,7 +321,7 @@ final class _LivePageState extends State<LivePage> {
         for (final current in channels)
           PlayLine(current.name, [
             for (final (i, url) in current.playbackUrls.indexed)
-              Episode('线路 ${i + 1}', url),
+              Episode('线路 ${i + 1}', url, headers: current.headersFor(url)),
           ]),
       ],
     );
@@ -331,10 +331,6 @@ final class _LivePageState extends State<LivePage> {
         item,
         live: true,
         line: channels.indexWhere((c) => c.id == channel.id),
-        headersByUri: {
-          for (final c in channels)
-            for (final uri in c.urls) uri: c.headersFor(uri),
-        },
       ),
     );
   });

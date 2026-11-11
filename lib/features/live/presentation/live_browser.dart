@@ -170,10 +170,21 @@ final class LiveBrowser extends StatelessWidget {
     LiveChannel? selected,
   ) {
     if (shown.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('当前分组暂无频道，试试全部、已停用或刷新订阅'),
+      final searching = query.trim().isNotEmpty;
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(searching || filter.active ? '当前分组没有匹配的频道' : '当前分组暂无频道'),
+              if (searching && group != '全部')
+                TextButton(
+                  onPressed: () => onGroup('全部'),
+                  child: const Text('在全部频道中搜索'),
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -209,53 +220,65 @@ final class LiveBrowser extends StatelessWidget {
         },
       );
 
-  Widget _compactPreview(BuildContext context, LiveChannel channel) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            '已选 ${channel.name}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        IconButton(
-          tooltip: '查看节目单',
-          onPressed: () => onEpg(channel),
-          icon: const Icon(Icons.event_note),
-        ),
-        IconButton(
-          tooltip: '频道详情',
-          onPressed: () => _info(context, channel),
-          icon: const Icon(Icons.info_outline),
-        ),
-        IconButton(
-          tooltip: channel.health.enabled ? '停用整个频道' : '检测此频道',
-          onPressed: () => channel.health.enabled
-              ? _toggle(context, channel)
-              : onProbe(channel),
-          icon: Icon(
-            channel.health.enabled ? Icons.block : Icons.network_check,
-          ),
-        ),
-        IconButton(
-          tooltip: channel.favorite ? '取消收藏' : '收藏',
-          onPressed: () => onFavorite(channel),
-          icon: Icon(channel.favorite ? Icons.star : Icons.star_outline),
-        ),
-        IconButton.filled(
-          tooltip: channel.health.enabled ? '播放选中频道' : '重新启用',
-          onPressed: !channel.health.enabled
-              ? () => _toggle(context, channel)
-              : channel.urls.isNotEmpty
-              ? () => onPlay(channel)
-              : null,
-          icon: Icon(channel.health.enabled ? Icons.play_arrow : Icons.restore),
-        ),
-      ],
-    ),
-  );
+  Widget _compactPreview(BuildContext context, LiveChannel channel) {
+    final title = Text(
+      '已选 ${channel.name}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final actions = <Widget>[
+      IconButton(
+        tooltip: '查看节目单',
+        onPressed: () => onEpg(channel),
+        icon: const Icon(Icons.event_note),
+      ),
+      IconButton(
+        tooltip: '频道详情',
+        onPressed: () => _info(context, channel),
+        icon: const Icon(Icons.info_outline),
+      ),
+      IconButton(
+        tooltip: channel.health.enabled ? '停用整个频道' : '检测此频道',
+        onPressed: () => channel.health.enabled
+            ? _toggle(context, channel)
+            : onProbe(channel),
+        icon: Icon(channel.health.enabled ? Icons.block : Icons.network_check),
+      ),
+      IconButton(
+        tooltip: channel.favorite ? '取消收藏' : '收藏',
+        onPressed: () => onFavorite(channel),
+        icon: Icon(channel.favorite ? Icons.star : Icons.star_outline),
+      ),
+      IconButton.filled(
+        tooltip: channel.health.enabled ? '播放选中频道' : '重新启用',
+        onPressed: !channel.health.enabled
+            ? () => _toggle(context, channel)
+            : channel.urls.isNotEmpty
+            ? () => onPlay(channel)
+            : null,
+        icon: Icon(channel.health.enabled ? Icons.play_arrow : Icons.restore),
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: LayoutBuilder(
+        builder: (context, bounds) => bounds.maxWidth >= 340
+            ? Row(
+                children: [
+                  Expanded(child: title),
+                  ...actions,
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  Wrap(children: actions),
+                ],
+              ),
+      ),
+    );
+  }
 
   Widget _preview(BuildContext context, LiveChannel channel) => Card(
     margin: const EdgeInsets.fromLTRB(8, 8, 16, 16),
@@ -279,7 +302,7 @@ final class LiveBrowser extends StatelessWidget {
               '检测时间：${channel.health.checkedAt!.toLocal().toString().split('.').first}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
-          Text('${channel.urls.length} 条备用线路'),
+          Text('${channel.urls.length} 条播放线路'),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,

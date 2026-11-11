@@ -15,7 +15,9 @@ Future<void> showMediaProbe(
 ) => perform(context, () async {
   final request = player.request;
   if (request == null || request.offline != null) return;
-  final uri = player.resolvedMedia?.uri ?? player.episode.uri;
+  final media = player.resolvedMedia;
+  final episode = player.episode;
+  final uri = media?.uri ?? episode.uri;
   final source = await services.sources.find(request.item.sourceId);
   if (!context.mounted) return;
   final token = CancellationToken();
@@ -24,7 +26,8 @@ Future<void> showMediaProbe(
     uri,
     HeaderPolicy({
       uri:
-          player.resolvedMedia?.headers ??
+          media?.headers ??
+          episode.headers ??
           request.headersByUri[uri] ??
           (request.headers.isNotEmpty
               ? request.headers

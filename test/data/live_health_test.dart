@@ -243,6 +243,10 @@ void _probeTests() {
     expect(result.preferredUrl, server.baseUri.resolve('ok.ts').toString());
     expect(result.latencyMs, isNonNegative);
   });
+  test(
+    'a storage error cannot replace a successful probe with failure',
+    () => _storageErrorTest(db, probe, server),
+  );
   test('all alternatives are tested before declaring unavailable', () async {
     final token = CancellationToken();
     final result = await probe.check(
@@ -283,4 +287,35 @@ void _probeTests() {
       isEmpty,
     );
   });
+}
+
+Future<void> _storageErrorTest(
+  AppDatabase db,
+  LiveProbe probe,
+  HttpTestServer server,
+) async {
+  await db.customStatement(
+    r'''CREATE TRIGGER reject_responding BEFORE INSERT ON app_meta
+  WHEN NEW.key='live_state:storage-error'
+    AND json_extract(NEW.value, '$.availability')='responding'
+  BEGIN SELECT RAISE(ABORT, 'test storage failure'); END''',
+  );
+  await expectLater(
+    probe.check(
+      _channel(
+        'storage-error',
+        urls: [server.baseUri.resolve('ok.ts'), server.baseUri.resolve('404')],
+      ),
+      CancellationToken(),
+    ),
+    throwsA(anything),
+  );
+  expect(server.calls['/ok.ts'], 1);
+  expect(server.calls['/404'], isNull);
+  expect(
+    await db.rows(
+      "SELECT value FROM app_meta WHERE key='live_state:storage-error'",
+    ),
+    isEmpty,
+  );
 }

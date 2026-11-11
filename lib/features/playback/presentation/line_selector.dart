@@ -155,6 +155,7 @@ final class _LineSelectorState extends State<LineSelector> {
       if (!episode.playable) throw const FormatException('此地址无法直接播放');
       var uri = episode.uri;
       var effectiveHeaders =
+          episode.headers ??
           scope.headersByUri[uri] ??
           (scope.headers.isEmpty
               ? HeaderPolicy.scopedHeaders(source.endpoint, uri, source.headers)

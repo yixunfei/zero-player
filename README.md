@@ -4,11 +4,15 @@
 
 面向 **Windows 桌面和 Android 手机 / TV** 的本地在线视频聚合播放器。支持频道浏览、聚合搜索、点播、直播、续播、离线下载与导出，无需单独部署业务后端。
 
-**v0.7.2 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.7.2) · [Android v0.7.2 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.7.2/zero-player-0.7.2-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.7.2.md)
+**v0.7.3 预发行** · [下载 Windows 新版](https://github.com/yixunfei/zero-player/releases/tag/v0.7.3) · [Android v0.7.3 开发测试包](https://github.com/yixunfei/zero-player/releases/download/v0.7.3/zero-player-0.7.3-android-arm64-devtest.apk) · [Windows v0.0.11 稳定版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.11) · [Android v0.0.7 正式版](https://github.com/yixunfei/zero-player/releases/tag/v0.0.7) · [使用指南](docs/implementation/USER-GUIDE.md) · [构建说明](docs/implementation/BUILD.md) · [版本说明](docs/implementation/RELEASE-0.7.3.md)
+
+## v0.7.3
+
+源码版本 **0.7.3+73**。修复直播换台时共享地址的请求头覆盖与测活结果保存异常，改进直播搜索、窄屏操作和测活列表。包含 v0.7.2 发布后更新的直播精选及体育分组。
 
 ## v0.7.2
 
-当前源码版本 **0.7.2+72**，包含网易云歌单补齐、全屏同步歌词和 Windows 在线音乐闪退的应用侧缓解。详见[版本说明](docs/implementation/RELEASE-0.7.2.md)。
+该版源码版本 **0.7.2+72**，包含网易云歌单补齐、全屏同步歌词和 Windows 在线音乐闪退的应用侧缓解。详见[版本说明](docs/implementation/RELEASE-0.7.2.md)。
 
 ## v0.0.14 源码版本
 

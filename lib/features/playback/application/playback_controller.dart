@@ -520,6 +520,7 @@ final class PlaybackController extends ChangeNotifier {
       throw const FormatException('此源已屏蔽，请选择其他来源');
     }
     var headers =
+        media.headers ??
         next.headersByUri[media.uri] ??
         (next.headers.isNotEmpty
             ? next.headers

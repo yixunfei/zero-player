@@ -66,6 +66,7 @@ final class LiveProbe {
     final failed = <String>{};
     for (final uri in {...preferred, ...channel.urls}) {
       token.check();
+      final LiveHealth health;
       try {
         final result = await probeMedia(
           http,
@@ -77,7 +78,7 @@ final class LiveProbe {
           networkTimeout: networkTimeout,
         );
         token.check();
-        final health = LiveHealth(
+        health = LiveHealth(
           availability: LiveAvailability.responding,
           latencyMs: result.firstByte.inMilliseconds,
           preferredUrl: uri.toString(),
@@ -91,12 +92,6 @@ final class LiveProbe {
           languages: result.languages,
           message: '已收到媒体数据，未验证完整解码',
         );
-        await repository.record(
-          channel,
-          health,
-          enableResponding: enableResponding,
-        );
-        return health;
       } catch (error) {
         token.check();
         failed.add('$uri');
@@ -106,7 +101,14 @@ final class LiveProbe {
             : error is ProbeInconclusive
             ? error.message
             : '连接或检测超时，仍可尝试播放';
+        continue;
       }
+      await repository.record(
+        channel,
+        health,
+        enableResponding: enableResponding,
+      );
+      return health;
     }
     token.check();
     final result = LiveHealth(

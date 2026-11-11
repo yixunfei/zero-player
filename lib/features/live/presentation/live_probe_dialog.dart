@@ -29,7 +29,6 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
   final unavailable = <String>{};
   final inconclusive = <String>{};
   int completed = 0, responding = 0;
-  final names = <String, String>{};
   int concurrency = 8;
   late final channels = {
     for (final group in widget.channels)
@@ -38,6 +37,7 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
   }.values.toList();
 
   Future<void> _run() async {
+    if (running) return;
     cancellation = CancellationToken();
     statuses.clear();
     unavailable.clear();
@@ -48,7 +48,6 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
     Future<void> worker() async {
       while (index < channels.length && !cancellation.isCancelled) {
         final channel = channels[index++];
-        names[channel.id] = '${channel.name} · ${channel.listName}';
         if (mounted) setState(() => statuses[channel.id] = '检测中');
         try {
           final result = await widget.services.liveProbe.check(
@@ -89,7 +88,7 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
       width: 600,
       height: 400,
       child: ListView.builder(
-        itemCount: statuses.length + 1,
+        itemCount: channels.length + 1,
         itemBuilder: (_, index) {
           if (index == 0) {
             return Column(
@@ -122,7 +121,11 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
           }
           final channel = channels[index - 1];
           return ListTile(
-            title: Text(names[channel.id] ?? channel.name),
+            title: Text(
+              channel.listName.isEmpty
+                  ? channel.name
+                  : '${channel.name} · ${channel.listName}',
+            ),
             subtitle: Text(statuses[channel.id] ?? '等待检测'),
           );
         },
@@ -145,10 +148,10 @@ final class _LiveProbeDialogState extends State<LiveProbeDialog> {
         ),
       if (!running && inconclusive.isNotEmpty)
         TextButton(
-          onPressed: () async {
+          onPressed: () => perform(context, () async {
             await widget.services.liveHealth.setEnabled(inconclusive, false);
             if (mounted) setState(inconclusive.clear);
-          },
+          }),
           child: Text('一键停用未确定 (${inconclusive.length})'),
         ),
       if (!running && unavailable.isNotEmpty)

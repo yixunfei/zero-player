@@ -2,6 +2,14 @@
 
 更新：2026-11-11（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
+## v0.7.3 直播精修与预发行（2026-11-11）
+
+- 播放及测速按所选线路使用已限定作用域的请求头，解决多个频道共享地址时的覆盖。测活写库错误保留原状态，不再计为线路失败。
+- 直播搜索标注当前分组，并在无匹配时提供全部频道入口。窄屏显示选中频道名称及操作。测活对话框可查看仍在等待的条目。
+- 全量 `flutter test --no-pub` 通过 709 项，11 项按配置跳过。`flutter analyze --no-pub` 和 `dart run tool/check_source_size.dart` 通过。Windows 原生 `integration_test/live_radio_media_test.dart` 使用本地 WAV 与 HLS 实际验证测活、请求头和广播换线，断言及驱动退出通过。驱动仍提示未检测到 integration_test 插件。
+- Windows x64 Release 与 Android ARM64 开发测试 Release 串行构建。Android 重试时临时移除生成文件中残留的测试插件注册，构建后恢复原文件。APK 版本、独立包名、ARM64 ABI、v2 签名与 v0.7.2 测试证书均已核对。日志位于 `build/polish-v073/`。
+- Android/TV 真机、安装卸载及长时播放待验收。附件和变更见[版本说明](RELEASE-0.7.3.md)。
+
 ## 直播与影视候选补充复核（2026-11-11）
 
 - 核对 22 个入口及网页中公布的配置地址，识别出影视仓、饭太硬、老刘配置的重复镜像。欧歌入口 TLS 验证失败。逐项结果见 [LIVE_SOURCES.md](LIVE_SOURCES.md)。
