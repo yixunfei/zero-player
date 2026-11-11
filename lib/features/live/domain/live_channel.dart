@@ -57,7 +57,9 @@ final class LiveChannel {
   List<String> get preferenceIds => entries.map((c) => c.id).toList();
 
   Map<String, String> headersFor(Uri uri) {
-    final entry = entries.where((c) => c.urls.contains(uri)).firstOrNull;
+    final entry = members.isEmpty
+        ? (urls.contains(uri) ? this : null)
+        : members.where((c) => c.playbackUrls.contains(uri)).firstOrNull;
     if (entry == null) return const {};
     return HeaderPolicy.playlistHeaders(entry.headerOrigin, uri, entry.headers);
   }
@@ -102,14 +104,19 @@ final class LiveChannel {
 
   /// A successful probe only reorders this channel's own alternatives.
   List<Uri> get playbackUrls {
+    if (members.isNotEmpty) return urls;
     final preferred = health.preferredUrl;
     final eligible =
         health.verifiedOnly &&
             health.availability == LiveAvailability.responding
-        ? urls.where(
-            (uri) =>
-                health.verifiedUrls.contains('$uri') || '$uri' == preferred,
-          )
+        ? [
+            for (final value in health.verifiedUrls)
+              ...urls.where((uri) => '$uri' == value),
+            ...urls.where(
+              (uri) =>
+                  '$uri' == preferred && !health.verifiedUrls.contains('$uri'),
+            ),
+          ]
         : urls;
     return [
       ...eligible.where((u) => u.toString() == preferred),

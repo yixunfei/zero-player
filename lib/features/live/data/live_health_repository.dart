@@ -46,9 +46,10 @@ final class LiveHealthRepository {
       'signature': channel.urls.join('|'),
       'requestSignature': channelProbeSignature(channel),
       'pendingValidation': false,
-      'verifiedUrls': result.preferredUrl == null
-          ? <String>[]
-          : [result.preferredUrl!],
+      'verifiedUrls': {
+        if (result.preferredUrl case final String url) url,
+        ...result.verifiedUrls,
+      }.toList(),
       if (enableResponding &&
           result.availability == LiveAvailability.responding &&
           (canEnable?.call() ?? true))

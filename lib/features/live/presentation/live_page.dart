@@ -1,3 +1,4 @@
+import '../../sources/presentation/catalog_import.dart';
 import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -164,6 +165,7 @@ final class _LivePageState extends State<LivePage> {
           onSelected: _manage,
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'add', child: Text('添加 M3U / TXT')),
+            PopupMenuItem(value: 'catalog', child: Text('导入直播单仓 / 多仓')),
             PopupMenuItem(value: 'lists', child: Text('管理订阅 / EPG')),
             PopupMenuItem(value: 'probeAll', child: Text('检测所有频道')),
             PopupMenuItem(value: 'recover', child: Text('一键检测并启用已停用频道')),
@@ -181,6 +183,8 @@ final class _LivePageState extends State<LivePage> {
     switch (action) {
       case 'add':
         _add();
+      case 'catalog':
+        importCatalog(context, widget.services, liveOnly: true);
       case 'lists':
         _lists();
       case 'probeAll':

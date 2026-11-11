@@ -32,7 +32,11 @@ final class LiveRepository {
   final ContentPolicy? policy;
   final void Function()? authorize;
   final bool Function()? canEnable;
-  final Future<void> Function(List<LiveChannel>, CancellationToken?)?
+  final Future<void> Function(
+    List<LiveChannel>,
+    CancellationToken?, {
+    bool force,
+  })?
   verifyUpdates;
 
   Future<List<Map<String, Object?>>> lists() => db.rows(
@@ -48,8 +52,12 @@ final class LiveRepository {
     ]);
   }
 
-  Future<void> removeList(String id) =>
-      db.write('DELETE FROM live_lists WHERE id=?', [id]);
+  Future<void> removeList(String id) => db.atomic(() async {
+    await db.customStatement('DELETE FROM live_lists WHERE id=?', [id]);
+    await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+      'builtin_live_curated:$id',
+    ]);
+  });
 
   Future<void> setGuide(String id, Uri? url) async {
     authorize?.call();
@@ -89,23 +97,42 @@ final class LiveRepository {
           );
         }
       }
-      final doc = await network.get(
-        url,
-        headers: headers,
-        cancellation: cancellation,
-        maxBytes: 8 * 1024 * 1024,
+      final curated = await db.rows(
+        'SELECT l.snapshot FROM live_lists l JOIN app_meta m ON m.key=? WHERE l.id=?',
+        ['builtin_live_curated:$id', id],
       );
-      epg ??= await _importGuide(id, doc.text, doc.uri);
-      await importText(
-        name,
-        url,
-        doc.text,
-        base: doc.uri,
-        epg: epg,
-        headers: headers,
-        existingOnly: existingOnly,
-        cancellation: cancellation,
-      );
+      if (curated.firstOrNull?['snapshot'] case final String snapshot) {
+        // Retest the shipped shortlist. The upstream full list can contain
+        // unreviewed or duplicate routes and is curated during maintenance.
+        await importText(
+          name,
+          url,
+          snapshot,
+          epg: epg ??= await _importGuide(id, snapshot, url),
+          headers: headers,
+          existingOnly: existingOnly,
+          cancellation: cancellation,
+          forceVerify: true,
+        );
+      } else {
+        final doc = await network.get(
+          url,
+          headers: headers,
+          cancellation: cancellation,
+          maxBytes: 8 * 1024 * 1024,
+        );
+        epg ??= await _importGuide(id, doc.text, doc.uri);
+        await importText(
+          name,
+          url,
+          doc.text,
+          base: doc.uri,
+          epg: epg,
+          headers: headers,
+          existingOnly: existingOnly,
+          cancellation: cancellation,
+        );
+      }
     } catch (_) {
       if (cancellation?.isCancelled != true) {
         await db.write('UPDATE live_lists SET error=? WHERE id=?', [
@@ -138,6 +165,9 @@ final class LiveRepository {
     bool existingOnly = false,
     CancellationToken? cancellation,
     bool verify = true,
+    bool forceVerify = false,
+    int? packagedAt,
+    int? curatedRevision,
   }) async {
     final id = stableId(url.toString());
     final channels = parseLivePlaylist(text, base ?? url, id);
@@ -168,9 +198,15 @@ final class LiveRepository {
           url.toString(),
           epg?.toString(),
           text,
-          DateTime.now().millisecondsSinceEpoch,
+          packagedAt ?? DateTime.now().millisecondsSinceEpoch,
         ],
       );
+      if (curatedRevision != null) {
+        await db.customStatement(
+          'INSERT OR REPLACE INTO app_meta VALUES(?,?)',
+          ['builtin_live_curated:$id', '$curatedRevision'],
+        );
+      }
       final previous = await db.rows(
         'SELECT * FROM live_channels WHERE list_id=?',
         [id],
@@ -196,34 +232,39 @@ final class LiveRepository {
           canEnable: canEnable?.call() ?? true,
         );
       }
-      await db.customStatement('DELETE FROM live_channels WHERE list_id=?', [
-        id,
-      ]);
-      for (final c in prepared) {
-        await db.customStatement(
-          'INSERT OR REPLACE INTO app_meta VALUES(?,?)',
-          [
-            'live_metadata:${c.id}',
-            jsonEncode({...c.metadata.toJson(), 'signature': c.urls.join('|')}),
-          ],
-        );
-        await db.customStatement(
-          '''INSERT INTO live_channels(id,list_id,name,group_name,logo,tvg_id,urls,headers)
-            VALUES(?,?,?,?,?,?,?,?)''',
-          [
-            c.id,
-            id,
-            c.name,
-            c.group,
-            c.logo,
-            c.tvgId,
-            jsonEncode(c.urls.map((u) => u.toString()).toList()),
-            jsonEncode({...headers, ...c.headers}),
-          ],
-        );
-      }
+      await _writePlaylistChannels(id, prepared, headers);
     });
-    if (verify) await verifyUpdates?.call(imported, cancellation);
+    if (verify) {
+      await verifyUpdates?.call(imported, cancellation, force: forceVerify);
+    }
+  }
+
+  Future<void> _writePlaylistChannels(
+    String id,
+    List<LiveChannel> prepared,
+    Map<String, String> headers,
+  ) async {
+    await db.customStatement('DELETE FROM live_channels WHERE list_id=?', [id]);
+    for (final c in prepared) {
+      await db.customStatement('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+        'live_metadata:${c.id}',
+        jsonEncode({...c.metadata.toJson(), 'signature': c.urls.join('|')}),
+      ]);
+      await db.customStatement(
+        '''INSERT INTO live_channels(id,list_id,name,group_name,logo,tvg_id,urls,headers)
+          VALUES(?,?,?,?,?,?,?,?)''',
+        [
+          c.id,
+          id,
+          c.name,
+          c.group,
+          c.logo,
+          c.tvgId,
+          jsonEncode(c.urls.map((u) => u.toString()).toList()),
+          jsonEncode({...headers, ...c.headers}),
+        ],
+      );
+    }
   }
 
   Future<List<LiveChannel>> channels({bool includeBlocked = false}) async {

@@ -6,34 +6,25 @@ import '../../../app/widgets.dart';
 import '../../../core/platform/file_transfer.dart';
 import '../application/subscription_service.dart';
 import '../data/catalog_parser.dart';
+import '../data/catalog_url.dart';
 import '../domain/source_catalog.dart';
 
 Future<void> importCatalog(
   BuildContext context,
   AppServices services, {
   bool file = false,
+  bool liveOnly = false,
   CatalogPreview? initial,
 }) => perform(context, () async {
-  CatalogPreview preview;
-  if (initial != null) {
-    preview = initial;
-  } else if (file) {
-    final text = await FileTransfer.readText(maxBytes: 2 * 1024 * 1024);
-    if (text == null) return;
-    final origin = Uri.parse('https://local-import.invalid/');
-    preview = CatalogPreview(
-      origin,
-      text,
-      const JsonSourceCatalogParser().parse(text, origin),
-    );
-  } else {
-    final values = await inputDialog(context, '导入订阅 / 多仓', [
-      '配置文件 URL',
-    ], action: '预览');
-    if (values == null) return;
-    preview = await services.subscriptions.preview(Uri.parse(values.first));
-  }
-  if (!context.mounted) return;
+  final preview =
+      initial ??
+      await _loadCatalogPreview(
+        context,
+        services,
+        file: file,
+        liveOnly: liveOnly,
+      );
+  if (preview == null || !context.mounted) return;
   final selected =
       await showDialog<
         ({
@@ -44,7 +35,8 @@ Future<void> importCatalog(
         })
       >(
         context: context,
-        builder: (_) => CatalogImportDialog(preview: preview),
+        builder: (_) =>
+            CatalogImportDialog(preview: preview, liveOnly: liveOnly),
       );
   if (selected == null) return;
   final chosen = CatalogPreview(
@@ -63,6 +55,10 @@ Future<void> importCatalog(
     services.supervision,
     SensitiveOperation.channels,
     () async {
+      if (liveOnly) {
+        await _importLiveCatalogs(context, services, chosen, selected.children);
+        return;
+      }
       if (file) {
         await services.subscriptions.importLocal(
           chosen,
@@ -105,9 +101,72 @@ Future<void> importCatalog(
   );
 });
 
+Future<CatalogPreview?> _loadCatalogPreview(
+  BuildContext context,
+  AppServices services, {
+  required bool file,
+  required bool liveOnly,
+}) async {
+  if (file) {
+    final text = await FileTransfer.readText(maxBytes: 2 * 1024 * 1024);
+    if (text == null) return null;
+    final origin = Uri.parse('https://local-import.invalid/');
+    return CatalogPreview(
+      origin,
+      text,
+      const JsonSourceCatalogParser().parse(text, origin),
+    );
+  }
+  final values = await inputDialog(
+    context,
+    liveOnly ? '导入直播单仓 / 多仓' : '导入订阅 / 多仓',
+    ['配置文件 URL'],
+    action: '预览',
+  );
+  return values == null
+      ? null
+      : services.subscriptions.preview(parseCatalogUrl(values.first));
+}
+
+Future<void> _importLiveCatalogs(
+  BuildContext context,
+  AppServices services,
+  CatalogPreview chosen,
+  List<CatalogReference> selected,
+) async {
+  var failures = 0;
+  final children = await services.subscriptions.selectedChildren(
+    selected,
+    onFailure: (_, _) => failures++,
+    liveOnly: true,
+  );
+  final lists = <Uri, LiveCatalogEntry>{
+    for (final entry in chosen.catalog.lives) entry.url: entry,
+  };
+  for (final child in children) {
+    for (final entry in child.catalog.lives) {
+      lists.putIfAbsent(entry.url, () => entry);
+    }
+  }
+  if (lists.isEmpty) {
+    throw FormatException(
+      failures > 0 ? '未找到可导入的直播列表，部分子仓访问失败' : '所选配置没有可导入的直播列表',
+    );
+  }
+  await services.subscriptions.importLiveLists(lists.values.toList());
+  if (context.mounted) {
+    message(context, '已导入 ${lists.length} 个直播列表，$failures 个子仓读取失败');
+  }
+}
+
 final class CatalogImportDialog extends StatefulWidget {
-  const CatalogImportDialog({super.key, required this.preview});
+  const CatalogImportDialog({
+    super.key,
+    required this.preview,
+    this.liveOnly = false,
+  });
   final CatalogPreview preview;
+  final bool liveOnly;
   @override
   State<CatalogImportDialog> createState() => _CatalogImportDialogState();
 }
@@ -135,13 +194,18 @@ final class _CatalogImportDialogState extends State<CatalogImportDialog> {
   @override
   void initState() {
     super.initState();
-    sources.addAll(widget.preview.catalog.sources);
+    if (!widget.liveOnly) sources.addAll(widget.preview.catalog.sources);
     lives.addAll(widget.preview.catalog.lives);
   }
 
   @override
   Widget build(BuildContext context) {
     final catalog = widget.preview.catalog;
+    final diagnostics = widget.liveOnly
+        ? catalog.diagnostics.where(
+            (d) => !d.reason.startsWith('未支持的 TVBox 类型'),
+          )
+        : catalog.diagnostics;
     return AlertDialog(
       title: const Text('检查导入内容'),
       content: SizedBox(
@@ -150,27 +214,31 @@ final class _CatalogImportDialogState extends State<CatalogImportDialog> {
         child: ListView(
           children: [
             Text(
-              '${catalog.lives.length} 个直播列表 · ${catalog.sources.length} 个点播接口 · ${catalog.references.length} 个子仓 · ${catalog.diagnostics.length} 个跳过项',
+              '${catalog.lives.length} 个直播列表 · '
+              '${widget.liveOnly ? '' : '${catalog.sources.length} 个点播接口 · '}'
+              '${catalog.references.length} 个子仓 · ${diagnostics.length} 个跳过项',
             ),
             const Text('导入不代表可播放。子仓仅在选中后展开；不执行 Spider、JAR 或脚本。'),
-            SwitchListTile(
-              title: const Text('启用本次新导入的接口'),
-              value: enabled,
-              onChanged: (v) => setState(() => enabled = v),
-            ),
-            for (final source in catalog.sources)
-              CheckboxListTile(
-                title: Text(source.name),
-                subtitle: Text(source.endpoint.host),
-                value: sources.contains(source),
-                onChanged: (v) => setState(() {
-                  if (v == true) {
-                    sources.add(source);
-                  } else {
-                    sources.remove(source);
-                  }
-                }),
+            if (!widget.liveOnly)
+              SwitchListTile(
+                title: const Text('启用本次新导入的接口'),
+                value: enabled,
+                onChanged: (v) => setState(() => enabled = v),
               ),
+            if (!widget.liveOnly)
+              for (final source in catalog.sources)
+                CheckboxListTile(
+                  title: Text(source.name),
+                  subtitle: Text(source.endpoint.host),
+                  value: sources.contains(source),
+                  onChanged: (v) => setState(() {
+                    if (v == true) {
+                      sources.add(source);
+                    } else {
+                      sources.remove(source);
+                    }
+                  }),
+                ),
             ..._liveChoices(catalog),
             for (final child in catalog.references)
               CheckboxListTile(
@@ -185,7 +253,7 @@ final class _CatalogImportDialogState extends State<CatalogImportDialog> {
                   }
                 }),
               ),
-            for (final diagnostic in catalog.diagnostics)
+            for (final diagnostic in diagnostics)
               ListTile(
                 title: Text(diagnostic.name),
                 subtitle: Text(diagnostic.reason),

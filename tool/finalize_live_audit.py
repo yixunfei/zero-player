@@ -31,7 +31,10 @@ def main():
         'policy': 'Only explicit unavailable results default to disabled. Inconclusive results retain enabled state; user may disable them in one action.',
         'results': bundled,
     }
-    (ROOT / 'assets/live_channel_audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    catalog = json.loads((ROOT / 'assets/live_candidates.json').read_text(encoding='utf-8'))
+    target = ('artifacts/live-media-response-audit.json' if catalog.get('version', 0) >= 3
+              else 'assets/live_channel_audit.json')
+    (ROOT / target).write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     summary = {
         'checkedAt': checked_at, 'sources': len(records),
         'availability': dict(collections.Counter(r['availability'] for r in records.values())),

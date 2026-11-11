@@ -42,16 +42,21 @@ def main():
         checked = datetime.fromisoformat(report['checkedAt'].replace('Z', '+00:00'))
         if not report['results'] or not 0 <= (now - checked).total_seconds() < 86400:
             raise ValueError('Complete reports from the last 24 hours are required')
-    results = freeze([*public['results'], *local['results']])
+    target = root / 'assets/live_channel_audit.json'
+    packaged = json.loads(target.read_text(encoding='utf-8')) if target.exists() else {}
+    curated_ids = set(packaged.get('curatedListIds', []))
+    curated = [r for r in packaged.get('results', []) if r.get('listId') in curated_ids]
+    results = freeze([r for r in [*public['results'], *local['results']]
+        if r['listId'] not in curated_ids]) + curated
     counts = {state: sum(row['availability'] == state for row in results)
         for state in ['responding', 'unavailable', 'inconclusive']}
     asset = {'version': 2, 'passedOnly': True,
         'checkedAt': datetime.now(timezone.utc).isoformat(),
-        'scope': 'Full public built-in lists and local cached channels; every route tested; failed and inconclusive disabled until recovery test passes.',
+        'scope': 'Curated live entries retain continuous decode evidence; other results measure media response.',
+        'curatedListIds': sorted(curated_ids),
         'managedListIds': sorted(set(public['managedListIds']) | {r['listId'] for r in local['results']} |
             {hashlib.sha256(r['url'].encode()).hexdigest() for r in public['sources']}),
         'counts': counts, 'sources': public['sources'], 'results': results}
-    target = root / 'assets/live_channel_audit.json'
     temporary = target.with_suffix('.json.tmp')
     temporary.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     temporary.replace(target)

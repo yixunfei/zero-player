@@ -62,11 +62,9 @@ final class LiveProbe {
   ) async {
     var uncertain = false;
     var message = '频道没有可播放线路';
-    final preferred = channel.health.preferredUrl;
-    for (final uri in [
-      ...channel.urls.where((u) => '$u' == preferred),
-      ...channel.urls.where((u) => '$u' != preferred),
-    ]) {
+    final preferred = channel.playbackUrls;
+    final failed = <String>{};
+    for (final uri in {...preferred, ...channel.urls}) {
       token.check();
       try {
         final result = await probeMedia(
@@ -83,6 +81,12 @@ final class LiveProbe {
           availability: LiveAvailability.responding,
           latencyMs: result.firstByte.inMilliseconds,
           preferredUrl: uri.toString(),
+          verifiedUrls: [
+            '$uri',
+            ...channel.health.verifiedUrls.where(
+              (u) => u != '$uri' && !failed.contains(u),
+            ),
+          ],
           resolution: result.resolution,
           languages: result.languages,
           message: '已收到媒体数据，未验证完整解码',
@@ -95,6 +99,7 @@ final class LiveProbe {
         return health;
       } catch (error) {
         token.check();
+        failed.add('$uri');
         uncertain |= error is! FormatException;
         message = error is FormatException
             ? error.message

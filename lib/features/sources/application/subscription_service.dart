@@ -2,9 +2,12 @@ import 'dart:async';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../data/catalog_parser.dart';
+import '../data/catalog_document.dart';
+import '../data/catalog_url.dart';
 import '../data/source_repository.dart';
 import '../domain/source_catalog.dart';
 import '../../live/data/live_repository.dart';
+import '../../live/data/live_playlist_parser.dart';
 
 final class CatalogPreview {
   const CatalogPreview(this.url, this.text, this.catalog);
@@ -41,13 +44,35 @@ final class SubscriptionService {
         final stopLifetime = _cancellation.listen(token.cancel);
         final stopCaller = cancellation?.listen(token.cancel);
         try {
-          final document = await network.get(url, cancellation: token);
-          token.check();
-          return CatalogPreview(
-            url,
-            document.text,
-            parser.parse(document.text, document.uri),
+          final document = await network.get(
+            parseCatalogUrl(url.toString()),
+            headers: const {'User-Agent': 'okhttp/4.12.0'},
+            cancellation: token,
           );
+          final text = await decodeCatalogDocument(document);
+          token.check();
+          try {
+            return CatalogPreview(url, text, parser.parse(text, document.uri));
+          } on FormatException {
+            // A child in a multi-store can also point directly at a playlist.
+            var playlist = false;
+            try {
+              playlist = parseLivePlaylist(text, document.uri, '').isNotEmpty;
+            } on FormatException {
+              // Keep the original catalog diagnostic below.
+            }
+            if (!playlist) rethrow;
+            return CatalogPreview(
+              url,
+              text,
+              SourceCatalog(
+                sources: const [],
+                references: const [],
+                diagnostics: const [],
+                lives: [LiveCatalogEntry(document.uri.host, url)],
+              ),
+            );
+          }
         } finally {
           stopLifetime();
           stopCaller?.call();
@@ -70,7 +95,10 @@ final class SubscriptionService {
       enableNew: enableNew,
       replaceSources: preview.catalog.sources.isNotEmpty,
     );
-    await _importLives(preview.catalog.lives);
+    await _importLives(
+      preview.catalog.lives,
+      vodSaved: preview.catalog.sources.isNotEmpty,
+    );
   });
 
   Future<void> importLocal(CatalogPreview preview, {bool enableNew = false}) =>
@@ -95,10 +123,19 @@ final class SubscriptionService {
             );
           }
         }, tables: SourceRepository.tables);
-        await _importLives(preview.catalog.lives);
+        await _importLives(
+          preview.catalog.lives,
+          vodSaved: preview.catalog.sources.isNotEmpty,
+        );
       });
 
-  Future<void> _importLives(List<LiveCatalogEntry> entries) async {
+  Future<void> importLiveLists(List<LiveCatalogEntry> entries) =>
+      _track(() => _importLives(entries));
+
+  Future<void> _importLives(
+    List<LiveCatalogEntry> entries, {
+    bool vodSaved = false,
+  }) async {
     final failures = <String>[];
     for (final entry in entries) {
       _cancellation.check();
@@ -118,7 +155,7 @@ final class SubscriptionService {
     }
     if (failures.isNotEmpty) {
       throw PartialCatalogImportException(
-        '已保存点播配置和成功的直播列表，失败的直播列表保留旧内容：${failures.join('、')}',
+        '${vodSaved ? '已保存点播配置和成功的直播列表' : '已保存成功的直播列表'}，失败的直播列表保留旧内容：${failures.join('、')}',
       );
     }
   }
@@ -127,10 +164,12 @@ final class SubscriptionService {
     List<CatalogReference> selected, {
     CancellationToken? cancellation,
     void Function(Uri, Object)? onFailure,
+    bool liveOnly = false,
   }) => _track(() async {
     final result = <CatalogPreview>[];
     final visited = <Uri>{};
     var totalBytes = 0;
+    var totalEntries = 0;
     Future<void> walk(Uri uri, int depth) async {
       _cancellation.check();
       cancellation?.check();
@@ -144,11 +183,13 @@ final class SubscriptionService {
       if (totalBytes > 20 * 1024 * 1024) {
         throw const FormatException('多仓累计体积超过限制');
       }
-      if (result.fold<int>(0, (n, e) => n + e.catalog.sources.length) +
-              item.catalog.sources.length >
-          500) {
+      final count = liveOnly
+          ? item.catalog.lives.length
+          : item.catalog.sources.length;
+      if (totalEntries + count > 500) {
         throw const FormatException('源数量超过 500');
       }
+      totalEntries += count;
       result.add(item);
       for (final child in item.catalog.references) {
         try {

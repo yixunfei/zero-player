@@ -27,6 +27,9 @@ final class LiveAuditDefaults {
       result[id] = row;
       if (row['requestSignature'] is String) {
         result['$id|${row['requestSignature']}'] = row;
+        if (row['listId'] is String) {
+          result['list:${row['listId']}|${row['requestSignature']}'] = row;
+        }
       }
     }
     return result;
@@ -48,7 +51,11 @@ final class LiveAuditDefaults {
           }
         : const <String, Object?>{};
     for (final c in channels) {
-      final row = rows['${c.id}|${channelProbeSignature(c)}'] ?? rows[c.id];
+      final signature = channelProbeSignature(c);
+      final row =
+          rows['${c.id}|$signature'] ??
+          rows['list:${c.listId}|$signature'] ??
+          rows[c.id];
       if (passedOnly &&
           (includeUnlisted || managedListIds.contains(c.listId))) {
         await _applyPreflight(db, c, row, states[c.id], canEnable);

@@ -3,6 +3,7 @@ import '../../supervision/domain/content_classification.dart';
 
 import '../domain/source_catalog.dart';
 import '../domain/source_identity.dart';
+import 'catalog_url.dart';
 import 'jsonc_decoder.dart';
 import 'live_catalog_parser.dart';
 
@@ -12,7 +13,7 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
   const JsonSourceCatalogParser({
     this.maxBytes = 2 * 1024 * 1024,
     this.maxEntries = 500,
-    this.maxReferences = 50,
+    this.maxReferences = 100,
   });
   final int maxBytes;
   final int maxEntries;
@@ -23,13 +24,29 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
     if (utf8.encode(input).length > maxBytes) {
       throw const FormatException('Configuration exceeds byte limit');
     }
-    final decoded = decodeJsonc(input.replaceFirst('\uFEFF', ''));
+    final text = input.replaceFirst('\uFEFF', '');
     final sources = <SourceCandidate>[];
     final references = <CatalogReference>[];
     final diagnostics = <ImportDiagnostic>[];
+    Object? decoded;
+    try {
+      decoded = decodeJsonc(text);
+    } on FormatException {
+      final recovered = recoverLiveCatalogArrays(text);
+      if (recovered.isEmpty) rethrow;
+      decoded = recovered;
+      diagnostics.add(const ImportDiagnostic('配置格式不完整', '仅导入可独立解析的直播与多仓条目'));
+    }
     final seen = <String>{};
-    if (decoded is Map && decoded['urls'] is List) {
-      _references(decoded['urls'] as List, origin, references, diagnostics);
+    if (decoded is Map) {
+      final urls = decoded['urls'];
+      final stores = decoded['storeHouse'];
+      _references(
+        [if (urls is List) ...urls, if (stores is List) ...stores],
+        origin,
+        references,
+        diagnostics,
+      );
     }
     final List rows;
     final bool tvbox;
@@ -43,7 +60,9 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
       rows = decoded['sources'] as List;
       tvbox = false;
     } else if (decoded is Map &&
-        (decoded['urls'] is List || decoded['lives'] is List)) {
+        (decoded['urls'] is List ||
+            decoded['storeHouse'] is List ||
+            decoded['lives'] is List)) {
       rows = [];
       tvbox = false;
     } else {
@@ -86,7 +105,7 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
     final value = tvbox
         ? row['api']
         : row['baseUrl'] ?? row['url'] ?? row['api'];
-    final uri = _url(value, origin);
+    final uri = resolveCatalogUrl(value, origin);
     if (uri == null ||
         uri.path.endsWith('.js') ||
         uri.path.endsWith('.jar') ||
@@ -137,34 +156,13 @@ final class JsonSourceCatalogParser implements SourceCatalogParser {
         diagnostics.add(const ImportDiagnostic('', '子仓不是对象'));
         continue;
       }
-      final uri = _url(row['url'], origin);
-      final name = (row['name'] ?? '未命名子仓').toString();
+      final uri = resolveCatalogUrl(row['url'] ?? row['sourceUrl'], origin);
+      final name = (row['name'] ?? row['sourceName'] ?? '未命名子仓').toString();
       if (uri == null || uri == origin || !seen.add(uri)) {
         diagnostics.add(ImportDiagnostic(name, '无效、重复或自引用的子仓'));
       } else {
         references.add(CatalogReference(name, uri));
       }
     }
-  }
-
-  Uri? _url(Object? value, Uri origin) {
-    if (value is! String || value.trim().isEmpty) return null;
-    if (value.startsWith('csp_') ||
-        value.startsWith('js:') ||
-        value.startsWith('py:')) {
-      return null;
-    }
-    Uri uri;
-    try {
-      uri = origin.resolve(value.trim());
-    } on FormatException {
-      return null;
-    }
-    if (!{'https', 'http'}.contains(uri.scheme) ||
-        uri.host.isEmpty ||
-        uri.userInfo.isNotEmpty) {
-      return null;
-    }
-    return uri;
   }
 }

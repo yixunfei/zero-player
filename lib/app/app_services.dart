@@ -202,10 +202,12 @@ final class AppServices {
     db,
     network,
     defaults: channelAudit,
-    verifyUpdates: (channels, token) => channelPreflight.refresh(
-      channels.where((c) => contentPolicy.channelAllowed(c)).toList(),
-      token,
-    ),
+    verifyUpdates: (channels, token, {force = false}) =>
+        channelPreflight.refresh(
+          channels.where((c) => contentPolicy.channelAllowed(c)).toList(),
+          token,
+          force: force,
+        ),
     policy: contentPolicy,
     authorize: _authorizeChannels,
     canEnable: _canEnableChannels,

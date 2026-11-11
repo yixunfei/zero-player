@@ -313,6 +313,9 @@ flutter build windows --release --no-pub
 
 ## 全量频道预检与冻结目录
 
+直播精选快照随版本维护。选入的直播线路需经应用网络网关，在两次独立请求中各连续解码约 20 秒，并在 30 秒内完成。常规全量预检复测随包线路的媒体响应，保留已发布的精选快照及连续解码证据。2026-11-11 本机入口、媒体和解码证据位于 `build/live-20261111/`，当前结果见 [实施状态](STATUS.md)。
+
+
 维护时依次运行，不与其他 Flutter 测试或构建并发（Windows 原生 SQLite 资源会被检测进程占用）：
 
 ~~~powershell
@@ -324,6 +327,6 @@ python tool/finalize_channel_preflight.py
 
 本轮文件名统一为 build/preflight-user-before-20261030.sqlite。本机缓存补测会复用同一轮且不足 24 小时的完全相同 URL/请求头证据，并保存检查点。源站 TCP/TLS 两次均无法连接时，共享该源站的连接失败证据，逐频道记录为未确定，不伪造 HTTP 状态。维护检测使用独立的 32 路工作队列、同源最多 16 条连接；应用默认连接限制不变。每个实际媒体请求仍有 128 KiB / 8 秒网络预算，未确认结果再试一次。
 
-冻结脚本校验每个频道全部线路证据，使用 ID + 请求摘要保留多版本，只把摘要与通过线路序号写进 assets/live_channel_audit.json；原始 URL/请求头不从本机副本发布。公开快照保存到 assets/catalogs/live/builtin.snapshots.json，广播快照保存到原有 cn.snapshot.json。
+冻结脚本校验每个频道全部线路证据，使用 ID + 请求摘要保留多版本，只把摘要与通过线路序号写进 assets/live_channel_audit.json；原始 URL/请求头不从本机副本发布。广播预检更新原有 cn.snapshot.json。直播精选快照保存在 assets/catalogs/live/builtin.snapshots.json，由专项连续解码验收更新。
 
 向本机应用检测结果前再次运行 backup_database.py 创建新的一致性备份，之后显式调用 tool/apply_channel_preflight.dart，提供 PREFLIGHT_TARGET 与 PREFLIGHT_BACKUP。它只更新频道健康状态，不更改来源、收藏、监管或账户配置；变化后的请求重新进入待复检。已启用的监管仍限制恢复操作。最后串行运行完整测试、原生检查及普通 Release，详见上节入口。

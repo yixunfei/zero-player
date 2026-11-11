@@ -5,6 +5,29 @@ import 'package:zero_player/features/playback/domain/player_engine.dart';
 void main() {
   _pauseAndProgressTests();
   _warningTests();
+  testWidgets(
+    'live startup and EOF trigger failover without waiting for VOD timeout',
+    (tester) async {
+      var stalled = 0;
+      final health = PlaybackHealth(
+        onStalled: () => stalled++,
+        onProgress: () {},
+      );
+      health.observe(const PlaybackSnapshot(), enabled: true, live: true);
+      await tester.pump(const Duration(seconds: 11));
+      expect(stalled, 0);
+      await tester.pump(const Duration(seconds: 1));
+      expect(stalled, 1);
+      health.reset();
+      health.observe(
+        const PlaybackSnapshot(completed: true),
+        enabled: true,
+        live: true,
+      );
+      expect(stalled, 2);
+      health.dispose();
+    },
+  );
 }
 
 void _pauseAndProgressTests() {

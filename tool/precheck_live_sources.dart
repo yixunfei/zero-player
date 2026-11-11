@@ -81,7 +81,9 @@ void main() {
         'results': results,
       };
       final text = const JsonEncoder.withIndent('  ').convert(report);
-      await File('assets/live_precheck.json').writeAsString(text);
+      if ((input['version'] as int? ?? 0) < 3) {
+        await File('assets/live_precheck.json').writeAsString(text);
+      }
       await File(
         'artifacts/interaction-live-precheck.json',
       ).writeAsString(text);

@@ -52,6 +52,7 @@ class ChannelAudit {
   );
   final channels = <LiveChannel>[];
   final snapshots = <Map<String, Object?>>[];
+  bool _hasCuratedSnapshots = false;
   final sources = <Map<String, Object?>>[];
   final results = <Map<String, Object?>>[];
   final cache = <String, Future<Map<String, Object?>>>{};
@@ -66,6 +67,18 @@ class ChannelAudit {
         (jsonDecode(await File('assets/live_candidates.json').readAsString())
                 as Map)['lists']
             as List;
+    final snapshotAsset =
+        jsonDecode(
+              await File(
+                'assets/catalogs/live/builtin.snapshots.json',
+              ).readAsString(),
+            )
+            as Map;
+    final curated = {
+      for (final row in (snapshotAsset['lists'] as List).cast<Map>())
+        if (row['revision'] != null) row['url']: row,
+    };
+    _hasCuratedSnapshots = curated.isNotEmpty;
     for (final entry in [
       ...lists,
       {'name': '内置广播', 'url': builtinRadioUrl, 'radio': true},
@@ -73,12 +86,18 @@ class ChannelAudit {
       final url = Uri.parse(entry['url'] as String);
       final headers = Map<String, String>.from(entry['headers'] as Map? ?? {});
       try {
-        final doc = await DocumentClient(http).get(
-          url,
-          headers: headers,
-          maxBytes: 8 * 1024 * 1024,
-          networkTimeout: const Duration(seconds: 20),
-        );
+        final frozen = curated['$url'];
+        final doc = frozen != null
+            ? Document(
+                Uri.parse(frozen['base'] as String),
+                utf8.encode(frozen['text'] as String),
+              )
+            : await DocumentClient(http).get(
+                url,
+                headers: headers,
+                maxBytes: 8 * 1024 * 1024,
+                networkTimeout: const Duration(seconds: 20),
+              );
         final listId = stableId('$url');
         final parsed = entry['radio'] == true
             ? RadioSnapshot(
@@ -294,11 +313,13 @@ class ChannelAudit {
     };
     final text = const JsonEncoder.withIndent('  ').convert(data);
     await File('build/channel-preflight-full.json').writeAsString(text);
-    await File('assets/catalogs/live/builtin.snapshots.json').writeAsString(
-      jsonEncode({
-        'lists': snapshots.where((s) => s['radio'] != true).toList(),
-      }),
-    );
+    if (!_hasCuratedSnapshots) {
+      await File('assets/catalogs/live/builtin.snapshots.json').writeAsString(
+        jsonEncode({
+          'lists': snapshots.where((s) => s['radio'] != true).toList(),
+        }),
+      );
+    }
     final radio = snapshots.where((s) => s['radio'] == true).single;
     await File(
       'assets/catalogs/radio/cn.snapshot.json',

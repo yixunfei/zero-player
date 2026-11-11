@@ -4,6 +4,7 @@ import '../data/live_audit_defaults.dart';
 import '../data/live_health_repository.dart';
 import '../domain/channel_probe_signature.dart';
 import '../domain/live_channel.dart';
+import '../domain/live_health.dart';
 import 'live_probe.dart';
 
 /// Applies the bundled evidence, then verifies changed or failed channels on update.
@@ -28,8 +29,9 @@ final class ChannelPreflight {
 
   Future<void> refresh(
     List<LiveChannel> channels,
-    CancellationToken? caller,
-  ) async {
+    CancellationToken? caller, {
+    bool force = false,
+  }) async {
     await prepare(channels);
     final token = caller ?? CancellationToken();
     final states = {
@@ -41,7 +43,8 @@ final class ChannelPreflight {
     final queue = channels.where((c) {
       final state = states[c.id];
       return state?['removed'] != true &&
-          (state?['pendingValidation'] == true ||
+          (force ||
+              state?['pendingValidation'] == true ||
               state?['requestSignature'] != channelProbeSignature(c) ||
               state?['availability'] != 'responding' ||
               DateTime.now().millisecondsSinceEpoch -
@@ -77,7 +80,12 @@ final class ChannelPreflight {
     var cursor = 0;
     Future<void> worker() async {
       while (cursor < queue.length && !token.isCancelled) {
-        await probe.check(queue[cursor++], token);
+        final channel = queue[cursor++];
+        final evidence = LiveHealth.decode(
+          jsonEncode(states[channel.id]),
+          channel.urls,
+        );
+        await probe.check(channel.withHealth(evidence), token);
       }
     }
 

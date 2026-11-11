@@ -24,10 +24,15 @@ List<LiveChannel> mergeChannelAliases(List<LiveChannel> channels) {
 LiveChannel _merge(List<LiveChannel> members) {
   if (members.length == 1) return members.single;
   members.sort((a, b) {
-    if (a.urls.isEmpty != b.urls.isEmpty) return a.urls.isEmpty ? 1 : -1;
+    final aEmpty = a.urls.isEmpty;
+    final bEmpty = b.urls.isEmpty;
+    if (aEmpty != bEmpty) return aEmpty ? 1 : -1;
     final aOk = a.health.availability == LiveAvailability.responding;
     final bOk = b.health.availability == LiveAvailability.responding;
     if (aOk != bOk) return aOk ? -1 : 1;
+    final aFailed = a.health.availability == LiveAvailability.unavailable;
+    final bFailed = b.health.availability == LiveAvailability.unavailable;
+    if (aFailed != bFailed) return aFailed ? 1 : -1;
     final latency = (a.health.latencyMs ?? 999999).compareTo(
       b.health.latencyMs ?? 999999,
     );
@@ -64,7 +69,12 @@ LiveChannel _merge(List<LiveChannel> members) {
     tvgId: first.tvgId,
     headers: first.headers,
     metadata: first.metadata,
-    urls: {for (final c in members) ...c.playbackUrls}.toList(),
+    urls: {
+      for (final c in members)
+        if (!c.health.enabled ||
+            c.health.availability != LiveAvailability.unavailable)
+          ...c.playbackUrls,
+    }.toList(),
     favorite: members.any((c) => c.favorite),
     recent: watched.isNotEmpty,
     watchedAt: watched.lastOrNull,

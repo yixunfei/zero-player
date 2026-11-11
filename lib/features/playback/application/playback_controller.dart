@@ -616,6 +616,7 @@ final class PlaybackController extends ChangeNotifier {
     _health.observe(
       next,
       enabled: !_userPaused && !_suspended && _resume == null,
+      live: isLive,
     );
     if (_resumeRejected) return;
     if (_resume != null && next.duration > Duration.zero && !next.buffering) {
@@ -1392,21 +1393,23 @@ final class PlaybackController extends ChangeNotifier {
     if (notice?.startsWith('正在尝试恢复') ?? false) notice = null;
   }
 
+  int get _recoveryLimit => isLive ? (line.episodes.length - 1).clamp(1, 3) : 2;
+
   void _scheduleRecovery() {
     if (_closed ||
         _recoveryCancelled ||
         blocked ||
         _userPaused ||
         _suspended ||
-        _recoveryAttempts >= 2 ||
         request == null ||
+        _recoveryAttempts >= _recoveryLimit ||
         request!.offline != null ||
         recovering) {
       return;
     }
     final generation = _generation;
     _recoveryAttempts++;
-    notice = '正在尝试恢复（$_recoveryAttempts / 2），可停止';
+    notice = '正在尝试恢复（$_recoveryAttempts / $_recoveryLimit），可停止';
     _recoveryTimer = Timer(
       Duration(seconds: _recoveryAttempts),
       () => unawaited(_recover(generation)),
@@ -1421,14 +1424,12 @@ final class PlaybackController extends ChangeNotifier {
       !_userPaused;
 
   Future<void> _recover(int generation) async {
-    if (!_recoveryIsCurrent(generation) || _suspended || request == null) {
-      return;
-    }
+    if (!_recoveryIsCurrent(generation) || request == null) return;
     final current = request!;
     final saved = _resume ?? _recoveryPosition ?? originalPosition;
     final rate = engine.snapshot.rate;
     diagnostics.add(
-      '自动恢复 $_recoveryAttempts / 2，保留进度 ${saved.inMilliseconds} ms',
+      '自动恢复 $_recoveryAttempts / $_recoveryLimit，保留进度 ${saved.inMilliseconds} ms',
     );
     final previousLine = line.name;
     final previousEpisode = episode.label;

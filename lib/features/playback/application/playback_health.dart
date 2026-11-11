@@ -13,8 +13,12 @@ final class PlaybackHealth {
   bool _active = false;
   bool _reported = false;
 
-  void observe(PlaybackSnapshot state, {required bool enabled}) {
-    if (!enabled || state.completed) {
+  void observe(
+    PlaybackSnapshot state, {
+    required bool enabled,
+    bool live = false,
+  }) {
+    if (!enabled || state.completed && !live) {
       reset();
       return;
     }
@@ -22,7 +26,7 @@ final class PlaybackHealth {
         (_watch == null && (state.playing || state.buffering)) ||
         state.position > _position + const Duration(milliseconds: 200)) {
       _watch?.cancel();
-      _watch = Timer(const Duration(seconds: 25), _stall);
+      _watch = Timer(Duration(seconds: live ? 12 : 25), _stall);
       _position = state.position;
       if (_active && !state.buffering && state.playing) {
         _warning?.cancel();
@@ -33,11 +37,12 @@ final class PlaybackHealth {
     }
     // Track previews/capture also pause the engine without a user toggle.
     // Keep a pending native warning, but don't turn a quiet pause into a stall.
-    if (!state.playing && !state.buffering) {
+    if (!live && !state.playing && !state.buffering) {
       _watch?.cancel();
       _watch = null;
     }
     _active = true;
+    if (live && state.completed) _stall();
   }
 
   void warn() {

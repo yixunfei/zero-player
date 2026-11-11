@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/core/network/document_client.dart';
 import 'package:zero_player/core/network/media_http_client.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
 import 'package:zero_player/features/live/application/builtin_live_sources.dart';
 import 'package:zero_player/features/live/data/live_repository.dart';
+import 'package:zero_player/features/live/data/live_audit_defaults.dart';
 import 'package:zero_player/features/sources/application/builtin_sources.dart';
 import 'package:zero_player/features/sources/data/source_repository.dart';
 import 'package:zero_player/features/settings/data/backup_service.dart';
@@ -17,51 +19,8 @@ void main() {
   HttpOverrides.global = null;
   _refreshRaceTest();
   _backupHeadersTest();
-  test(
-    'builtin expansion preserves old overrides and restores removed live lists explicitly',
-    () async {
-      final db = AppDatabase.memory();
-      final http = MediaHttpClient(allowPrivateNetworks: true);
-      try {
-        final sources = SourceRepository(db);
-        final builtins = BuiltinSources(sources);
-        await builtins.initialize();
-        final old = (await sources.all()).first;
-        await sources.batch([old.id], enabled: false, suppressed: true);
-        await db.write(
-          "UPDATE app_meta SET value='1' WHERE key='builtin_sources'",
-        );
-        await builtins.initialize();
-        expect((await sources.find(old.id))!.suppressed, isTrue);
-        expect(
-          (await sources.all()).map((s) => s.kind),
-          containsAll(['kanju', 'macCmsHtml']),
-        );
-        final live = LiveRepository(db, DocumentClient(http));
-        final builtinLive = BuiltinLiveSources(live);
-        await builtinLive.initialize();
-        final lists = await live.lists();
-        expect(lists.length, 12);
-        expect(
-          lists.map((r) => r['url']),
-          containsAll([
-            'https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u',
-            'https://m3u.ibert.me/cn.m3u',
-            'https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u',
-            'https://raw.githubusercontent.com/ssili126/tv/main/itvlist.m3u',
-          ]),
-        );
-        await live.removeList(lists.first['id'] as String);
-        await builtinLive.initialize();
-        expect((await live.lists()).length, 11);
-        await builtinLive.initialize(restore: true);
-        expect((await live.lists()).length, 12);
-      } finally {
-        http.close();
-        await db.close();
-      }
-    },
-  );
+  _builtinInitializationTest();
+  _upgradeTest();
   test(
     'invalid or empty refresh cannot erase an existing live snapshot',
     () async {
@@ -88,6 +47,127 @@ void main() {
         http.close();
         await db.close();
       }
+    },
+  );
+}
+
+void _builtinInitializationTest() {
+  test(
+    'builtin expansion preserves old overrides and restores removed live lists explicitly',
+    () async {
+      final db = AppDatabase.memory();
+      final http = MediaHttpClient(allowPrivateNetworks: true);
+      try {
+        final sources = SourceRepository(db);
+        final builtins = BuiltinSources(sources);
+        await builtins.initialize();
+        final old = (await sources.all()).first;
+        await sources.batch([old.id], enabled: false, suppressed: true);
+        await db.write(
+          "UPDATE app_meta SET value='1' WHERE key='builtin_sources'",
+        );
+        await builtins.initialize();
+        expect((await sources.find(old.id))!.suppressed, isTrue);
+        expect(
+          (await sources.all()).map((s) => s.kind),
+          containsAll(['kanju', 'macCmsHtml']),
+        );
+        final live = LiveRepository(
+          db,
+          DocumentClient(http),
+          defaults: LiveAuditDefaults.bundled(),
+        );
+        final builtinLive = BuiltinLiveSources(live);
+        final asset =
+            jsonDecode(
+                  await rootBundle.loadString('assets/live_candidates.json'),
+                )
+                as Map;
+        final expected = (asset['lists'] as List)
+            .map((row) => row['url'])
+            .toSet();
+        await builtinLive.initialize();
+        final lists = await live.lists();
+        expect(lists.map((r) => r['url']).toSet(), expected);
+        expect(
+          lists.every((r) => r['snapshot'] is String && r['enabled'] == 1),
+          isTrue,
+        );
+        final precheck =
+            jsonDecode(await rootBundle.loadString('assets/live_precheck.json'))
+                as Map;
+        final channels = await live.channels();
+        expect(channels.length, precheck['channels']);
+        expect(
+          channels.every(
+            (channel) =>
+                channel.health.enabled && channel.playbackUrls.isNotEmpty,
+          ),
+          isTrue,
+        );
+        final urls = channels
+            .expand((channel) => channel.playbackUrls)
+            .toList();
+        expect(urls.toSet().length, precheck['routes']);
+        expect(urls.toSet().length, urls.length);
+        await live.removeList(lists.first['id'] as String);
+        await builtinLive.initialize();
+        expect((await live.lists()).length, expected.length - 1);
+        await builtinLive.initialize(restore: true);
+        expect((await live.lists()).length, expected.length);
+      } finally {
+        http.close();
+        await db.close();
+      }
+    },
+  );
+}
+
+void _upgradeTest() {
+  test(
+    'upgrade retires legacy built-ins and replaces only managed snapshots',
+    () async {
+      final db = AppDatabase.memory();
+      final http = MediaHttpClient();
+      addTearDown(() async {
+        http.close();
+        await db.close();
+      });
+      final live = LiveRepository(db, DocumentClient(http));
+      final builtin = BuiltinLiveSources(live);
+      addTearDown(builtin.close);
+      final catalog =
+          jsonDecode(await rootBundle.loadString('assets/live_candidates.json'))
+              as Map;
+      final retired = Uri.parse((catalog['retired'] as List).first);
+      final kept = Uri.parse((catalog['lists'] as List).first['url']);
+      const old = 'OLD,https://test.example/media';
+      await live.importText('Old', retired, old);
+      await live.importText('Kept', kept, old);
+      final own = Uri.parse('https://local.test/own');
+      await live.importText('Own', own, old);
+      final before = {
+        for (final row in await live.lists()) row['url']: row['id'],
+      };
+      for (final uri in [retired, kept]) {
+        await db.write('INSERT INTO app_meta VALUES(?,?)', [
+          'builtin_live:${before['$uri']}',
+          '1',
+        ]);
+      }
+      await builtin.initialize();
+      final after = {for (final row in await live.lists()) row['url']: row};
+      expect(after['$retired']!['enabled'], 0);
+      expect(after['$retired']!['snapshot'], old);
+      expect(after['$kept']!['snapshot'], isNot(old));
+      expect(after['$own']!['snapshot'], old);
+      expect(after['$own']!['enabled'], 1);
+      await live.setListEnabled(after['$retired']!['id'] as String, true);
+      await builtin.initialize();
+      final restored = (await live.lists()).firstWhere(
+        (row) => row['url'] == '$retired',
+      );
+      expect(restored['enabled'], 1);
     },
   );
 }

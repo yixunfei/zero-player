@@ -14,11 +14,14 @@ final class BuiltinLiveSources {
     await _refresh;
   }
 
+  late final Future<Map> _catalog = _loadCatalog();
+
+  Future<Map> _loadCatalog() async =>
+      jsonDecode(await rootBundle.loadString('assets/live_candidates.json'))
+          as Map;
+
   Future<List<Map>> _entries() async =>
-      ((jsonDecode(await rootBundle.loadString('assets/live_candidates.json'))
-                  as Map)['lists']
-              as List)
-          .cast<Map>();
+      ((await _catalog)['lists'] as List).cast<Map>();
 
   Future<void> initialize({bool restore = false}) async {
     final entries = await _entries();
@@ -43,6 +46,7 @@ final class BuiltinLiveSources {
           'SELECT id FROM live_lists WHERE id=?',
           [id],
         );
+        if (existing.isNotEmpty && seen.isEmpty) continue;
         final enabled =
             (repository.canEnable?.call() ?? true) &&
             (defaults[entry['url']] ?? true);
@@ -68,6 +72,40 @@ final class BuiltinLiveSources {
       }
     });
     await _seedSnapshots();
+    await _retireLists();
+  }
+
+  Future<void> _retireLists() async {
+    final catalog = await _catalog;
+    final retired = (catalog['retired'] as List? ?? []).cast<String>();
+    final migration = 'builtin_live_retired:${catalog['version']}';
+    await repository.db.atomic(() async {
+      if ((await repository.db.rows('SELECT key FROM app_meta WHERE key=?', [
+        migration,
+      ])).isNotEmpty) {
+        return;
+      }
+      for (final url in retired) {
+        final id = stableId(url);
+        if ((await repository.db.rows('SELECT key FROM app_meta WHERE key=?', [
+          'builtin_live:$id',
+        ])).isEmpty) {
+          continue;
+        }
+        await repository.db.customStatement(
+          'INSERT OR REPLACE INTO app_meta VALUES(?,?)',
+          ['live_list_enabled:$id', 'false'],
+        );
+        await repository.db.customStatement(
+          'UPDATE live_lists SET error=? WHERE id=?',
+          ['已从内置精选停用，可手动启用旧订阅', id],
+        );
+      }
+      await repository.db.customStatement('INSERT INTO app_meta VALUES(?,?)', [
+        migration,
+        '1',
+      ]);
+    });
   }
 
   Future<void> _seedSnapshots() async {
@@ -78,7 +116,25 @@ final class BuiltinLiveSources {
     final lists = {for (final row in await repository.lists()) row['url']: row};
     for (final snapshot in snapshots.cast<Map>()) {
       final row = lists[snapshot['url']];
-      if (row == null || row['snapshot'] != null) continue;
+      if (row == null) continue;
+      final id = row['id'] as String;
+      final revision = snapshot['revision'] as int?;
+      if (revision == null && row['snapshot'] != null) continue;
+      if (revision != null) {
+        final meta = await repository.db.rows(
+          'SELECT key,value FROM app_meta WHERE key IN (?,?)',
+          ['builtin_live:$id', 'builtin_live_curated:$id'],
+        );
+        if (!meta.any((r) => r['key'] == 'builtin_live:$id')) continue;
+        if (row['snapshot'] != null &&
+            meta.any(
+              (r) =>
+                  r['key'] == 'builtin_live_curated:$id' &&
+                  r['value'] == '$revision',
+            )) {
+          continue;
+        }
+      }
       await repository.importText(
         snapshot['name'] as String,
         Uri.parse(snapshot['url'] as String),
@@ -88,10 +144,8 @@ final class BuiltinLiveSources {
         existingOnly: true,
         verify: false,
         cancellation: _token,
-      );
-      await repository.db.write(
-        'UPDATE live_lists SET updated_at=? WHERE id=?',
-        [snapshot['updatedAt'], row['id']],
+        packagedAt: snapshot['updatedAt'] as int?,
+        curatedRevision: revision,
       );
     }
   }

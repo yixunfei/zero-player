@@ -1,8 +1,8 @@
 {
   "version": 2,
   "passedOnly": true,
-  "checkedAt": "2026-10-30T13:36:23.182177+00:00",
-  "scope": "Full public built-in lists and local cached channels; every route tested; failed and inconclusive disabled until recovery test passes.",
+  "checkedAt": "2026-11-11T02:18:14.218410+00:00",
+  "scope": "Curated live routes passed two gateway video decode samples. Other evidence retains its original media-response scope and timestamps.",
   "managedListIds": [
     "000a256a0baeb833ca62a7e0c4e6cb50351bf18f6d74ec840a82b360a7ccc386",
     "08ae9c470419929508442e716546cd1be4a8369bf4bd3310a89e956c9e1f39d9",
@@ -16,12 +16,16 @@
     "a80070047d71f47a6c7c8a415286db0b27f4d8ff0cf06cde11107fcaa08cebee",
     "ab938de16e0d3d1c5cddc187c1e6131b2304f8f956191797fcf6d2b15b8a5de3",
     "b42d6380e935f40e7f0567e4cf65c0033c09eceb22468737cfbf137c3e7e68b9",
-    "e1e3c32ccfe7e442703cd0e4e5278ac758d1d227b7773fd249ec8bf89adbbb2d"
+    "e1e3c32ccfe7e442703cd0e4e5278ac758d1d227b7773fd249ec8bf89adbbb2d",
+    "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+    "63e2550be8abe2e8b0f32f50017f49fcd1ff3108a2548d531a87affa0e607c01",
+    "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+    "4dd8e61e7e993c475df06ef8a573db331d1bfc509f867875bd6d1922f1ab732f"
   ],
   "counts": {
-    "responding": 2241,
+    "responding": 2306,
     "unavailable": 679,
-    "inconclusive": 2045
+    "inconclusive": 2044
   },
   "sources": [
     {
@@ -3919,20 +3923,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "106fdbb7f552bb81b8d4d8d23ae863dc2f4e54d8803d48128b826163322cc5bd",
-      "requestSignature": "4264d9dfe62f120104b5d1c0756f87ba6c1ed040bd611f97083533e399d24024",
-      "checkedAt": 1793363322122,
-      "availability": "responding",
-      "latencyMs": 548,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "10791b802ebcfeaabb5d2f8add6ec5ec1d61a2355c71359133115bdb7239e83f",
       "requestSignature": "56fa3eb1b1fbe8c7d1b880e94c49af358a4e8c08c865e11afd485046b5f35d54",
       "checkedAt": 1793364278685,
@@ -5405,20 +5395,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "15e1ca2384e007c69e34b6d8725c5a490c78af6776035cd9904a76c6ee28b7bd",
-      "requestSignature": "a7eda4fa9c94a6318b39c65056eeec79c370d58a815069b8dbf9d9b5a46bcaeb",
-      "checkedAt": 1793363553649,
-      "availability": "responding",
-      "latencyMs": 279,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "15e6a38123791236ce612ebe746596577113715ebf40a02aaf748b6325e5a53d",
       "requestSignature": "f3aed9dd613009b5f5b72def7add1f2a5fc1ff5f3358fcfe406df91183df5d63",
       "checkedAt": 1793364325116,
@@ -6829,20 +6805,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "1b61d983408a42c1d5f3ec32b00de79a3109847376230040b9a581f8480492ba",
-      "requestSignature": "450bb9bdd9888da602c8c4cbe0b24afa53c730a5f941efcd59e3aefddf4ab13b",
-      "checkedAt": 1793363306912,
-      "availability": "responding",
-      "latencyMs": 420,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        1
-      ],
-      "preferredIndex": 1
-    },
-    {
       "id": "1b796d3edf112b3a04e663fafac9ed88729c46c868781e28073e1ef7f31d0864",
       "requestSignature": "d7d82d6a09097e0452705dfaa73407d8da78c021174f311b75a6a7e37525aa59",
       "checkedAt": 1793365826398,
@@ -7717,21 +7679,6 @@
       "languages": [],
       "verifiedIndices": [
         0
-      ],
-      "preferredIndex": 0
-    },
-    {
-      "id": "1ead889c1c69c36292e13ed08cc2dfe3e8b8fdc53d268ee3a4738b2bac5ec117",
-      "requestSignature": "dfd2afdab261be467ebab2e26fa3ab2952c955e9148f46a19d812beb867110bd",
-      "checkedAt": 1793363308372,
-      "availability": "responding",
-      "latencyMs": 338,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0,
-        1
       ],
       "preferredIndex": 0
     },
@@ -9485,21 +9432,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "25cd502474d590425b42b3e5915c97f7d5aa7d3f7f009625ed2fa98d3da84aa0",
-      "requestSignature": "75f2399defcf5177ba9e9efe066afb99ae0516757b01f3614cefae673671c27a",
-      "checkedAt": 1793363554069,
-      "availability": "responding",
-      "latencyMs": 97,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0,
-        1
-      ],
-      "preferredIndex": 1
     },
     {
       "id": "25d180b1436a66b8895882ec4871cfdb453f22284636c8e24bd4851577bc6a0b",
@@ -12315,20 +12247,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "30de04d0c710957fba5e7ce94d4aebdf518b68da77f227d98c962e8483ae3569",
-      "requestSignature": "4728b5eb48b58dad05fc840f2cc1abf5b5c0bf7db91f6e5596b0c41fc6955cf0",
-      "checkedAt": 1793363302523,
-      "availability": "responding",
-      "latencyMs": 943,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": "1920x1080",
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "30ef5e46fb5b5dbb20482a8d86e92d3eade41e815ae2290c91f67b006fdbbd48",
       "requestSignature": "36b3af294e4f9fbfd299d581971b57f25110b0194f2fd0404c3aa9930665b23d",
       "checkedAt": 1793365339471,
@@ -14589,20 +14507,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "39825da2b0de793d5b64dc8850e6f8b777c2f6e6bded697fa68676f69ad3b920",
-      "requestSignature": "7e9617a2d8d586d4299c65b35c02688613fa8bab1f207ed7273be0acd1c0c6cb",
-      "checkedAt": 1793363324976,
-      "availability": "responding",
-      "latencyMs": 378,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "3984e930ea19f2534a7915e705a303877ff1d4ffbfedc0e0672977175e154fda",
@@ -17389,20 +17293,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "4400eb467a42747974fc23fc26dc2142c8878da9c03780006793c6b14a314fcc",
-      "requestSignature": "71ae88f90bf58be0af47e525d5bb849b4f6c4d1ff51f6d7430b7e9fcbb037139",
-      "checkedAt": 1793363553369,
-      "availability": "responding",
-      "latencyMs": 58,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "440bca7161a40984f1cee77f8c1c7580ca95a17d8440f1dff3f7a2265c8c4559",
@@ -21850,20 +21740,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "556ebff3819b9b8c3ef91520d7ed1d086fae13475c33eb09d750f6b40ffcb9a9",
-      "requestSignature": "0fa0102a6f5a95cf0b263947ef2531a26b5ce7d78d242c13aa45f12db37ae8ed",
-      "checkedAt": 1793363303479,
-      "availability": "responding",
-      "latencyMs": 1898,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "5573de9f0085a003d644c6f6fd5ef87987fc21e9f69434ab32aafb628bb25a01",
       "requestSignature": "b5c472a0ac3d518d5e143ab82a8b15193549eb515f6421b05719d27ab5c402f9",
       "checkedAt": 1793363378817,
@@ -24536,20 +24412,6 @@
       "checkedAt": 1793365622017,
       "availability": "responding",
       "latencyMs": 4179,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
-      "id": "60b16be8a4860f5953aeaf32e8be1d5b4ba0e35d6ab4ef689c5b6436b418f8eb",
-      "requestSignature": "80a29c129827ccb98c66f36eda3f0d964b519a77480b5d8516383abfe6743370",
-      "checkedAt": 1793363483289,
-      "availability": "responding",
-      "latencyMs": 864,
       "message": "随包预检通过（媒体响应，非完整解码）",
       "resolution": null,
       "languages": [],
@@ -30592,20 +30454,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "79a084ad80cd44a9485e3c67c78c5f88d42f4ec424a40a98a7f13929fcfcfb9d",
-      "requestSignature": "b705f32241d024eee5cd23fe3a2e5af6ce36db26013169c5416da7f63d73f064",
-      "checkedAt": 1793363306671,
-      "availability": "responding",
-      "latencyMs": 337,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "79a77f6d1bacad9e0228f8fa4019c4977c5e2ceaae93f50af8a047bcaf024739",
       "requestSignature": "4333065870a3c61a5b8afec9657672f3ddb872e136eda3e9e36688affdfa82fb",
       "checkedAt": 1793364317567,
@@ -31141,18 +30989,6 @@
       "id": "7ba8efb41d230901b84542cdc93124b63cc625f635a6f338a016cd5dd5f1cc89",
       "requestSignature": "c9be3336a3087ea61b55e67c7c2cd528ea282782b867ed055b7d864c007f3856",
       "checkedAt": 1793366088756,
-      "availability": "inconclusive",
-      "latencyMs": null,
-      "message": "随包预检：两次检测未确认媒体可用，等待复检",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [],
-      "preferredIndex": null
-    },
-    {
-      "id": "7ba9afc460be334b7accf99772f7e4dc8421913401c9bbfb541398779f3e457c",
-      "requestSignature": "e5f694e41f18319f7744677ea487a56ded3cfbb0acf6e74bff1bdc5b057f706e",
-      "checkedAt": 1793363325611,
       "availability": "inconclusive",
       "latencyMs": null,
       "message": "随包预检：两次检测未确认媒体可用，等待复检",
@@ -33105,20 +32941,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "84b8c940d11b9b9d73330fb3e7ce762770f04d59c83b5e0b42d10d28450ce8f3",
-      "requestSignature": "d8e9e527874317a52b75117ea8604ed428e41b521b1cc5a91e79bc332fdeef21",
-      "checkedAt": 1793366990372,
-      "availability": "responding",
-      "latencyMs": 180,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "84be4239c707724940b5db812d079df98e0a540a285173d39e15044c2ebc224b",
@@ -35839,20 +35661,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "8ebe034266179cc6e8f706ac772a95391a20241086eea499e58deb0437908ef6",
-      "requestSignature": "86c972de7cd3a5d5dd885d4d7d6e16bf141121cc0e5b4ff55588a4b3d35269c0",
-      "checkedAt": 1793363304942,
-      "availability": "responding",
-      "latencyMs": 3361,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "8ed372c4c534763f22d3cc5eee1f02417543716de34ad57425e87473e552fe93",
       "requestSignature": "b14fe04841f3d92e551e5e688c35a8d345903fc74f3978de0c074b3646bffe9c",
       "checkedAt": 1793364330037,
@@ -35891,20 +35699,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "8f2563a401aa89406d93f9421f12debd2d8467be0f0dcc1abfb62ca8fcafe9ca",
-      "requestSignature": "662c6b2e696553cc07f637116e47d1969a133984f12cc6c8099987409b1bff23",
-      "checkedAt": 1793363554090,
-      "availability": "responding",
-      "latencyMs": 441,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "8f2f9d9f6b15e3436c0c65291e9005bf9fa1e05ff58472d8fea974efc3e44a81",
@@ -37518,20 +37312,6 @@
       "checkedAt": 1793365753138,
       "availability": "responding",
       "latencyMs": 3171,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
-      "id": "9504b67e2764c1376b292529a8d91e502f67f480a57f677eb9016eea154a8163",
-      "requestSignature": "9e4ef005860449b5fc1323acd7f79f0ff35b3af47335315447a06ffd7f4c4d5c",
-      "checkedAt": 1793363307537,
-      "availability": "responding",
-      "latencyMs": 662,
       "message": "随包预检通过（媒体响应，非完整解码）",
       "resolution": null,
       "languages": [],
@@ -41978,20 +41758,6 @@
       "preferredIndex": null
     },
     {
-      "id": "a6a5d0791bff8b868ed7726ff6c16b768d0918de6c2303b406ef779e794d97f5",
-      "requestSignature": "9bd69ae9b2b7ba3538b425f603fad528b33369d8167730ef180581769be0262b",
-      "checkedAt": 1793363305571,
-      "availability": "responding",
-      "latencyMs": 1750,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "a6ad8cc5f687443780283f3bd69ff015af4fb8aad7c408032e5eaa7b23a68cdb",
       "requestSignature": "25b05fcbe6074b218cb614eeb5ccc80c52656087cf013976a34d3209708cb4bb",
       "checkedAt": 1793366689381,
@@ -44897,20 +44663,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "b292b41cc8c575215f335a8efffb44e96ca5f04e049f8a64aef1068fb0755850",
-      "requestSignature": "00426e898977dc7b26911912adfb789d3c0524684a3d511583bccf426052d03b",
-      "checkedAt": 1793363306402,
-      "availability": "responding",
-      "latencyMs": 1825,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        1
-      ],
-      "preferredIndex": 1
-    },
-    {
       "id": "b2af41523a81df8136838e3a8e31eb72d4cb58c3481bae8797e96c4325da653e",
       "requestSignature": "a4f48d7778e5870f7f019fe7e2697141017a27a41861d2236d5cf261c61a0f51",
       "checkedAt": 1793364301615,
@@ -46394,35 +46146,6 @@
       "checkedAt": 1793364250554,
       "availability": "responding",
       "latencyMs": 711,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
-      "id": "b9143a13415be6e36e1e83858aafef82ef282952d07f5243a258b65879f13d84",
-      "requestSignature": "5984730799ade1f172fde15e2e2ae16a8f61176eef6ed849aa073045d9af6733",
-      "checkedAt": 1793363314523,
-      "availability": "responding",
-      "latencyMs": 218,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        2,
-        3
-      ],
-      "preferredIndex": 3
-    },
-    {
-      "id": "b923569f8f5fb3240916f50c856487c8cf818b8c5d4fb6ff4991737ea974f2b5",
-      "requestSignature": "13a9a12df418bc0455ac6659865b5d021f935b8215f11a6412a0159ac07ae6a5",
-      "checkedAt": 1793363554074,
-      "availability": "responding",
-      "latencyMs": 285,
       "message": "随包预检通过（媒体响应，非完整解码）",
       "resolution": null,
       "languages": [],
@@ -49678,20 +49401,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "c746dc825c3f07b682d55f94c4f990ba2791bdaa770aeb1895f4cd0cb152fbea",
-      "requestSignature": "13c56642812c805883e2c24014648886eb6a4a5eb1c512887d096318a93d8175",
-      "checkedAt": 1793363308592,
-      "availability": "responding",
-      "latencyMs": 339,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "c74a04e6872fb05b2f277f470b072e7a2b9e5768784730fbaa34ca373a5f197c",
       "requestSignature": "d4d8dd81530e353f71b8704caec824a9135aff5070d179f15c20ae8831a85b30",
       "checkedAt": 1793366875194,
@@ -50236,20 +49945,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "c95bfdbb800930cc8137eb856d49afa851399d6fd8711f0352b0cb78c5a1d39a",
-      "requestSignature": "ae28f46a12b10701b15472264e0012a669eb73bdc2d414283ff64b8b48b89169",
-      "checkedAt": 1793363307492,
-      "availability": "responding",
-      "latencyMs": 801,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "c963ead58d8bf3a5f589e9033eefc000be5b7de88b2a198947259652a35f5e92",
@@ -52096,20 +51791,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "d0e4a3c61ff2324a728c34bbf553506b5fe6b5c3d9b6fce928ecffdaa524664e",
-      "requestSignature": "81262b6319e7dd716496e99b99bffe5560cda615452c17f9de0250eea089532d",
-      "checkedAt": 1793363306152,
-      "availability": "responding",
-      "latencyMs": 1738,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "d0eda472411dea9d04b3424272a6fbb954b2897dcea59c75e92d6720dd3ed8db",
       "requestSignature": "5b8bc926f95d2516f67e7f583273c6826730ff1b467e0393d5538e4fc92b7771",
       "checkedAt": 1793366839696,
@@ -52512,20 +52193,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "d23cf1b75bc76b0fad6925ced2059293299453e1a1ed282decc1bf5ee5f1762b",
-      "requestSignature": "bc6a8a9849f6d6a48c123e42e17902f7ec29067d50f396824dedbf1381e821ee",
-      "checkedAt": 1793363304412,
-      "availability": "responding",
-      "latencyMs": 2264,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "d244da27841f4867380c4d233b263e65eb395da1920bf802b0e9339019927404",
@@ -55659,20 +55326,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "df59f09710f33be33169e0b148cf6166e439a65675a971db51c9c3bfb1624771",
-      "requestSignature": "7d1ff694f0f66ce4a50b99c91de554477d30ae86f621a731c7e8aa00d6a17ba2",
-      "checkedAt": 1793363554491,
-      "availability": "responding",
-      "latencyMs": 416,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "df6047449e49acb6d58023a349aed90758128b12d07af0724838e783d85680b3",
       "requestSignature": "80c960e49812ce0b5489833a624deb948ac9e9aa726c79e5d99ccfcb83d73ce4",
       "checkedAt": 1793364315086,
@@ -56743,20 +56396,6 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
-    },
-    {
-      "id": "e44ff6af3ad2b8f29a22d35d8260b9b60140f2020b17f6dec998dc502e4519ee",
-      "requestSignature": "f829b28945ba9acaa6b8827d733a9a3952544f640367bae5d3ec38c5d468f46c",
-      "checkedAt": 1793366990374,
-      "availability": "responding",
-      "latencyMs": 182,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
     },
     {
       "id": "e45c97329e271e27811287ce6fbd8e2ec1a5741f09b7d0fd88cb6b00d2f81285",
@@ -59813,20 +59452,6 @@
       "preferredIndex": null
     },
     {
-      "id": "ef727ef20d0786670501c1f4c199a07532f4153cc05e3478d7ce28c514b15e4a",
-      "requestSignature": "e5d631504cf81f7e38d1fe56f459f9f11e2a99fce874afc34eb3749e011752a7",
-      "checkedAt": 1793363323435,
-      "availability": "responding",
-      "latencyMs": 361,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "ef7a15d017de0be21b1bee452d1d0b4f8305563bc57dc84c8f55cca48f977484",
       "requestSignature": "c5fb77d99c347cc2955e1965c3e5d265e35f606f2f9b399c2761047a3674259f",
       "checkedAt": 1793364134501,
@@ -62685,20 +62310,6 @@
       "preferredIndex": null
     },
     {
-      "id": "fa052210dbd1bb89820c01b746b7e7df9e92dd56008a78559f247e9fd6e9c859",
-      "requestSignature": "c9f06b43869f32781a435bce9f3c9c27e888a58cf95ee55ef23e43a810b4a295",
-      "checkedAt": 1793363325143,
-      "availability": "responding",
-      "latencyMs": 165,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "fa056ea6e2850922cd77cb1c802116bffa0b352bb59913de04a67dc7b503b2b1",
       "requestSignature": "02d1591db4345997ccef69b515f3c1ddc251f07c773b6f134669d0f6f51f6bfd",
       "checkedAt": 1793363321648,
@@ -64201,20 +63812,6 @@
       "preferredIndex": 0
     },
     {
-      "id": "ffda31a9e305d54d1df62fcdbf13b758eb5a67892b553ad3ca0b4b1f9aacae76",
-      "requestSignature": "0bff4caf790fbbdad38addbf2131e0857d3ae240c3fcacb0ecec09e66effe63e",
-      "checkedAt": 1793363308772,
-      "availability": "responding",
-      "latencyMs": 481,
-      "message": "随包预检通过（媒体响应，非完整解码）",
-      "resolution": null,
-      "languages": [],
-      "verifiedIndices": [
-        0
-      ],
-      "preferredIndex": 0
-    },
-    {
       "id": "fff091e084019d735ccddeea8be00b151e284222c54212118a1d820fac4b9fea",
       "requestSignature": "b841bc9496904de859148a4c5268922a66fbd137f638bbf23745dc23015724a8",
       "checkedAt": 1793365526942,
@@ -64249,6 +63846,1410 @@
       "languages": [],
       "verifiedIndices": [],
       "preferredIndex": null
+    },
+    {
+      "id": "b9143a13415be6e36e1e83858aafef82ef282952d07f5243a258b65879f13d84",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "39e268258c92331a9496121d4dbcc4447edc0e76c1198883a1d17e48805440f8",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 2125,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "a6a5d0791bff8b868ed7726ff6c16b768d0918de6c2303b406ef779e794d97f5",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "9bd69ae9b2b7ba3538b425f603fad528b33369d8167730ef180581769be0262b",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1726,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "b292b41cc8c575215f335a8efffb44e96ca5f04e049f8a64aef1068fb0755850",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "e975fba834341b17c91dcf0c5dfa15fb6fbd74e03a0d2efcd3228462369b499f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 2148,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d0e4a3c61ff2324a728c34bbf553506b5fe6b5c3d9b6fce928ecffdaa524664e",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "81262b6319e7dd716496e99b99bffe5560cda615452c17f9de0250eea089532d",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1604,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "8ebe034266179cc6e8f706ac772a95391a20241086eea499e58deb0437908ef6",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "86c972de7cd3a5d5dd885d4d7d6e16bf141121cc0e5b4ff55588a4b3d35269c0",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 2191,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "556ebff3819b9b8c3ef91520d7ed1d086fae13475c33eb09d750f6b40ffcb9a9",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "0fa0102a6f5a95cf0b263947ef2531a26b5ce7d78d242c13aa45f12db37ae8ed",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 2128,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d23cf1b75bc76b0fad6925ced2059293299453e1a1ed282decc1bf5ee5f1762b",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "bc6a8a9849f6d6a48c123e42e17902f7ec29067d50f396824dedbf1381e821ee",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1759,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "30de04d0c710957fba5e7ce94d4aebdf518b68da77f227d98c962e8483ae3569",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "4728b5eb48b58dad05fc840f2cc1abf5b5c0bf7db91f6e5596b0c41fc6955cf0",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 963,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": "1280x720",
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "1ead889c1c69c36292e13ed08cc2dfe3e8b8fdc53d268ee3a4738b2bac5ec117",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "99afc8e4966703a836d80abf0667603c46c1b10afbc16dc8e2fa05ab87d8e97e",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 999,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": "960x540",
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "79a084ad80cd44a9485e3c67c78c5f88d42f4ec424a40a98a7f13929fcfcfb9d",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "b705f32241d024eee5cd23fe3a2e5af6ce36db26013169c5416da7f63d73f064",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 401,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "15e1ca2384e007c69e34b6d8725c5a490c78af6776035cd9904a76c6ee28b7bd",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "a7eda4fa9c94a6318b39c65056eeec79c370d58a815069b8dbf9d9b5a46bcaeb",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 220,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "1b61d983408a42c1d5f3ec32b00de79a3109847376230040b9a581f8480492ba",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "ddb19988bca98cf12d2e2f9c44ce15f9c19133d630626d61b087d22b40506706",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 346,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "25cd502474d590425b42b3e5915c97f7d5aa7d3f7f009625ed2fa98d3da84aa0",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "191416a931b2f4fc2066694662bf170d481e02c7ec813522add70d90116b9487",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 444,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "c95bfdbb800930cc8137eb856d49afa851399d6fd8711f0352b0cb78c5a1d39a",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "ae28f46a12b10701b15472264e0012a669eb73bdc2d414283ff64b8b48b89169",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 744,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "9504b67e2764c1376b292529a8d91e502f67f480a57f677eb9016eea154a8163",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "9e4ef005860449b5fc1323acd7f79f0ff35b3af47335315447a06ffd7f4c4d5c",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1084,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "b923569f8f5fb3240916f50c856487c8cf818b8c5d4fb6ff4991737ea974f2b5",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "13a9a12df418bc0455ac6659865b5d021f935b8215f11a6412a0159ac07ae6a5",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 304,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "df59f09710f33be33169e0b148cf6166e439a65675a971db51c9c3bfb1624771",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "7d1ff694f0f66ce4a50b99c91de554477d30ae86f621a731c7e8aa00d6a17ba2",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 318,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "4400eb467a42747974fc23fc26dc2142c8878da9c03780006793c6b14a314fcc",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "71ae88f90bf58be0af47e525d5bb849b4f6c4d1ff51f6d7430b7e9fcbb037139",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 67,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "c746dc825c3f07b682d55f94c4f990ba2791bdaa770aeb1895f4cd0cb152fbea",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "13c56642812c805883e2c24014648886eb6a4a5eb1c512887d096318a93d8175",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 287,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "ffda31a9e305d54d1df62fcdbf13b758eb5a67892b553ad3ca0b4b1f9aacae76",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "0bff4caf790fbbdad38addbf2131e0857d3ae240c3fcacb0ecec09e66effe63e",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 292,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "39825da2b0de793d5b64dc8850e6f8b777c2f6e6bded697fa68676f69ad3b920",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "fe9598078bddc9a0da8390c5cec8b3396d1d781a888969dd9d9feb189d8cc13b",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 263,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "106fdbb7f552bb81b8d4d8d23ae863dc2f4e54d8803d48128b826163322cc5bd",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "4264d9dfe62f120104b5d1c0756f87ba6c1ed040bd611f97083533e399d24024",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 469,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "8f2563a401aa89406d93f9421f12debd2d8467be0f0dcc1abfb62ca8fcafe9ca",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "662c6b2e696553cc07f637116e47d1969a133984f12cc6c8099987409b1bff23",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 294,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "7ba9afc460be334b7accf99772f7e4dc8421913401c9bbfb541398779f3e457c",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "0980f9d978f5128fc4c8fd1fcaf8d91b369ab717b38f4bb233b5d1f40b859dba",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 400,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "5fae4afba7f0dc1ddc1958ce9e8cfb0cc2a6aa8c58cc26237ffe5d40b78dcba2",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "ebd061715c8030418ec2ac9d48a24c7dbbb2d327523e81170416024c30a36e86",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 275,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "0e5fb0aa147ed5beeabb0917275cb556adf6c1d5f08e0e5c9aa52877dcba7cc3",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "3dafe5743dbffeef48439f9867847a708a81a87deb35b62227fe51d8b5ff9cbe",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 216,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "fa052210dbd1bb89820c01b746b7e7df9e92dd56008a78559f247e9fd6e9c859",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "c9f06b43869f32781a435bce9f3c9c27e888a58cf95ee55ef23e43a810b4a295",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 314,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d44e3074db8ab3fbb87e381c4cd109eac733bc814a1a94a5322a4f4bf3db2cff",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "c51b84ccf3f6953731a22f774ee0c74ec3b61a2fb9a0a0897e218a3ccdd397dc",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 293,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "26a5fedb420c7ed9447f7f9015bce7c52976bb9d8a2fdd81bc5605b6732ac764",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "78c03ac78cafeeebd63595ba12895e84a8e84543096d12642c321a35a14b3f9d",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 347,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "fcd586e7ab16edd4a9424f44fe9cee48248b6605ae060c6fbae7c0227912988f",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "e63674c5a71fe86a87cd3c3acdd8989362b6802e442b78708e2296154237e476",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 457,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "47476941d7da8540b102c1e7bb9fc38675c24a3e9d6d3cd227ce08e7fa514d0c",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "7ec7004d63a7122aa63c538b58b62052a00fe593fdd358dd6ad9271d26835c80",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 691,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "f687f8151315c88439e8e1288190458f6c9de283c3e202a7c3cd0a03f9ece7eb",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "4298ae2f577853513c5fce64de2e5218fe05c476a0bdbc37c94190911244f662",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 801,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "1ca15557710da384e9903a4a73ab6d39ac71b0174c0972f42fe5eb515c9f8532",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "4775154d33c2f3b9d1e6d43d241f2d7d45171617c370edd80d09e493fff2891f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 589,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "a13251be28937e63349d1fb85d8ce2cd1abec1b728de86d4b46fc55074583544",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "e51469d78240fb547bba9d67195f34940506fb68ee33b4710f2c080eaeee058e",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 585,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "49af50d3a315f4376dc4eb09627726b9f0db7d5d47dc8ba6f23b11f5a099c174",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "f7c39141003ce14bcfce7e2ad68c4dec85c33eab8f9c6da6a2dcee59c118b7b2",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 502,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "07222f190dfb189547359328a32ec780df58289e3719af63983248008e656f0b",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "adbb003937cfcd62ab8a061e67ca00e39e21fc442172961a3d053d37022281dc",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 194,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "f51d53385f6d30fc6c89033aa76f8753db984547d3e2f2ff3a6013f5a2cb43a2",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "50787b5c6b96b3abbee2edc476f4f75c10093717db501dc1ad433d014ef20315",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 152,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "9e0bc52ae637a087ffcd42e5260c94dfe536434018c255cee89bc7d6389b468c",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "802f73757406333f60e90ff56407e5e0044c10127952fcfa2f1f2c647c065c0d",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 192,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "b9f42ac9c30d3c08daa2de835b26aee438159012738d64f8a0d05be0ffa04c42",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "8e16c64211e6343618a3d608a5eb17c16e6d80352f86b6e0353128d7adabecec",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 537,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "2ce04ea92f8a2ab7c647293934323a10d94d8b8383a5f4f81af90b27df76be0b",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "5a9bd6032b41ef750bbd5f39c4e3840909cfc694b1567042eceb9a602a6c2ae4",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 525,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "ef727ef20d0786670501c1f4c199a07532f4153cc05e3478d7ce28c514b15e4a",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "84d31d80997c6255d2a2fc29be142325ab462cd67bf3dcbc58692bd623b55536",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 627,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "7517670b9eac2008cd38bed18f8db4c9a900c4b4ead56e0f632b65296f660717",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "16d8c6ba9a2a38d5e50d2483d1af775b441cc9c127f1420f8f45fcd4a407128b",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 165,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "2ee88ca11b8d0d4872243bb8c4e803d562a30095ef7a690507f45aa10216eb27",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "b811ae3509561fc3a184d1cb003254bb4cb215cc87df0cbbcf79ebe30b0ebaae",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 147,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "17d029f4ac34bae9762ca24e92c3d0399b27ceb2b11025f976298cdd3b096f3c",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "c4bdf17a7139fe4bc2021a5f6a74f6c8bc20ba7beeb92eabecd29c3e5bff2fd2",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 256,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "306996944098204613d7ea9fdd7e65a7167c5e5d94832003b80fc8da7faac717",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "523010f6976d9ad444e0d1c60aa2336fef83b82c2b35b7577c3578fbfe92c1d2",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 179,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "267825ab8b6265ea90b5d1228b826947aad7119e33ae90777495841dbcdc1d5e",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "6cf57280ce35d5d685da4fffc2562228ed1dcf54b12c8144f49e45ef0a175a5d",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 361,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "60b16be8a4860f5953aeaf32e8be1d5b4ba0e35d6ab4ef689c5b6436b418f8eb",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "80a29c129827ccb98c66f36eda3f0d964b519a77480b5d8516383abfe6743370",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 445,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "08824f1c7e333d6c087e2254d5a9d78e319fc8b2095b9550d2e8892134237b2e",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "d2378bc2791f361c6c62d552e2bcad04bae7491568d9589866c473eff7f197de",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 398,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "01cd32a902e53d6b314e36a67cacdcc7ae14a03242af03753c27f8210100994b",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "5cf7e9eaf252f712ce7216a09898049ae3f73cc647201ccda506716d99d1a7b0",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 639,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "6d5c81ec594ffb4be2ea6276335eeb2d3f519dfd3dc4b79e3e1ddb9524f25bbd",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "78534b5e7fd8342573020dc139207cf1dcd452b2e4829431871d30584e8cf561",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 973,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "94295ddc270f05bbd96dc477da1e90b541331563dcfe27a6cc10a33de353eaf6",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "b48a4012e9fedfc9cb8e76aa1e3495a9b4a06fe9a1c06e46245d6b01c52d152f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 476,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "5b2121dc6a337489df5d21d13e7bc21d63b07f8b73cfb595c59428d583546d79",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "3251630eb045e688e4d8b8f702d7c7021b29f2191d3a655da0a3abdf7ce06034",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 493,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "6a04432e731950648ae8e5b8ba1025a4bffa03178365d295e30882002ad19fce",
+      "listId": "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+      "requestSignature": "e86a6c571f171a141def813138e9da53be5f559e9e6b818a861a2ec60e79765a",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1401,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": "1280x720",
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "3b858248d89814f39018d7a47a4d935665c64e1ba53c627e0160a33af971700d",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "6257ef7644f2697e19d3dedd6dd45610ffca5e35d6758f9fbeb23d909fc47290",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1750,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "a5a75f731c831c3b5d80abb924e30de64de13515f19142c2fc253e39de04e0c1",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "25d69512273e7bbf93d1296f4532575dbddc4df68fc450e82924a8ac51a47a91",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1678,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "340ba55e7944d039172f5fc8f067b83b614713882e5fea707197fa5699603622",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "5357c0234218bb3d8e2c2289d0fb131bc65d46e34482dcf86bf7f1e9609e102f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1687,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "912c995118179bc12a41d1b105707b34dcc72777e18f10ab54afc47dfb2e016e",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "20fd0161828caebfc63d6edf31cdb76961e8f1cb7b809fa0ca449ee188d3c557",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1911,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "dc39162b9dbe5878bc7170aabe02456e9468248b196667f19a4b9a77dfaa90ca",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "79955c2d1d325e8818413cbd1b18bb1962e3a5ebe994e8af54a990abd4425182",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1670,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "8452b2cdf4f9e604ad991b2f45db9c7f4512456b64083f4f26be5f6d650f4987",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "7fe93e2ab71fc780280919e156b74882c4935f95346fcd74e1bb0d2e67370522",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1496,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d996ea397d03240972ce10cf4515f82511cc8c988d3e160026332ff4dbdc91f6",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "3b59e344bce3ab9bbca7c188b03c0432c22fd6ab0fcc12ea04871d8d106a1bf5",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1615,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "20d5f71f09bc9904ac8df35367a7a895c53e01d391d3b1ba577cc2ecdca5f2f8",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "495084c94237dcf70b3f27091a8f5770d6f6f9b0a56bf00f460f32b4d1725289",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1738,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "2f9bfffa95647bd349d33d8f0df6a357534141ebf78b18f192a18f35378a1504",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "d0a0e9b86c03a643cdf234cfdb306ac0f606a96c568cb1c56a92dffe706f0cf8",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1599,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "a6c12761510f377139a3206e7dd8c337828d4b5badac97746d6319234df26292",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "7d9d016a3eedb2c1cbc25f6a7d05ce7541585f2c52f594fc37cda6828a86264b",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1844,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "892c7e7ead97e5117618bb97a73917c03c15851d596dd3015616acc5ffcb9631",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "5866306fd46a67d0efa1c762c8d2963ea484ccca674ea5719a843cf874adfd2f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1675,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "5a26be2dd5b6d6b3560289b319d4d146526201d528c38131c6fd0aa75c4f5cb9",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "c1511ceaddb960dac0e562b026c72e8309e5102922a50975d0d24cc2de1dca55",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1718,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "b80c2cff7f0c8923084d1bcd15decb0e7f2226b9b43a40f61b7a22bf57418368",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "e4fc7fe6eb47f70c7073f818f3e058c5846dc4a37fc452c34ec097ffdd5d610a",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1557,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "90b077f01e4681101378b9417fefc9a3dcdd1345fc9f42ce239fa3acddb419ed",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "8b24a2b5cd60b8b1fc1654684fc68721c588388942b4316c0f90dd01dc56587f",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1653,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d5b32724c48bb3e9c757afe461dd3998c68c3d751cbb03d097caa1d4b12b2139",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "4bdb0bdb7c199a41e43dca07c2f8a82583dc91197e863777839865225cfaaeb4",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1579,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "6a8f8c5bdfe7c20f27037aafe2c8353bbd1d612db61865e10c9271cb8684ea98",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "df2ea8dd75485d4f8dcdc145653ffd75744be86e6ff2b1b896c86fe59659d937",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1729,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "0c0e1645bb624440f1b51dc7c26b9917a93065463525809f93e585afd109a3e8",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "56e44707dbb753052c104bdf5693559d92257fb1b23565be9d590a98769e4eeb",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1534,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "cc0453c70a3b9037b8354b55fe48971543c45ccf98343b8be6165725ffc84ef8",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "e44fe8cd16c432b1c663580e089b718150d38d799d6b2da6e71b6a5dd9ef0043",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1651,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "3dd61c7994d4449570ea0145563dac248d600c037da831d733072f365654c3f2",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "541c4ea175b2f2debb22bc8ab865a0c0add1acdc8e4b7365debae87ea0038a70",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1737,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d8e0a1dd2f5111f08b66c3199413e78cc5b10f6b9fc4b62fffcf3331dc7903b7",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "9b63a1db4982a1d5d41e1811b232d689d74316eba11263b27bae476cf115a1fa",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1650,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "14774bccbf2d421c23830a30a4f651dcd6e593c2d0144a4aea4995a55ec6958a",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "99d8558ae3e06af4d3f665e315f7012bee76c7a93789227568c888fec6ac4fe8",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1659,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "4bf4a6b081470a5f184d0b00ea2164048b92f95f4cdb3d62f3ebed3e0f5901a2",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "9e5adb66fc0320d45eb91cbe0e4fe86e52881dda1c1bb76d7b0aa9bb59170eb2",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1599,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "bfe7cf841f41522827aa044cf05b43a4b06822618815405513b743721c660aec",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "82b8c1da4de74e83a403d6fdd4e2467294be180632ebc2bb60390fcd586c8c42",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1519,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "aac7cd000fa6a81d351bb3e957804beda3fe7e6ac80aa2cfb551c6b52e36e17b",
+      "listId": "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+      "requestSignature": "54f4553d29c4d0f70b1d545ca86d522f9a33837e485d0b5675cc71cea87e1cad",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 1639,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "3b53f227fd48adf531fe92c1b057ed3ed5c7d494618f2c5a7d069da46ca62984",
+      "listId": "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+      "requestSignature": "ae5e1ea57a02f42ea38e83933a67c516fc56b66b73b04b0de434eef2b2c7cc5e",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 2188,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "7d3847529ad4f033be0095320b3789b3248a9027b9899df1841adefbcc022c72",
+      "listId": "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+      "requestSignature": "8b244ab34183d2e91c2b5ac4d24a9f007ccc63ffdf1f4ca83fb7b78a6d090a9b",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 245,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "841b5276560738959ee0c41cbe97de37db7c1bdd554a1293c2962a5a3f043925",
+      "listId": "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+      "requestSignature": "747730123935272cd44d180d5f3eef35e552d3380cf1aa639aa0381cf51a1641",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 218,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "4ea61579eab7a698aeb411d42a613ca80a9b7f1c0afdd528119d1bbb6bc5072b",
+      "listId": "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+      "requestSignature": "0833692a40b82be5d79ab49646e4af2f73b396189fb85bba5c0a4925f9eebb97",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 203,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "373a003e9f224c6fd1ea03bc3c8c2a4e868b196d544e550f5378183ad0fcbfd5",
+      "listId": "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+      "requestSignature": "3fb42a66aab5dbe03260232d7529517aec1e406979b193f9436912b918d6f9d3",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 170,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "84b8c940d11b9b9d73330fb3e7ce762770f04d59c83b5e0b42d10d28450ce8f3",
+      "listId": "56456474b06bca2ad00b08524780f835c2738ccbd5badd2de9f194d6752afc83",
+      "requestSignature": "d8e9e527874317a52b75117ea8604ed428e41b521b1cc5a91e79bc332fdeef21",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 500,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "e44ff6af3ad2b8f29a22d35d8260b9b60140f2020b17f6dec998dc502e4519ee",
+      "listId": "56456474b06bca2ad00b08524780f835c2738ccbd5badd2de9f194d6752afc83",
+      "requestSignature": "f829b28945ba9acaa6b8827d733a9a3952544f640367bae5d3ec38c5d468f46c",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 247,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "e323f25d1a276fd02ec9e2304ffed71c77d9de3c75949e8d4e228f5b29ab3c75",
+      "listId": "63e2550be8abe2e8b0f32f50017f49fcd1ff3108a2548d531a87affa0e607c01",
+      "requestSignature": "98654c77cca550135d1dbad7532387132c17045334247af6ddaece37b81909f7",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 156,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "cc26e73e349a7aa15eff8ff8775bf5cfe8453b511dde5394fb1c2d7051f16f30",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "55cfbb6752a07b073afa34ff300f4f315b3aedd65526bf3887252d57cafcc6b1",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 203,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "7ac90f3f2b9e024b9d594bd20fa19a69b69e7513cf7f1012239b64df2b70882f",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "8afcd97f2f1e0288859768a20cebd63ddb63b1855f46a9fae7f4d55d5e7731ae",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 235,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "44d8025ef7d2dc011050752ac1c889f3d99eb80341e434be90c05d4995924265",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "f690041183358fe1408ef55e1a1213a3fe47697b95f2444221dfb1057c506141",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 221,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "1ad4dfe6605b3137c9f5df11c242fc493cd7363ba8b48cf279f6c9fb02ba7320",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "353d546918ed8eeec5120652756c33d5320cbacc942b8efe55c4a718bd57bf67",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 145,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "4bb9787434019011a3b9d16f97f5a2506b509a9ccb5c4607998ae3ed052ac480",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "fe6321b45fc2fbd2f80f7667224b5f2bca0d2f00ed678c1399455eda60d1aa01",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 142,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "144afac9a482a35157f3306f4d87cc43ea72d2634a62ae3163be413640f46713",
+      "listId": "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+      "requestSignature": "b6b5242915c34204308c2682245cdda072009f846c67423e8ee9ed0008531983",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 152,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "d3179885d6a38cbb81824ed76ec1dd038fcd08739c1882bf86434f356e35730e",
+      "listId": "4dd8e61e7e993c475df06ef8a573db331d1bfc509f867875bd6d1922f1ab732f",
+      "requestSignature": "77746a9731271b2b09ee7f8f55ed583f314c57dac4bdec8787cd58345ab5cd3c",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 201,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
+    },
+    {
+      "id": "fd3d59cd42d310685fb2143a622b1140374b351ff1c11847c1c347a96fda93a9",
+      "listId": "4dd8e61e7e993c475df06ef8a573db331d1bfc509f867875bd6d1922f1ab732f",
+      "requestSignature": "18de66d325bf606574e7caf1e82bbd077b136a02b049b519ac2a38007a42a008",
+      "availability": "responding",
+      "checkedAt": 1794363494218,
+      "latencyMs": 201,
+      "message": "随包线路通过两轮 20 秒连续解码",
+      "resolution": null,
+      "languages": [],
+      "verifiedIndices": [
+        0
+      ],
+      "preferredIndex": 0
     }
+  ],
+  "curatedListIds": [
+    "8ce3f585c8f8116eaf90046ebf38900ab19f3aa70a34553988518b0430c6b5b6",
+    "46a656f4417e2c4df5b9573217b960ea25e53bd115d2602e3e4bd782f6c00de2",
+    "9bf92211dd1db960d905e3243c922ac8cd366d5d4bb6f518dcc9995dd8613b6f",
+    "56456474b06bca2ad00b08524780f835c2738ccbd5badd2de9f194d6752afc83",
+    "63e2550be8abe2e8b0f32f50017f49fcd1ff3108a2548d531a87affa0e607c01",
+    "08ed8b903b0415c9215e06009ce38223013ef61af42bfb6b6aa3c6dc4313b655",
+    "4dd8e61e7e993c475df06ef8a573db331d1bfc509f867875bd6d1922f1ab732f"
   ]
 }
