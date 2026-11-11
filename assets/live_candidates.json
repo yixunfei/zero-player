@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "checkedAt": "2026-11-11T05:23:23.089283Z",
+  "checkedAt": "2026-11-11T08:16:08.492049Z",
   "retired": [
     "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
     "https://m3u.ibert.me/cn.m3u",
@@ -84,6 +84,16 @@
       "url": "https://raw.liucn.cc/box/libs/tv/tvlive.txt",
       "name": "Zoo.ink · raw.liucn.cc",
       "origin": "https://zoo.ink/tvbox.html"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/qist/tvbox/refs/heads/master/tvboxtv.txt",
+      "name": "qist/tvbox · 地方电视精选",
+      "origin": "https://github.com/qist/tvbox"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/xmbjm/svip/refs/heads/main/FM.json",
+      "name": "拾光 · 地方电视精选",
+      "origin": "https://github.com/xmbjm/svip"
     }
   ],
   "quarantined": [

@@ -127,6 +127,24 @@
       "revision": 5,
       "updatedAt": 1794374603089,
       "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"小地方\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",浙江新闻\n#EXTVLCOPT:http-user-agent=okhttp/3.15\nhttp://ali-m-l.cztv.com/channels/lantian/channel007/1080p.m3u8\n"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/qist/tvbox/refs/heads/master/tvboxtv.txt",
+      "name": "qist/tvbox · 地方电视精选",
+      "origin": "https://github.com/qist/tvbox",
+      "base": "https://raw.githubusercontent.com/qist/tvbox/refs/heads/master/tvboxtv.txt",
+      "revision": 1,
+      "updatedAt": 1794384968492,
+      "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",武义新闻综合\n#EXTVLCOPT:http-user-agent=okhttp/3.8.1\nhttp://l.cztvcloud.com/channels/lantian/SXwuyi1/720p.m3u8?zzhed\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",上虞新闻综合\n#EXTVLCOPT:http-user-agent=okhttp/3.8.1\nhttp://l.cztvcloud.com/channels/lantian/SXshangyu1/720p.m3u8?zzhed\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",珲春新闻综合\n#EXTVLCOPT:http-user-agent=okhttp/3.8.1\nhttp://stream8.jlntv.cn/hctv/sd/live.m3u8?zjild\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",龙井综合\n#EXTVLCOPT:http-user-agent=okhttp/3.8.1\nhttp://stream8.jlntv.cn/ljtv/sd/live.m3u8?zjild\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",梅河口综合\n#EXTVLCOPT:http-user-agent=okhttp/3.8.1\nhttp://stream4.jlntv.cn/mhk/sd/live.m3u8?zjild\n"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/xmbjm/svip/refs/heads/main/FM.json",
+      "name": "拾光 · 地方电视精选",
+      "origin": "https://github.com/xmbjm/svip",
+      "base": "https://raw.githubusercontent.com/xmbjm/svip/refs/heads/main/FM.json",
+      "revision": 1,
+      "updatedAt": 1794384968492,
+      "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",萧山综合\nhttp://l.cztvcloud.com/channels/lantian/SXxiaoshan2/720p.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",营山电视台\nhttps://file.ysxtv.cn/nmip-media/channellive/channel101492/playlist.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",剑阁综合\nhttps://m3u8.channel.dzsm.com/nmip-media/channellive/channel105549/playlist.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",朝天综合\nhttps://m3u8.channel.dzsm.com/nmip-media/channellive/channel104601/playlist.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",内江综合\nhttps://www.scnj.tv/hls_njtv_direct/1.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",哈尔滨新闻综合\nhttps://rmplive.hljtv.com/live/haerbin.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",上街电视台\nhttp://tvpull.dxhmt.cn:9081/tv/10106-1.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",泸州新闻综合\nhttp://m3u8.channel.luzhoubs.com/nmip-media/channellive/channel106011/playlist.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",青川综合\nhttp://qcfile.qcrmt.com/nmip-media/channellive/channel100933/playlist.m3u8\n"
     }
   ]
 }
