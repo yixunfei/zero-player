@@ -21,7 +21,11 @@ final class NativeMediaCommands {
     '-http_multiple',
     '0',
   ];
-  Future<void> run(List<String> arguments, CancellationToken token) async {
+  Future<void> run(
+    List<String> arguments,
+    CancellationToken token, {
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
     token.check();
     final done = Completer<FFmpegSession>();
     final session = await FFmpegKit.executeWithArgumentsAsync([
@@ -36,7 +40,7 @@ final class NativeMediaCommands {
       () => unawaited(FFmpegKit.cancel(session.getSessionId())),
     );
     try {
-      final result = await done.future.timeout(const Duration(seconds: 60));
+      final result = await done.future.timeout(timeout);
       token.check();
       if (!ReturnCode.isSuccess(await result.getReturnCode())) {
         throw const FilterFailure('媒体采样失败，请重试、改用画面或仅保存本集区间');

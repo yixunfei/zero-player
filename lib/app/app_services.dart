@@ -56,6 +56,10 @@ import '../features/settings/application/settings_controller.dart';
 import '../features/settings/data/backup_service.dart';
 import '../features/settings/data/lan_access_store.dart';
 import '../features/sources/application/subscription_service.dart';
+import '../features/sources/application/awesome_zhuiju_discovery.dart';
+import '../features/sources/application/awesome_zhuiju_sync.dart';
+import '../features/sources/application/awesome_zhuiju_verification.dart';
+import '../media/network/video_decode_check.dart';
 import '../features/sources/data/source_repository.dart';
 import '../media/cache/segment_fetcher.dart';
 import '../media/cache/segment_store.dart';
@@ -192,6 +196,16 @@ final class AppServices {
   late final sourceProbe = SourceProbe(sources, network);
   late final sourceMonitor = BackgroundSourceMonitor(sourceProbe, settings);
   late final subscriptions = SubscriptionService(network, sources, live: live);
+  late final awesomeZhuiju = AwesomeZhuijuSync(
+    sources,
+    live,
+    AwesomeZhuijuDiscovery(sources, live, subscriptions),
+    AwesomeZhuijuVerification(
+      network,
+      VideoDecodeCheck(gateway).sample,
+      policy: contentPolicy,
+    ),
+  );
   late final history = HistoryRepository(db, policy: contentPolicy);
   late final skips = SkipRepository(db);
   late final filterFeatures = FeatureRepository(
@@ -459,6 +473,7 @@ final class AppServices {
         () => radio.close(),
         ..._closeHooks,
         () => _closeHooks.clear(),
+        () => awesomeZhuiju.close(),
         () => subscriptions.close(),
         () => builtinLive.close(),
         () => liveProbe.close(),

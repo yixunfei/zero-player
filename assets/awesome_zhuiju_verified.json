@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "origin": "https://github.com/laoma528/awesome-zhuiju-free",
+  "license": "CC-BY-4.0",
+  "checkedAt": "2026-11-11",
+  "verification": "Two different titles resolved and decoded for 20 seconds through the guarded media gateway.",
+  "sources": [
+    {
+      "name": "创享影视",
+      "kind": "cms",
+      "url": "https://ys.cxkjg.cn/api/provide/vod",
+      "origin": "https://ys.cxkjg.cn/api/provide/tvbox",
+      "classification": "general"
+    },
+    {
+      "name": "天堂资源",
+      "kind": "cms",
+      "url": "http://caiji.dyttzyapi.com/api.php/provide/vod/from/dyttm3u8/at/m3u8/",
+      "origin": "https://szyyds.cn/tv/x.json",
+      "classification": "general"
+    },
+    {
+      "name": "优质资源",
+      "kind": "cms",
+      "url": "https://api.yyzy-tv.vip/inc/apijson.php",
+      "origin": "http://xmbjm.fh4u.org/dc.txt",
+      "classification": "general"
+    }
+  ]
+}

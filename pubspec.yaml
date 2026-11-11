@@ -85,6 +85,7 @@ flutter:
   assets:
     - assets/brand/logo.jpg
     - assets/source_candidates.json
+    - assets/awesome_zhuiju_verified.json
     - assets/source_precheck.json
     - assets/source_audit.json
     - assets/tvbox_candidates.json

@@ -6,6 +6,8 @@ import '../../../app/app_services.dart';
 import '../../../app/widgets.dart';
 import '../domain/video_source.dart';
 import 'catalog_import.dart';
+import 'awesome_zhuiju_dialog.dart';
+import '../data/awesome_zhuiju_index.dart';
 import 'source_actions.dart';
 import 'source_batch_bar.dart';
 import 'source_card.dart';
@@ -75,6 +77,7 @@ final class _SourcesPageState extends State<SourcesPage> {
                   onPressed: () => importCatalog(context, widget.services),
                   child: const Text('订阅 / 多仓'),
                 ),
+                _awesomeSubscriptionButton(),
                 OutlinedButton(
                   onPressed: () =>
                       importCatalog(context, widget.services, file: true),
@@ -123,7 +126,11 @@ final class _SourcesPageState extends State<SourcesPage> {
                       children: [
                         for (final row
                             in snapshot.data ?? <Map<String, Object?>>[])
-                          _subscription(row),
+                          if (!{
+                            awesomeZhuijuSubscription,
+                            awesomeZhuijuBuiltin,
+                          }.contains(row['url']))
+                            _subscription(row),
                       ],
                     ),
                   ),
@@ -134,6 +141,12 @@ final class _SourcesPageState extends State<SourcesPage> {
         ],
       ),
     ),
+  );
+
+  Widget _awesomeSubscriptionButton() => OutlinedButton.icon(
+    onPressed: () => showAwesomeZhuijuSync(context, widget.services),
+    icon: const Icon(Icons.sync),
+    label: const Text('追剧资源同步'),
   );
 
   Future<void> _restoreBuiltins() => perform(context, () async {

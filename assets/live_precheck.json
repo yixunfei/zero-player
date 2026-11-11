@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-11-11T02:18:14.218410+00:00",
+  "checkedAt": "2026-11-11T04:11:06.940185Z",
   "scope": "Curated live snapshots. Every packaged route passed two 20-second video decode samples through the media gateway.",
-  "channels": 86,
-  "routes": 93,
+  "channels": 103,
+  "routes": 110,
   "results": [
     {
       "url": "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/cn.m3u",
@@ -66,6 +66,36 @@
       "status": "available",
       "channels": 2,
       "routes": 2
+    },
+    {
+      "url": "https://clun.top/lib/iptv_test.m3u",
+      "name": "追剧资源 · 拾光多仓 · cluntop_test",
+      "origin": "http://xmbjm.fh4u.org/dc.txt",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "defaultEnabled": true,
+      "status": "available",
+      "channels": 13,
+      "routes": 13
+    },
+    {
+      "url": "http://124.71.19.220/live/1/0?v=1794247117",
+      "name": "追剧资源 · 影仓 · 平台直播",
+      "origin": "http://124.71.19.220/c/1",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "defaultEnabled": true,
+      "status": "available",
+      "channels": 3,
+      "routes": 3
+    },
+    {
+      "url": "https://szyyds.cn/tv/live/x.txt",
+      "name": "追剧资源 · 小马 · 手动不知何时更新",
+      "origin": "https://szyyds.cn/tv/x.json",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "defaultEnabled": true,
+      "status": "available",
+      "channels": 1,
+      "routes": 1
     }
   ]
 }

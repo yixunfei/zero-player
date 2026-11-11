@@ -172,7 +172,16 @@ final class MediaGateway {
       return;
     }
     _server = server;
-    server.listen((request) => unawaited(_handle(request)));
+    server.listen((request) {
+      // A failed addStream can also fail the independent HTTP completion future.
+      unawaited(
+        request.response.done.then<void>(
+          (_) {},
+          onError: (Object _, StackTrace _) {},
+        ),
+      );
+      unawaited(_handle(request));
+    });
   }
 
   GatewaySession createSession(HeaderPolicy policy) {
@@ -310,9 +319,13 @@ final class MediaGateway {
     );
     var hasFirst = false;
     Stream<List<int>> chunks() async* {
-      if (hasFirst) yield body.current;
-      while (await body.moveNext()) {
-        yield body.current;
+      try {
+        if (hasFirst) yield body.current;
+        while (await body.moveNext()) {
+          yield body.current;
+        }
+      } on RequestCancelled {
+        // Closing a gateway session ends forwarding to its native consumer.
       }
     }
 

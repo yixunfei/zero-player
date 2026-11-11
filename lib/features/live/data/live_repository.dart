@@ -10,6 +10,7 @@ import 'live_playlist_parser.dart';
 import 'playlist_channels.dart';
 import 'playlist_epg.dart';
 import 'live_audit_defaults.dart';
+import 'live_health_repository.dart';
 import '../domain/live_health.dart';
 import '../domain/live_metadata.dart';
 import '../domain/channel_merge.dart';
@@ -168,6 +169,7 @@ final class LiveRepository {
     bool forceVerify = false,
     int? packagedAt,
     int? curatedRevision,
+    bool verifiedPlayback = false,
   }) async {
     final id = stableId(url.toString());
     final channels = parseLivePlaylist(text, base ?? url, id);
@@ -233,9 +235,25 @@ final class LiveRepository {
         );
       }
       await _writePlaylistChannels(id, prepared, headers);
+      if (verifiedPlayback) await _recordVerifiedPlayback(imported);
     });
     if (verify) {
       await verifyUpdates?.call(imported, cancellation, force: forceVerify);
+    }
+  }
+
+  Future<void> _recordVerifiedPlayback(List<LiveChannel> channels) async {
+    final health = LiveHealthRepository(db, canEnable: canEnable);
+    for (final channel in channels) {
+      await health.record(
+        channel,
+        LiveHealth(
+          availability: LiveAvailability.responding,
+          preferredUrl: channel.urls.first.toString(),
+          verifiedUrls: channel.urls.map((uri) => '$uri').toList(),
+          message: '连续视频解码验证通过',
+        ),
+      );
     }
   }
 

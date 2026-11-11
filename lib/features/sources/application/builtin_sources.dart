@@ -7,6 +7,8 @@ import '../domain/video_source.dart';
 import 'maccms_sources.dart';
 import '../data/source_preferences.dart';
 import 'source_curation.dart';
+import '../data/awesome_zhuiju_index.dart';
+import '../data/catalog_parser.dart';
 
 final class BuiltinSources {
   const BuiltinSources(this.repository);
@@ -18,12 +20,68 @@ final class BuiltinSources {
   Future<void> initialize({bool restore = false}) async {
     await _initializeOriginal(restore: restore);
     await MaccmsSources(repository).initialize(restore: restore);
+    await _initializeAwesome(restore: restore);
     await SourceCuration(repository).initialize(restore: restore);
     await repository.applyVerifiedContentLabels();
     await SourcePreferences(
       repository.db,
     ).seedDefaults(await repository.all(includeSuppressed: true));
     await repository.deduplicate();
+  }
+
+  Future<void> _initializeAwesome({required bool restore}) async {
+    final url = Uri.parse(awesomeZhuijuBuiltin);
+    final id = stableId('$url');
+    final text = await rootBundle.loadString(
+      'assets/awesome_zhuiju_verified.json',
+    );
+    final current = await repository.db.rows(
+      'SELECT snapshot FROM subscriptions WHERE id=?',
+      [id],
+    );
+    if (!restore && current.firstOrNull?['snapshot'] == text) return;
+    final members = {
+      for (final row in await repository.db.rows(
+        'SELECT source_id FROM source_memberships WHERE subscription_id=?',
+        [id],
+      ))
+        row['source_id'] as String,
+    };
+    final existing = {
+      for (final source in await repository.all(includeSuppressed: true))
+        if (!members.contains(source.id))
+          AwesomeZhuijuIndex.videoIdentity(source.kind, source.endpoint),
+    };
+    final candidates = const JsonSourceCatalogParser()
+        .parse(text, url)
+        .sources
+        .where(
+          (item) => existing.add(
+            AwesomeZhuijuIndex.videoIdentity(item.kind.name, item.endpoint),
+          ),
+        )
+        .toList();
+    await repository.applySubscription(
+      url,
+      'awesome-zhuiju-free · 内置精选',
+      text,
+      candidates,
+      enableNew: true,
+      deduplicateSources: false,
+    );
+    await repository.pauseSubscription(id, true);
+    if (restore) {
+      final restored = await repository.db.rows(
+        'SELECT source_id FROM source_memberships WHERE subscription_id=?',
+        [id],
+      );
+      await repository.batch(
+        restored.map((row) => row['source_id'] as String).toList(),
+        enabled: true,
+        suppressed: false,
+        deduplicateSources: false,
+      );
+    }
   }
 
   Future<void> _initializeOriginal({bool restore = false}) async {

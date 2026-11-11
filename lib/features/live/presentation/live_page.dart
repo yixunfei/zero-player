@@ -1,4 +1,5 @@
 import '../../sources/presentation/catalog_import.dart';
+import '../../sources/presentation/awesome_zhuiju_dialog.dart';
 import '../../supervision/presentation/sensitive_action.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -166,6 +167,10 @@ final class _LivePageState extends State<LivePage> {
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'add', child: Text('添加 M3U / TXT')),
             PopupMenuItem(value: 'catalog', child: Text('导入直播单仓 / 多仓')),
+            PopupMenuItem(
+              value: 'awesome',
+              child: Text('awesome-zhuiju-free 手动同步'),
+            ),
             PopupMenuItem(value: 'lists', child: Text('管理订阅 / EPG')),
             PopupMenuItem(value: 'probeAll', child: Text('检测所有频道')),
             PopupMenuItem(value: 'recover', child: Text('一键检测并启用已停用频道')),
@@ -185,6 +190,8 @@ final class _LivePageState extends State<LivePage> {
         _add();
       case 'catalog':
         importCatalog(context, widget.services, liveOnly: true);
+      case 'awesome':
+        showAwesomeZhuijuSync(context, widget.services);
       case 'lists':
         _lists();
       case 'probeAll':

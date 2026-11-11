@@ -14,6 +14,7 @@ import '../../test_support/http_test_server.dart';
 void main() {
   gatewayTests();
   transportTests();
+  cancellationTests();
 }
 
 void gatewayTests() {
@@ -195,6 +196,58 @@ void transportTests() {
       release.complete();
       client.close();
       await upstream.close();
+    }
+  });
+}
+
+void cancellationTests() {
+  test('closing a streaming gateway session ends an active response', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'zero-gateway-cancel-',
+    );
+    final release = Completer<void>();
+    final upstream = await HttpTestServer.start((request) async {
+      request.response.bufferOutput = false;
+      request.response.add(List.filled(64 * 1024, 0x47));
+      await request.response.flush();
+      await release.future;
+    });
+    final gateway = MediaGateway(
+      SegmentStore(directory),
+      allowPrivateNetworks: true,
+    );
+    final client = HttpClient();
+    try {
+      await gateway.start();
+      final session = gateway.createSession(HeaderPolicy({}))
+        ..cacheEnabled = false;
+      final uri = session.register(
+        upstream.baseUri.resolve('live.ts'),
+        streaming: true,
+      );
+      final response = await (await client.getUrl(uri)).close();
+      final started = Completer<void>();
+      final ended = Completer<void>();
+      void finish() {
+        if (!ended.isCompleted) ended.complete();
+      }
+
+      response.listen(
+        (_) {
+          if (!started.isCompleted) started.complete();
+        },
+        onError: (Object _) => finish(),
+        onDone: finish,
+      );
+      await started.future.timeout(const Duration(seconds: 2));
+      session.close();
+      await ended.future.timeout(const Duration(seconds: 2));
+    } finally {
+      release.complete();
+      client.close(force: true);
+      await gateway.close();
+      await upstream.close();
+      await directory.delete(recursive: true);
     }
   });
 }

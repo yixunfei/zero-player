@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../data/catalog_parser.dart';
+import '../data/awesome_zhuiju_index.dart';
 import '../data/catalog_document.dart';
 import '../data/catalog_url.dart';
 import '../data/source_repository.dart';
@@ -215,6 +216,12 @@ final class SubscriptionService {
   });
 
   Future<void> refresh(Map<String, Object?> subscription) => _track(() async {
+    if ({
+      awesomeZhuijuSubscription,
+      awesomeZhuijuBuiltin,
+    }.contains(subscription['url'])) {
+      throw const FormatException('请在 awesome-zhuiju-free 手动同步入口更新');
+    }
     try {
       final item = await preview(Uri.parse(subscription['url'] as String));
       if (item.catalog.references.isNotEmpty &&
@@ -243,7 +250,13 @@ final class SubscriptionService {
   Future<void> refreshDue() => _track(() async {
     for (final row in await repository.subscriptions()) {
       if (_cancellation.isCancelled) return;
-      if (row['paused'] == 1) continue;
+      if (row['paused'] == 1 ||
+          {
+            awesomeZhuijuSubscription,
+            awesomeZhuijuBuiltin,
+          }.contains(row['url'])) {
+        continue;
+      }
       final last = row['last_success'] as int? ?? 0;
       final due =
           DateTime.now().millisecondsSinceEpoch - last >

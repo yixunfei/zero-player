@@ -62,6 +62,36 @@
       "revision": 3,
       "updatedAt": 1794363494218,
       "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",余姚姚江文化\nhttps://l.cztvcloud.com/channels/lantian/SXyuyao2/720p.m3u8\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"地方及其他\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",平湖新闻综合\nhttp://l.cztvcloud.com/channels/lantian/SXpinghu1/720p.m3u8?zzhed\n"
+    },
+    {
+      "url": "https://clun.top/lib/iptv_test.m3u",
+      "name": "追剧资源 · 拾光多仓 · cluntop_test",
+      "origin": "http://xmbjm.fh4u.org/dc.txt",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "base": "https://clun.top/lib/iptv_test.m3u",
+      "revision": 4,
+      "updatedAt": 1794370266940,
+      "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"开化新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",开化新闻\nhttp://l.cztvcloud.com/channels/lantian/SXkaihua1/720p.m3u8?zzhed$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"兰溪新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",兰溪新闻\nhttp://l.cztvcloud.com/channels/lantian/SXlanxi1/720p.m3u8$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"象山新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",象山新闻\nhttp://l.cztvcloud.com/channels/lantian/SXxiangshan1/720p.m3u8$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"衢江新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",衢江新闻\nhttp://l.cztvcloud.com/channels/lantian/SXqujiang1/720p.m3u8?zzhed$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"象山综合\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",象山综合\nhttp://l.cztvcloud.com/channels/lantian/SXxiangshan1/720p.m3u8$LR%E2%80%A2IPV4%E2%80%A22%E3%80%8E%E7%BA%BF%E8%B7%AF2%E3%80%8F\n#EXTINF:-1 tvg-id=\"玛纳斯综合\" tvg-logo=\"\" group-title=\"新疆频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",玛纳斯综合\nhttp://218.84.127.245:1026/hls/main1/playlist.m3u8?zxinjd,$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"长白山电视台\" tvg-logo=\"\" group-title=\"吉林频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",长白山电视台\nhttp://stream8.jlntv.cn/cbstv/sd/live.m3u8?zjild$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"平湖新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",平湖新闻\nhttp://l.cztvcloud.com/channels/lantian/SXpinghu1/720p.m3u8?zzhed$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"嵊州新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",嵊州新闻\nhttp://l.cztvcloud.com/channels/lantian/SXshengzhou1/720p.m3u8?zzhed#http://l.cztvcloud.com/channels/lantian/SXshengzhou1/720p.m3u8$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"苍南新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",苍南新闻\nhttps://l.cztvcloud.com/channels/lantian/SXcangnan1/720p.m3u8$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"上虞文化\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",上虞文化\nhttp://l.cztvcloud.com/channels/lantian/SXshangyu2/720p.m3u8$LR%E2%80%A2IPV4\n#EXTINF:-1 tvg-id=\"云和新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",云和新闻\nhttp://l.cztvcloud.com/channels/lantian/SXyunhe1/720p.m3u8$LR%E2%80%A2IPV4%E2%80%A22%E3%80%8E%E7%BA%BF%E8%B7%AF1%E3%80%8F\n#EXTINF:-1 tvg-id=\"诸暨新闻\" tvg-logo=\"\" group-title=\"浙江频道\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",诸暨新闻\nhttps://l.cztvcloud.com/channels/lantian/SXzhuji3/720p.m3u8$LR%E2%80%A2IPV4\n"
+    },
+    {
+      "url": "http://124.71.19.220/live/1/0?v=1794247117",
+      "name": "追剧资源 · 影仓 · 平台直播",
+      "origin": "http://124.71.19.220/c/1",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "base": "http://124.71.19.220/live/1/0?v=1794247117",
+      "revision": 4,
+      "updatedAt": 1794370266940,
+      "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"央视\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",CCTV4欧洲\nhttp://gslbmgsplive.miguvideo.com/migu/kailu/20200324/cctv4ouhd/51/index.m3u8?msisdn=d65809c16eba7b5332f6ee7591a3e263&mdspid=&spid=699004&netType=0&sid=2200179315&pid=2028597139&timestamp=20261111104805&Channel_ID=0116_2600034600-99000-201600010010028&ProgramID=608807419&ParentNodeID=-99&assertID=2200179315&client_ip=39.103.188.159&SecurityKey=20261111104805&promotionId=&mvid=2200179315&mcid=500020&playurlVersion=WX-A1-9.10.1-SNAPSHOT&userid=&jmhm=&videocodec=h264&appCode=miguvideo_android&bean=mgspad&tid=android&conFee=0&puData=9d12d64f48963208cbbd4b67ee806c4e&ddCalcu=e94dvc1a62y0da86e4ef7468b946d3b2b0c8&sv=10004&ct=android\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"央视\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",CCTV-5 体育\nhttp://gslbmgsplive.miguvideo.com/wd_r2/cctv/cctv5hdnew/1200/index.m3u8?msisdn=ca56e797e11f1cf5c8a3a252ba8e5b9f&mdspid=&spid=699004&netType=0&sid=5500516171&pid=2028597139&timestamp=20261111104803&Channel_ID=0116_2600034600-99000-201600010010028&ProgramID=641886683&ParentNodeID=-99&assertID=5500516171&client_ip=39.103.188.159&SecurityKey=20261111104803&promotionId=&mvid=5102048712&mcid=500020&playurlVersion=WX-A1-9.10.1-SNAPSHOT&userid=&jmhm=&videocodec=h264&appCode=miguvideo_android&bean=mgspad&tid=android&conFee=0&puData=8f098f8530ac2623e1c4a4ee51705193&ddCalcu=389fv10a59w08a7f1855e3e04aac42c612e3&sv=10004&ct=android\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"央视\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",CCTV4美洲\nhttp://gslbmgsplive.miguvideo.com/migu/kailu/20200324/cctv4meihd/51/index.m3u8?msisdn=a8edf91e3fd0df00e5e309c838d60b2a&mdspid=&spid=699004&netType=0&sid=2200179344&pid=2028597139&timestamp=20261111104805&Channel_ID=0116_2600034600-99000-201600010010028&ProgramID=608807416&ParentNodeID=-99&assertID=2200179344&client_ip=39.103.188.159&SecurityKey=20261111104805&promotionId=&mvid=2200179344&mcid=500020&playurlVersion=WX-A1-9.10.1-SNAPSHOT&userid=&jmhm=&videocodec=h264&appCode=miguvideo_android&bean=mgspad&tid=android&conFee=0&puData=99db69c10b8c498998cbe11c6c6d7c63&ddCalcu=3969vcda7byd6a69cc61c01b18ecb4c98899&sv=10004&ct=android\n"
+    },
+    {
+      "url": "https://szyyds.cn/tv/live/x.txt",
+      "name": "追剧资源 · 小马 · 手动不知何时更新",
+      "origin": "https://szyyds.cn/tv/x.json",
+      "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free",
+      "base": "https://szyyds.cn/tv/live/x.txt",
+      "revision": 4,
+      "updatedAt": 1794370266940,
+      "text": "#EXTM3U\n#EXTINF:-1 tvg-id=\"\" tvg-logo=\"\" group-title=\"新央视频道v4\" tvg-language=\"\" tvg-country=\"\" tvg-resolution=\"\",全国党教频道\nhttps://12371wbndbd.a.bdydns.com/12371wbnd/dangyuanwang_2/index.m3u8\n"
     }
   ]
 }
