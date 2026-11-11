@@ -5,6 +5,7 @@ import 'live_channel_filters.dart';
 import 'live_channel_details.dart';
 import '../domain/live_channel.dart';
 import '../domain/channel_order.dart';
+import '../domain/sports_channels.dart';
 
 /// Adaptive television guide: groups, channels and a focused-channel panel.
 final class LiveBrowser extends StatelessWidget {
@@ -50,6 +51,7 @@ final class LiveBrowser extends StatelessWidget {
       ..removeAll({
         '央视',
         '卫视',
+        sportsChannelGroup,
         '收藏',
         '最近',
         '全部',
@@ -62,6 +64,7 @@ final class LiveBrowser extends StatelessWidget {
     final groups = [
       '央视',
       '卫视',
+      sportsChannelGroup,
       '收藏',
       '最近',
       '全部',

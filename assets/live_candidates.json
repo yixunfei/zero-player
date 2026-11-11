@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "checkedAt": "2026-11-11T04:11:06.940185Z",
+  "checkedAt": "2026-11-11T05:23:23.089283Z",
   "retired": [
     "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
     "https://m3u.ibert.me/cn.m3u",
@@ -65,6 +65,51 @@
       "name": "追剧资源 · 小马 · 手动不知何时更新",
       "origin": "https://szyyds.cn/tv/x.json",
       "discoveredVia": "https://github.com/laoma528/awesome-zhuiju-free"
+    },
+    {
+      "url": "https://xixitv.live/api/config",
+      "name": "xixitv · xixitv.live",
+      "origin": "https://xixitv.live/"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/imDazui/Tvlist-awesome-m3u-m3u8/master/m3u/%E5%8F%B0%E6%B9%BE%E9%A6%99%E6%B8%AF%E6%BE%B3%E9%97%A8202506.m3u",
+      "name": "imDazui · raw.githubusercontent.com",
+      "origin": "https://github.com/imdazui/tvlist-awesome-m3u-m3u8"
+    },
+    {
+      "url": "https://iptv-org.github.io/iptv/categories/sports.m3u",
+      "name": "iptv-org · 国际体育精选",
+      "origin": "https://github.com/iptv-org/iptv"
+    },
+    {
+      "url": "https://zoo.ink/tvbox.html",
+      "name": "Zoo.ink · 体育精选",
+      "origin": "https://zoo.ink/tvbox.html"
+    },
+    {
+      "url": "https://urlzf.zone.id/iptv-api/output/user_result.m3u",
+      "name": "Zoo.ink · urlzf.zone.id",
+      "origin": "https://zoo.ink/tvbox.html"
+    },
+    {
+      "url": "https://live.zbds.top/tv/iptv4.txt",
+      "name": "直播电视 · live.zbds.top",
+      "origin": "https://live.zbds.top/tv/iptv4.txt"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/qist/tvbox/master/tvlive.txt",
+      "name": "qist/tvbox · raw.githubusercontent.com",
+      "origin": "https://github.com/qist/tvbox"
+    },
+    {
+      "url": "http://xhztv.top/xhz/live.txt",
+      "name": "Zoo.ink · xhztv.top",
+      "origin": "https://zoo.ink/tvbox.html"
+    },
+    {
+      "url": "https://raw.liucn.cc/box/libs/tv/tvlive.txt",
+      "name": "Zoo.ink · raw.liucn.cc",
+      "origin": "https://zoo.ink/tvbox.html"
     }
   ]
 }

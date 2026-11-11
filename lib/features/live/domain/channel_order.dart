@@ -1,6 +1,7 @@
 import 'live_channel.dart';
 import 'channel_identity.dart';
 import 'live_health.dart';
+import 'sports_channels.dart';
 
 /// Keep measured streams ahead of untested and failed entries.
 int channelHealthRank(LiveChannel channel) {
@@ -60,9 +61,16 @@ int compareChannels(LiveChannel a, LiveChannel b) {
 }
 
 bool matchesChannel(LiveChannel c, String group, String query) {
+  final sports = sportsChannelTags(c);
   if (!channelMatchesQuery(c.name, query) &&
       !c.entries.any((entry) => channelMatchesQuery(entry.name, query)) &&
-      ![c.listName, ...c.categories, ...c.languages, ...c.resolutions].any(
+      ![
+        c.listName,
+        ...c.categories,
+        ...c.languages,
+        ...c.resolutions,
+        ...sports,
+      ].any(
         (text) => text.toLowerCase().contains(query.trim().toLowerCase()),
       )) {
     return false;
@@ -74,6 +82,7 @@ bool matchesChannel(LiveChannel c, String group, String query) {
     return {'unavailable', 'inconclusive'}.contains(c.health.availability.name);
   }
   if (!c.health.enabled) return false;
+  if (group == sportsChannelGroup) return sports.contains(sportsChannelGroup);
   return group == '全部' ||
       group == '收藏' && c.favorite ||
       group == '最近' && c.recent ||

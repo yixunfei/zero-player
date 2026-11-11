@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/live_channel.dart';
+import '../domain/sports_channels.dart';
 
 final class LiveChannelFilter {
   const LiveChannelFilter({
@@ -9,7 +10,7 @@ final class LiveChannelFilter {
   });
   final String category, language, resolution;
   bool matches(LiveChannel c) =>
-      _matches(category, c.categories) &&
+      _matches(category, _categories(c)) &&
       _matches(language, c.languages) &&
       _matches(resolution, c.resolutions);
   bool _matches(String selected, List<String> values) =>
@@ -38,7 +39,7 @@ class LiveChannelFilters extends StatelessWidget {
         _menu(
           '分类',
           value.category,
-          channels.expand((c) => c.categories),
+          channels.expand(_categories),
           (v) => onChanged(
             LiveChannelFilter(
               category: v,
@@ -103,3 +104,6 @@ class LiveChannelFilters extends StatelessWidget {
     );
   }
 }
+
+List<String> _categories(LiveChannel channel) =>
+    {...channel.categories, ...sportsChannelTags(channel)}.toList();
