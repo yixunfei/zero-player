@@ -8,20 +8,19 @@ import 'application_fullscreen.dart';
 import 'app_layout.dart';
 import 'mobile_bottom_navigation.dart';
 import 'navigation_guide.dart';
+import 'module_sources.dart';
 import '../features/radio/presentation/radio_mini_player.dart';
 import '../features/music/presentation/music_player.dart';
 
 const _destinations = [
-  ('/', '发现', Icons.explore_outlined),
-  ('/search', '搜索', Icons.search),
+  ('/', '影院', Icons.movie_outlined),
   ('/live', '直播', Icons.live_tv),
-  ('/radio', '广播（实验）', Icons.radio_outlined),
-  ('/music', '在线音乐', Icons.library_music_outlined),
+  ('/radio', '广播', Icons.radio_outlined),
+  ('/music', '音乐', Icons.library_music_outlined),
   ('/reading', '阅读', Icons.auto_stories_outlined),
-  ('/audiobooks', '听书', Icons.headphones_outlined),
   ('/history', '记录', Icons.history),
   ('/downloads', '下载', Icons.download_outlined),
-  ('/local', '本地视频', Icons.video_file_outlined),
+  ('/local', '本地', Icons.video_file_outlined),
   ('/settings', '设置', Icons.settings_outlined),
 ];
 
@@ -31,16 +30,18 @@ final class AppShell extends StatefulWidget {
     required this.services,
     required this.location,
     required this.child,
+    required this.scaffoldKey,
   });
   final AppServices services;
   final String location;
   final Widget child;
+  final GlobalKey<ScaffoldState> scaffoldKey;
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 final class _AppShellState extends State<AppShell> {
-  final _scaffold = GlobalKey<ScaffoldState>();
+  GlobalKey<ScaffoldState> get _scaffold => widget.scaffoldKey;
   final _focus = FocusNode();
   Timer? _hoverTimer;
   bool _hoverOpened = false;
@@ -115,6 +116,7 @@ final class _AppShellState extends State<AppShell> {
         child: Scaffold(
           key: _scaffold,
           drawer: _drawer(),
+          drawerEnableOpenDragGesture: false,
           body: SafeArea(
             child: Column(
               children: [
@@ -192,7 +194,7 @@ final class _AppShellState extends State<AppShell> {
                 icon: const Icon(Icons.menu),
               ),
             ),
-          if (wide)
+          if (wide && !widget.services.platform.mobile)
             Positioned(
               left: 0,
               top: 0,
@@ -219,6 +221,9 @@ final class _AppShellState extends State<AppShell> {
     if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
+    if (widget.location == '/reading' || widget.location == '/audiobooks') {
+      return false;
+    }
     final delta = notification.scrollDelta ?? 0;
     final scrollingUp =
         delta < -2 &&
@@ -242,7 +247,13 @@ final class _AppShellState extends State<AppShell> {
   @override
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.location != widget.location) _barVisible = true;
+    if (oldWidget.location != widget.location) {
+      _barVisible = true;
+      if (widget.location == '/') {
+        final channel = widget.services.settings.value.homeChannel;
+        widget.services.searchSourceId = channel.isEmpty ? null : channel;
+      }
+    }
   }
 
   PreferredSizeWidget _appBar(bool wide) => AppBar(
@@ -280,8 +291,9 @@ final class _AppShellState extends State<AppShell> {
     actions: [
       if (wide) AppFullscreenButton(platform: widget.services.platform),
       IconButton(
-        tooltip: '管理视频源',
-        onPressed: () => context.push('/sources'),
+        tooltip: '渠道管理',
+        onPressed: () =>
+            showModuleSources(context, widget.services, widget.location),
         icon: const Icon(Icons.dns_outlined),
       ),
     ],

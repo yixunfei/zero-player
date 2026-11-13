@@ -8,357 +8,446 @@ import '../../../app/app_services.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../data/book_store.dart';
 import '../domain/book.dart';
+import '../domain/book_search.dart';
+import 'book_shelf_view.dart';
 import 'book_detail_page.dart';
+import 'book_discovery_view.dart';
+import 'book_page_route.dart';
+import 'book_search_page.dart';
 import 'book_sources_page.dart';
+import 'public_library_page.dart';
 
 final class BooksPage extends StatefulWidget {
-  const BooksPage({super.key, required this.services, required this.kind});
+  const BooksPage({
+    super.key,
+    required this.services,
+    required this.kind,
+    this.initialTab = 0,
+    this.libraryMode,
+  });
   final AppServices services;
   final BookKind kind;
+  final int initialTab;
+  final String? libraryMode;
 
   @override
   State<BooksPage> createState() => _BooksPageState();
 }
 
 final class _BooksPageState extends State<BooksPage> {
-  final _search = TextEditingController();
-  CancellationToken? _token;
-  List<Book> _results = [];
+  List<BookSourceEntry>? _sources;
   List<BookShelfEntry> _shelf = [];
-  List<BookSourceEntry> _sources = [];
-  bool _busy = false;
-  int _tab = 0;
-  int _failed = 0;
-  String? _group;
-  bool _favorites = false;
+  late int _tab = widget.initialTab;
+  int _reloadSequence = 0;
   String? _error;
+  CancellationToken? _followToken;
+  bool _checking = false;
+  bool _active = true;
+  bool _openingBook = false;
+  late var _policy = _policyState;
+
   bool get _audio => widget.kind == BookKind.audio;
   AppServices get _services => widget.services;
+  Object get _policyState => (
+    _services.contentPolicy.filterAdult,
+    _services.supervision.enabled,
+    _services.supervision.corrupted,
+    _services.supervision.rules,
+  );
 
   @override
   void initState() {
     super.initState();
+    _policy = _policyState;
     _services.contentPolicy.addListener(_policyChanged);
     unawaited(_reload());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = TickerMode.valuesOf(context).enabled;
+    if (active && !_active) unawaited(_reload());
+    _active = active;
+  }
+
   void _policyChanged() {
-    _token?.cancel();
-    if (!mounted) return;
+    final policy = _policyState;
+    if (_policy == policy) {
+      // A backup restore can change stored channels without changing policy.
+      // The source comparison in _reload preserves the discovery view.
+      if (_active) unawaited(_reload());
+      return;
+    }
+    _policy = policy;
+    _followToken?.cancel();
     setState(() {
-      _results = [];
-      _sources = [];
-      _busy = false;
+      _sources = null;
+      _shelf = [];
     });
     unawaited(_reload());
   }
 
+  List<BookShelfEntry> _visibleShelf(List<BookShelfEntry> entries) => entries
+      .where(
+        (entry) =>
+            entry.book.kind == widget.kind &&
+            (widget.libraryMode != 'history' || entry.last != null) &&
+            _services.books.bookAllowed(entry.book),
+      )
+      .toList();
+
   Future<void> _reload() async {
+    final sequence = ++_reloadSequence;
     try {
-      final sources = await _services.books.sources(widget.kind);
-      final shelf = await _services.books.store.shelf();
-      if (!mounted) return;
+      final sources = await _services.books.sources(
+        widget.kind,
+        enabledOnly: true,
+      );
+      final shelf = await _readShelf();
+      if (!mounted || sequence != _reloadSequence) return;
       setState(() {
-        _sources = sources;
-        if (!_sources.any((s) => s.group == _group)) _group = null;
-        _shelf = shelf
-            .where(
-              (entry) =>
-                  entry.book.kind == widget.kind &&
-                  _services.books.bookAllowed(entry.book),
-            )
-            .toList();
+        if (_sources == null ||
+            !sameBookDiscoverySources(
+              sources,
+              _sources!,
+              includeFavorites: true,
+            )) {
+          _sources = sources;
+        }
+        _shelf = _visibleShelf(shelf);
+        _error = null;
       });
-      if (_tab == 0 && _services.books.kindAllowed(widget.kind)) await _find();
+      unawaited(_checkFollowing());
+      unawaited(_seedCatalog());
     } on Exception {
-      if (mounted) setState(() => _error = '无法打开书库，请重试');
+      if (mounted && sequence == _reloadSequence) {
+        setState(() => _error = '无法打开书库');
+      }
     }
   }
 
-  Future<void> _find() async {
-    _token?.cancel();
-    final token = _token = CancellationToken();
-    setState(() {
-      _busy = true;
-      _error = null;
-      _results = [];
-    });
+  Future<void> _seedCatalog() async {
     try {
-      final result = await _services.books.find(
-        widget.kind,
-        _search.text.trim(),
-        token,
-        group: _group,
-        favorites: _favorites,
-      );
-      if (!mounted || token.isCancelled) return;
-      setState(() {
-        _results = result.books;
-        _failed = result.failed;
-      });
+      await _services.books.ensureCatalog();
     } on Exception {
-      if (mounted && !token.isCancelled) {
-        setState(() => _error = '搜索失败或受内容策略限制');
-      }
-    } finally {
-      if (mounted && identical(_token, token)) setState(() => _busy = false);
+      // Source management retries the import and can display the error.
     }
+  }
+
+  Future<List<BookShelfEntry>> _readShelf() async {
+    final shelf = _visibleShelf(await _services.books.store.shelf());
+    if (widget.libraryMode != 'downloads') return shelf;
+    final downloaded = <BookShelfEntry>[];
+    for (final entry in shelf) {
+      final saved = entry.book.kind == BookKind.audio
+          ? await _services.books.audioFiles.saved(entry.book)
+          : await _services.books.store.savedText(entry.book);
+      if (saved.isNotEmpty) downloaded.add(entry);
+    }
+    return downloaded;
+  }
+
+  Future<void> _reloadShelf() async {
+    final shelf = await _readShelf();
+    if (mounted) setState(() => _shelf = _visibleShelf(shelf));
+  }
+
+  Future<void> _checkFollowing() async {
+    if (_checking || !_shelf.any((entry) => entry.following)) return;
+    final token = _followToken = CancellationToken();
+    setState(() => _checking = true);
+    try {
+      await _services.books.checkFollowing(widget.kind, token);
+      if (mounted && !token.isCancelled) await _reloadShelf();
+    } on Exception {
+      // A temporary failure leaves the cached catalog and update badges intact.
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  void _followChanged() {
+    unawaited(
+      _reloadShelf().then((_) {
+        if (mounted) return _checkFollowing();
+      }),
+    );
+  }
+
+  Future<void> _searchBook(Book book, {bool direct = false}) => direct
+      ? _open(book)
+      : _search(book.title, preferred: book, field: BookSearchField.title);
+
+  Future<void> _search(
+    String query, {
+    Book? preferred,
+    BookSearchField field = BookSearchField.all,
+    String? sourceId,
+    bool favorites = false,
+    String? excludedSource,
+  }) async {
+    await Navigator.of(context).push(
+      BookPageRoute<void>(
+        builder: (_) => BookSearchPage(
+          repository: _services.books,
+          kind: widget.kind,
+          query: query,
+          preferred: preferred,
+          field: field,
+          sourceId: sourceId,
+          favoritesOnly: favorites,
+          excludedSource: excludedSource,
+          onSourceFavorite: _sourceFavoriteChanged,
+          onOpen: _open,
+        ),
+      ),
+    );
   }
 
   Future<void> _open(Book book) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(_detailRoute(book));
+    if (!mounted) return;
+    await _reloadShelf();
+    if (mounted) unawaited(_checkFollowing());
+  }
+
+  BookPageRoute<void> _detailRoute(Book book) => BookPageRoute<void>(
+    builder: (_) => BookDetailPage(
+      services: _services,
+      initial: book,
+      onSearchAuthor: (author) =>
+          _search(bookAuthorName(author), field: BookSearchField.author),
+      onSearchTitle: (book) => _search(
+        book.title,
+        field: BookSearchField.title,
+        excludedSource: book.sourceId,
+      ),
+      onSourceFavorite: _sourceFavoriteChanged,
+    ),
+  );
+
+  void _sourceFavoriteChanged(String id, bool favorite) {
+    final sources = _sources;
+    if (sources == null || !mounted) return;
+    setState(
+      () => _sources = [
+        for (final entry in sources)
+          entry.source.id == id ? entry.withFavorite(favorite) : entry,
+      ],
+    );
+  }
+
+  Future<void> _manageSources() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BookDetailPage(services: _services, initial: book),
+      BookPageRoute<void>(
+        builder: (_) => BookSourcesPage(services: _services, kind: widget.kind),
       ),
     );
-    if (!mounted) return;
-    final shelf = await _services.books.store.shelf();
-    if (mounted) {
-      setState(
-        () => _shelf = shelf
-            .where(
-              (entry) =>
-                  entry.book.kind == widget.kind &&
-                  _services.books.bookAllowed(entry.book),
-            )
-            .toList(),
-      );
-    }
+    if (mounted) await _reload();
   }
 
   Future<void> _import() async {
+    if (_openingBook) return;
+    _openingBook = true;
     try {
       final file = await openFile(
         acceptedTypeGroups: [
-          const XTypeGroup(label: '电子书', extensions: ['txt', 'epub']),
+          const XTypeGroup(
+            label: '电子书',
+            extensions: ['txt', 'epub', 'pdf'],
+            mimeTypes: [
+              'text/plain',
+              'application/epub+zip',
+              'application/pdf',
+            ],
+          ),
         ],
       );
       if (file == null || !mounted) return;
       final book = await _services.books.importLocal(File(file.path));
       if (mounted) await _open(book);
-    } catch (_) {
+    } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法导入。请检查 TXT 或 EPUB 的格式、大小和内容权限。')),
+          const SnackBar(content: Text('无法导入，请检查 TXT、EPUB 或 PDF 的格式、大小和内容权限。')),
         );
       }
+    } finally {
+      _openingBook = false;
     }
+  }
+
+  Future<void> _openPublicationLibrary() async {
+    await Navigator.of(context, rootNavigator: true).push(
+      BookPageRoute<void>(
+        builder: (_) =>
+            PublicLibraryPage(services: _services, bookRoute: _detailRoute),
+      ),
+    );
+    if (mounted) await _reloadShelf();
   }
 
   @override
   void dispose() {
-    _token?.cancel();
-    _search.dispose();
+    _followToken?.cancel();
     _services.contentPolicy.removeListener(_policyChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     if (!_services.books.kindAllowed(widget.kind)) {
       return const Center(child: Text('当前内容策略限制访问此模块'));
     }
-    final groups =
-        _sources.map((s) => s.group).where((s) => s.isNotEmpty).toSet().toList()
-          ..sort();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: 10,
-            spacing: 10,
-            children: [
-              Text(_audio ? '听书' : '阅读', style: theme.textTheme.headlineMedium),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (!_audio)
-                    OutlinedButton.icon(
-                      onPressed: _import,
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('导入电子书'),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => BookSourcesPage(
-                            services: _services,
-                            kind: widget.kind,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1400),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _header(),
+            if (!_audio && widget.libraryMode == null) _publicationActions(),
+            Expanded(
+              child: _error != null
+                  ? Center(
+                      child: TextButton.icon(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh),
+                        label: Text('$_error，重试'),
+                      ),
+                    )
+                  : IndexedStack(
+                      index: _tab,
+                      children: [
+                        BookDiscoveryView(
+                          repository: _services.books,
+                          kind: widget.kind,
+                          sources: _sources,
+                          active: _tab == 0,
+                          onOpen: _searchBook,
+                          onSearch: (query, sourceId, favorites) => _search(
+                            query,
+                            sourceId: sourceId,
+                            favorites: favorites,
                           ),
+                          onSourceFavorite: _sourceFavoriteChanged,
+                          onManage: _manageSources,
                         ),
-                      );
-                      if (mounted) await _reload();
-                    },
-                    icon: const Icon(Icons.tune),
-                    label: const Text('源管理'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  label: Text('发现'),
-                  icon: Icon(Icons.explore_outlined),
-                ),
-                ButtonSegment(
-                  value: 1,
-                  label: Text('书架'),
-                  icon: Icon(Icons.collections_bookmark_outlined),
-                ),
-              ],
-              selected: {_tab},
-              onSelectionChanged: (value) {
-                setState(() => _tab = value.first);
-                if (_tab == 0 && _results.isEmpty && !_busy) unawaited(_find());
-              },
+                        BookShelfView(
+                          repository: _services.books,
+                          kind: widget.kind,
+                          entries: _shelf,
+                          onOpen: _open,
+                          checking: _checking,
+                          onRefresh: _checkFollowing,
+                          onFollowChanged: _followChanged,
+                        ),
+                      ],
+                    ),
             ),
-          ),
+          ],
         ),
-        if (_tab == 0) _searchBar(groups),
-        if (_tab == 0 && _busy) const LinearProgressIndicator(),
-        if (_tab == 0 && !_busy && _failed > 0)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text('$_failed 个源请求失败'),
-          ),
-        Expanded(child: _tab == 0 ? _discovery() : _library()),
-      ],
+      ),
     );
   }
 
-  Widget _searchBar(List<String> groups) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _publicationActions() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    child: Wrap(
+      spacing: 8,
+      runSpacing: 4,
       children: [
-        TextField(
-          controller: _search,
-          maxLength: 80,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _find(),
-          decoration: InputDecoration(
-            hintText: '搜索书名或关键词',
-            counterText: '',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
-              tooltip: _busy ? '取消搜索' : '搜索',
-              onPressed: _busy
-                  ? () {
-                      _token?.cancel();
-                      setState(() => _busy = false);
-                    }
-                  : _find,
-              icon: Icon(_busy ? Icons.close : Icons.arrow_forward),
+        FilledButton.tonalIcon(
+          icon: const Icon(Icons.library_books_outlined),
+          label: const Text('出版书目'),
+          onPressed: _openPublicationLibrary,
+        ),
+        OutlinedButton.icon(
+          onPressed: _import,
+          icon: const Icon(Icons.upload_file),
+          label: const Text('导入 EPUB / PDF'),
+        ),
+        IconButton(
+          tooltip: '听书',
+          onPressed: () => Navigator.of(context).push(
+            BookPageRoute<void>(
+              builder: (_) => Scaffold(
+                appBar: AppBar(title: const Text('听书')),
+                body: BooksPage(services: _services, kind: BookKind.audio),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 10,
-          children: [
-            DropdownButton<String>(
-              value: _group ?? '',
-              items: [
-                const DropdownMenuItem(value: '', child: Text('全部分组')),
-                for (final group in groups)
-                  DropdownMenuItem(value: group, child: Text(group)),
-              ],
-              onChanged: (value) {
-                setState(() => _group = value == '' ? null : value);
-                unawaited(_find());
-              },
-            ),
-            FilterChip(
-              label: const Text('仅收藏源'),
-              selected: _favorites,
-              onSelected: (value) {
-                setState(() => _favorites = value);
-                unawaited(_find());
-              },
-            ),
-          ],
+          icon: const Icon(Icons.headphones_outlined),
         ),
       ],
     ),
   );
 
-  Widget _discovery() {
-    if (_results.isEmpty) {
-      return Center(
-        child: Text(
-          _error ??
-              (_busy
-                  ? '正在加载作品…'
-                  : _sources.any((s) => s.enabled)
-                  ? '没有匹配作品'
-                  : '请在源管理中启用一个渠道'),
+  Widget _header() => LayoutBuilder(
+    builder: (context, constraints) {
+      final theme = Theme.of(context);
+      final compact = constraints.maxWidth < 620;
+      final title = Text(
+        _audio ? '听书' : '阅读',
+        style: theme.textTheme.headlineMedium?.copyWith(
+          fontFamily: 'NotoSerifSC',
+          fontWeight: FontWeight.w700,
         ),
       );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),
-      itemCount: _results.length,
-      itemBuilder: (context, index) {
-        final book = _results[index];
-        final source = _sources
-            .where((entry) => entry.source.id == book.sourceId)
-            .firstOrNull;
-        return _bookTile(book, [
-          book.author,
-          source?.source.name ?? '',
-          book.description,
-        ]);
-      },
-    );
-  }
-
-  Widget _library() {
-    if (_shelf.isEmpty) {
-      return const Center(child: Text('打开作品后可收藏，阅读与播放进度会保存在这里'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),
-      itemCount: _shelf.length,
-      itemBuilder: (context, index) {
-        final entry = _shelf[index];
-        final last = entry.chapters
-            .where((c) => c.id == entry.last)
-            .firstOrNull;
-        return _bookTile(entry.book, [
-          entry.favorite ? '已收藏' : '',
-          entry.book.author,
-          last?.title ?? '',
-        ]);
-      },
-    );
-  }
-
-  Widget _bookTile(Book book, List<String> info) => ListTile(
-    leading: CircleAvatar(
-      child: Icon(_audio ? Icons.headphones : Icons.auto_stories_outlined),
-    ),
-    title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-    subtitle: Text(
-      info.where((value) => value.isNotEmpty).join(' · '),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    ),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: () => _open(book),
+      final tabs = SegmentedButton<int>(
+        segments: [
+          ButtonSegment(
+            value: 0,
+            label: const Text('发现'),
+            icon: compact ? null : const Icon(Icons.explore_outlined),
+          ),
+          ButtonSegment(
+            value: 1,
+            label: const Text('书架'),
+            icon: compact
+                ? null
+                : const Icon(Icons.collections_bookmark_outlined),
+          ),
+        ],
+        selected: {_tab},
+        showSelectedIcon: false,
+        onSelectionChanged: (value) {
+          setState(() => _tab = value.first);
+          if (_tab == 1) unawaited(_checkFollowing());
+        },
+      );
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          compact ? 16 : 26,
+          12,
+          compact ? 16 : 26,
+          8,
+        ),
+        child: Row(
+          children: [
+            if (!compact) title,
+            if (!compact) const SizedBox(width: 24),
+            if (!compact) tabs,
+            const Spacer(),
+            if (compact) tabs,
+            const Spacer(),
+            if (!compact && !_audio) const SizedBox(width: 8),
+            compact
+                ? IconButton(
+                    tooltip: '源管理',
+                    onPressed: _manageSources,
+                    icon: const Icon(Icons.tune),
+                  )
+                : OutlinedButton.icon(
+                    onPressed: _manageSources,
+                    icon: const Icon(Icons.tune),
+                    label: const Text('源管理'),
+                  ),
+          ],
+        ),
+      );
+    },
   );
 }

@@ -21,6 +21,7 @@ Packages retain their licenses. The application exposes Flutter LicenseRegistry.
 - FFmpegKit Windows 8.1.2 min: https://github.com/sk3llo/ffmpeg_kit_flutter/releases/tag/8.1.2-min. Bundled LICENSES directory preserves the supplier's full notices, source links, DLL hashes and build scripts. FFmpeg shared libraries LGPL-2.1-or-later; FFmpegKit LGPL-3.0 per supplier notice.
 - Android FFmpegKit Maven com.antonkarpenko:ffmpeg-kit-min:2.2.3; Flutter wrapper ffmpeg_kit_flutter_new_min 3.6.7. https://github.com/sk3llo/ffmpeg_kit_flutter_android. Minimal variant selected; the Maven POM identifies the min branch; source JAR and build sources accompany the release.
 - SQLite native binaries: sqlite3.dart 3.5.2, https://github.com/simolus3/sqlite3.dart; SQLite is public domain, wrapper license retained.
+- Legado JavaScript rules run on QuickJS via flutter_qjs_next 1.5.2, https://github.com/NanCunChild/flutter_qjs_next. The wrapper and vendored QuickJS sources carry MIT notices. The package archive in tool/native_sources.json preserves the license and upstream source headers.
 - Visual C++ runtime DLLs are copied from the installed VS2022 redistributable directory under Microsoft's redistributable terms; they are not covered by this project's AGPL.
 
 The v0.0.1 release includes dependency notices and records of native source/build repositories. Android uses a dedicated local release certificate. Upstream native binaries are redistributed unmodified; retain their licenses and corresponding-source/build references. This collection is not represented as an independent legal or complete supply-chain audit.
@@ -53,6 +54,10 @@ assets/catalogs/maccms/Site.json and R18.json are snapshots from ZhaoYunxiong/Ma
 
 Selected source names and URLs were adapted from [awesome-zhuiju-free](https://github.com/laoma528/awesome-zhuiju-free) by laoma528 and contributors under [CC BY 4.0](https://github.com/laoma528/awesome-zhuiju-free/blob/main/LICENSE). Zero Player filters, deduplicates and verifies the entries independently. The application links to the publishers' media endpoints.
 
+## Legado book-source catalog
+
+`assets/catalogs/books/legado/` contains the seven published book-source packs from [aoaostar/legado](https://github.com/aoaostar/legado/tree/116806ea5342f6590a818aa8da0c8bb826177583). The catalog preserves pack membership and original rule records. The manifest records the upstream revision and the SHA-256 digest of each export. Book-source authors and comments are retained as published. Imports link to publisher endpoints and require the existing book-source checks.
+
 ## Radio catalog source
 
 popocoding/awesome-m3u provides radio/cn.m3u: https://github.com/popocoding/awesome-m3u . A successfully fetched and parsed catalog snapshot is bundled in assets/catalogs/radio/cn.snapshot.json, with its source and timestamp. Copyright (c) 2026 popocoding, MIT; full license in assets/catalogs/radio/LICENSE. tool/sync_radio_snapshot.dart refreshes this snapshot only after successful validation. No audio content is bundled. Catalog inclusion is not a certification of station availability or media rights. Radio is explicitly experimental.
@@ -60,3 +65,9 @@ popocoding/awesome-m3u provides radio/cn.m3u: https://github.com/popocoding/awes
 ## Branding
 
 assets/brand/logo.jpg was supplied by the project owner. Platform icons and the Android TV banner are derived from that image using tool/generate_brand.py; it is not an upstream library asset.
+
+## Publication catalog and PDF reader
+
+Public bibliographic snapshots are retrieved from the Project Gutenberg machine-readable catalog (public-domain metadata), DOAB OAI-PMH, and public Haodoo category pages. Only metadata and original-site links are bundled; source-specific book licenses apply. BookStack Docker metadata links to the original publication.
+
+PDF rendering uses pdfrx 2.2.24 and PDFium chromium/7520 from bblanchon/pdfium-binaries. PDFium and bundled third-party notices are included in assets/licenses/pdfium.txt. Fixed archive and binary SHA-256 values are in tool/pdfium_checksums.json. HTML rendering uses flutter_widget_from_html_core under its upstream license.

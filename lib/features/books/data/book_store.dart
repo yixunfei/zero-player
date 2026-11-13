@@ -2,6 +2,26 @@ import 'dart:convert';
 
 import '../../../core/persistence/app_database.dart';
 import '../domain/book.dart';
+import 'book_source_links.dart';
+
+final class BookSourceSubscription {
+  const BookSourceSubscription(this.url, this.count, this.refreshedAt);
+  final Uri url;
+  final int count, refreshedAt;
+  String get id => bookSubscriptionId(url);
+
+  Map<String, Object> toJson() => {
+    'url': url.toString(),
+    'count': count,
+    'refreshedAt': refreshedAt,
+  };
+
+  factory BookSourceSubscription.fromJson(Map data) => BookSourceSubscription(
+    bookSourceLink(data['url'] as String),
+    data['count'] as int,
+    data['refreshedAt'] as int,
+  );
+}
 
 final class BookSourceEntry {
   const BookSourceEntry(
@@ -10,13 +30,49 @@ final class BookSourceEntry {
     this.favorite,
     this.group,
     this.health,
-    this.checkedAt,
-  );
+    this.checkedAt, {
+    this.subscriptionId,
+    this.fromCatalog = false,
+  });
   final BookSource source;
   final bool enabled, favorite;
   final String group, health;
   final int? checkedAt;
+  final String? subscriptionId;
+  final bool fromCatalog;
+
+  BookSourceEntry withFavorite(bool value) => BookSourceEntry(
+    source,
+    enabled,
+    value,
+    group,
+    health,
+    checkedAt,
+    subscriptionId: subscriptionId,
+    fromCatalog: fromCatalog,
+  );
 }
+
+/// Metadata from health checks does not change a source's discovery rules.
+bool sameBookDiscoverySources(
+  List<BookSourceEntry> current,
+  List<BookSourceEntry> previous, {
+  bool includeFavorites = false,
+}) =>
+    current.length == previous.length &&
+    current.indexed.every((row) {
+      final (index, entry) = row;
+      final old = previous[index];
+      return entry.source.id == old.source.id &&
+          entry.enabled == old.enabled &&
+          (!includeFavorites || entry.favorite == old.favorite) &&
+          (identical(entry.source, old.source) ||
+              _discoverySourceJson(entry.source) ==
+                  _discoverySourceJson(old.source));
+    });
+
+String _discoverySourceJson(BookSource source) =>
+    jsonEncode(source.toJson()..remove('updatedAt'));
 
 final class BookShelfEntry {
   const BookShelfEntry(
@@ -25,12 +81,20 @@ final class BookShelfEntry {
     this.last,
     this.position,
     this.favorite,
-    this.updated,
-  );
+    this.updated, {
+    this.textOffset,
+    this.following = false,
+    this.newChapters = 0,
+    this.chapterUpdatedAt,
+  });
   final Book book;
   final List<BookChapter> chapters;
   final String? last;
   final double position;
+  final int? textOffset;
+  final bool following;
+  final int newChapters;
+  final DateTime? chapterUpdatedAt;
   final bool favorite;
   final int updated;
 }
@@ -51,7 +115,10 @@ final class BookStore {
     [key, jsonEncode(value)],
   );
 
-  Future<List<BookSourceEntry>> sources(List<BookSource> builtins) async {
+  Future<List<BookSourceEntry>> sources(
+    List<BookSource> builtins, {
+    bool enabledOnly = false,
+  }) async {
     final rows = await db.rows(
       "SELECT * FROM app_meta WHERE key GLOB 'books_source:*'",
     );
@@ -62,7 +129,9 @@ final class BookStore {
         final id = (row['key'] as String).substring('books_source:'.length);
         final state = jsonDecode(row['value'] as String) as Map;
         final custom = state['source'];
-        if (!sources.containsKey(id) && custom is Map) {
+        if (!sources.containsKey(id) &&
+            custom is Map &&
+            (!enabledOnly || state['enabled'] == true)) {
           final source = BookSource.fromJson(custom);
           if (source.id == id) sources[id] = source;
         }
@@ -73,16 +142,43 @@ final class BookStore {
     }
     return [
       for (final source in sources.values)
-        BookSourceEntry(
-          source,
-          states[source.id]?['enabled'] as bool? ?? source.builtin,
-          states[source.id]?['favorite'] as bool? ?? false,
-          states[source.id]?['group'] as String? ?? source.group,
-          states[source.id]?['health'] as String? ?? '',
-          states[source.id]?['checkedAt'] as int?,
-        ),
+        if (states[source.id]?['removed'] != true &&
+            (!enabledOnly ||
+                (states[source.id]?['enabled'] ?? source.builtin) == true))
+          _sourceEntry(source, states[source.id] ?? const {}),
     ];
   }
+
+  Future<BookSourceEntry?> source(BookSource? builtin, String id) async {
+    try {
+      final state = await read('books_source:$id');
+      final data = state is Map ? state : const {};
+      if (data['removed'] == true) return null;
+      final custom = data['source'];
+      final source =
+          builtin ?? (custom is Map ? BookSource.fromJson(custom) : null);
+      return source?.id == id ? _sourceEntry(source!, data) : null;
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  BookSourceEntry _sourceEntry(BookSource source, Map state) => BookSourceEntry(
+    source,
+    state['enabled'] is bool ? state['enabled'] as bool : source.builtin,
+    state['favorite'] == true,
+    state['group'] is String ? state['group'] as String : source.group,
+    state['health'] is String ? state['health'] as String : '',
+    state['checkedAt'] is int ? state['checkedAt'] as int : null,
+    subscriptionId: state['subscription'] is String
+        ? state['subscription'] as String
+        : null,
+    fromCatalog: state['catalog'] == true,
+  );
 
   Future<void> saveSource(
     BookSource source,
@@ -91,18 +187,102 @@ final class BookStore {
     final key = 'books_source:${source.id}';
     await db.atomic(() async {
       final old = await read(key);
-      await write(key, {
-        if (old is Map) ...old,
-        if (!source.builtin) 'source': source.toJson(),
-        ...changes,
-      });
+      if ((!source.builtin && old is! Map) ||
+          (old is Map && old['removed'] == true)) {
+        throw const FormatException('该来源已移除');
+      }
+      await write(key, {if (old is Map) ...old, ...changes});
     }, tables: {'app_meta'});
   }
 
-  Future<void> deleteSource(BookSource source) => db.write(
-    'DELETE FROM app_meta WHERE key=?',
-    ['books_source:${source.id}'],
-  );
+  Future<void> deleteSource(BookSource source) => source.builtin
+      ? write('books_source:${source.id}', {'removed': true})
+      : db.write('DELETE FROM app_meta WHERE key=?', [
+          'books_source:${source.id}',
+        ]);
+
+  Future<Map<String, String>> blockedSources() async {
+    final value = await read('books_source_blacklist');
+    return value is Map ? Map<String, String>.from(value) : {};
+  }
+
+  Future<Set<String>> blockedAliases() async {
+    final value = await read('books_source_blacklist_aliases');
+    return value is Map ? value.keys.whereType<String>().toSet() : {};
+  }
+
+  Future<void> setSourcesEnabled(Set<String> ids, bool enabled) async {
+    final rows = await db.rows(
+      "SELECT key,value FROM app_meta WHERE key GLOB 'books_source:*'",
+    );
+    final states = {for (final row in rows) row['key']: row['value'] as String};
+    await db.batch((batch) {
+      for (final id in ids) {
+        final key = 'books_source:$id';
+        final old = states[key];
+        final state = old == null
+            ? <String, Object?>{}
+            : jsonDecode(old) as Map;
+        batch.customStatement(
+          'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+          [
+            key,
+            jsonEncode({...state, 'enabled': enabled}),
+          ],
+        );
+      }
+    });
+  }
+
+  Future<void> writeImported(
+    List<({BookSource source, BookSourceEntry? previous})> entries, {
+    String? subscriptionId,
+    bool fromCatalog = false,
+  }) => db.batch((batch) {
+    for (final (:source, :previous) in entries) {
+      batch.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [
+          'books_source:${source.id}',
+          jsonEncode({
+            'source': source.toJson(),
+            'enabled': previous?.enabled ?? false,
+            'favorite': previous?.favorite ?? false,
+            if (previous != null) 'group': previous.group,
+            'subscription': ?subscriptionId,
+            if (fromCatalog) 'catalog': true,
+          }),
+        ],
+      );
+    }
+  });
+
+  Future<List<BookSourceSubscription>> subscriptions() async {
+    final rows = await db.rows(
+      "SELECT value FROM app_meta WHERE key GLOB 'books_subscription:*'",
+    );
+    final result = <BookSourceSubscription>[];
+    for (final row in rows) {
+      try {
+        result.add(
+          BookSourceSubscription.fromJson(
+            jsonDecode(row['value'] as String) as Map,
+          ),
+        );
+      } on Object {
+        // A damaged bookmark does not hide other subscriptions.
+      }
+    }
+    return result..sort((a, b) => b.refreshedAt.compareTo(a.refreshedAt));
+  }
+
+  Future<void> saveSubscription(BookSourceSubscription subscription) =>
+      write('books_subscription:${subscription.id}', subscription.toJson());
+
+  Future<void> deleteSubscription(BookSourceSubscription subscription) =>
+      db.write('DELETE FROM app_meta WHERE key=?', [
+        'books_subscription:${subscription.id}',
+      ]);
 
   Future<List<BookShelfEntry>> shelf() async {
     final rows = await db.rows(
@@ -134,6 +314,13 @@ final class BookStore {
     (raw['position'] as num?)?.toDouble() ?? 0,
     raw['favorite'] == true,
     raw['updated'] as int? ?? 0,
+    textOffset: raw['textOffset'] is int ? raw['textOffset'] as int : null,
+    following: raw['following'] == true,
+    newChapters: raw['newChapters'] as int? ?? 0,
+    chapterUpdatedAt: switch (raw['chapterUpdatedAt']) {
+      final int timestamp => DateTime.fromMillisecondsSinceEpoch(timestamp),
+      _ => null,
+    },
   );
 
   Future<void> saveBook(
@@ -141,7 +328,10 @@ final class BookStore {
     List<BookChapter>? chapters,
     BookChapter? last,
     double? position,
+    int? textOffset,
     bool? favorite,
+    bool? following,
+    bool clearUpdates = false,
   }) async {
     final key = 'books_shelf:${book.id}';
     await db.atomic(() async {
@@ -150,13 +340,90 @@ final class BookStore {
         if (old is Map) ...old,
         'book': book.toJson(),
         if (chapters != null)
-          'chapters': chapters.map((c) => c.toJson()).toList(),
+          'chapters': _chapterRecords(
+            chapters,
+            old,
+            preserve: following ?? (old is Map && old['following'] == true),
+          ),
         if (last != null) 'last': last.id,
         'position': ?position,
+        if (position != null ||
+            (last != null && (old is! Map || old['last'] != last.id)))
+          'textOffset': textOffset,
         'favorite': ?favorite,
+        'following': ?following,
+        if (clearUpdates || following == false) 'newChapters': 0,
         'updated': DateTime.now().millisecondsSinceEpoch,
       });
     }, tables: {'app_meta'});
+  }
+
+  Future<void> saveRichPosition(
+    Book book,
+    BookChapter chapter, {
+    required int index,
+    required bool horizontal,
+    required int verticalPage,
+    required double offset,
+    required double fraction,
+  }) => db.atomic(() async {
+    if (await entry(book) == null) return;
+    await write('rich_position_${book.id}', {
+      'index': index,
+      'horizontal': horizontal,
+      'verticalPage': verticalPage,
+      'offset': offset,
+    });
+    await saveBook(book, last: chapter, position: fraction);
+  }, tables: {'app_meta'});
+
+  Future<void> updateFollowedChapters(
+    Book book,
+    List<BookChapter> fresh,
+  ) => db.atomic(() async {
+    final key = 'books_shelf:${book.id}';
+    final raw = await read(key);
+    if (raw is! Map || raw['following'] != true) return;
+    final previous = _entry(raw);
+    final tail = previous.chapters.lastOrNull;
+    final boundary = fresh.indexWhere((chapter) => chapter.id == tail?.id);
+    final known = previous.chapters.map((chapter) => chapter.id).toSet();
+    final added = boundary < 0
+        ? 0
+        : fresh
+              .skip(boundary + 1)
+              .where((chapter) => !known.contains(chapter.id))
+              .length;
+    // Keep cached chapters with local progress or downloads when a feed rotates.
+    final merged = {
+      for (final chapter in previous.chapters) chapter.id: chapter,
+    };
+    for (final chapter in fresh) {
+      merged[chapter.id] = chapter;
+    }
+    if (merged.length > 4000) return;
+    await write(key, {
+      ...raw,
+      'chapters': merged.values.map((chapter) => chapter.toJson()).toList(),
+      'newChapters': previous.newChapters + added,
+      if (added > 0) 'chapterUpdatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+  }, tables: {'app_meta'});
+
+  List<Object?> _chapterRecords(
+    List<BookChapter> chapters,
+    Object? raw, {
+    required bool preserve,
+  }) {
+    if (!preserve || raw is! Map || raw['chapters'] is! List) {
+      return chapters.map((chapter) => chapter.toJson()).toList();
+    }
+    final old = _entry(raw).chapters;
+    final newer = {for (final chapter in old) chapter.id: chapter};
+    for (final chapter in chapters) {
+      newer[chapter.id] = chapter;
+    }
+    return newer.values.take(4000).map((chapter) => chapter.toJson()).toList();
   }
 
   String _textKey(Book book, BookChapter chapter) =>
@@ -204,10 +471,38 @@ final class BookStore {
     }, tables: {'app_meta'});
   }
 
+  Future<List<Map>> annotations(Book book) async {
+    final raw = await read('books_notes:${book.id}');
+    return raw is List ? raw.whereType<Map>().toList() : [];
+  }
+
+  Future<void> addAnnotation(Book book, Map<String, Object?> entry) =>
+      db.atomic(() async {
+        final entries = await annotations(book);
+        if (entries.length >= 1000) {
+          throw const FormatException('每本书最多保存 1000 条记录');
+        }
+        await write('books_notes:${book.id}', [entry, ...entries]);
+      }, tables: {'app_meta'});
+
+  Future<void> deleteAnnotation(Book book, String id) => db.atomic(() async {
+    final entries = await annotations(book);
+    await write(
+      'books_notes:${book.id}',
+      entries.where((e) => e['id'] != id).toList(),
+    );
+  }, tables: {'app_meta'});
+
   Future<void> removeLocal(Book book) => db.atomic(() async {
     await db.customStatement(
-      'DELETE FROM app_meta WHERE key = ? OR key GLOB ?',
-      ['books_shelf:${book.id}', 'books_text:${book.id}:*'],
+      'DELETE FROM app_meta WHERE key IN (?, ?, ?, ?) OR key GLOB ?',
+      [
+        'books_shelf:${book.id}',
+        'books_notes:${book.id}',
+        'rich_position_${book.id}',
+        'publication_${book.id}',
+        'books_text:${book.id}:*',
+      ],
     );
   }, tables: {'app_meta'});
 

@@ -63,6 +63,16 @@ set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# PDFium chromium/7520, verified against the publisher's release archive.
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+  foreach(PDFIUM_LIBRARY IN LISTS pdfium_flutter_bundled_libraries)
+    file(SHA256 "${PDFIUM_LIBRARY}" PDFIUM_SHA256)
+    if(NOT PDFIUM_SHA256 STREQUAL "6f9ad538918a9de688cd526bf23c4666beb0e7db3e386b089f9ce08a259b0593")
+      message(FATAL_ERROR "PDFium checksum mismatch; expected chromium/7520 x64")
+    endif()
+  endforeach()
+endif()
+
 # Enhanced OCR/ASR runtimes are installed explicitly into app support storage.
 list(FILTER PLUGIN_BUNDLED_LIBRARIES EXCLUDE REGEX
   "(onnxruntime|sherpa-onnx-c-api|sherpa-onnx-cxx-api)\\.dll$")

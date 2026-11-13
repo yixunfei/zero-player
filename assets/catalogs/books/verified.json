@@ -53,22 +53,6 @@
     }
   },
   {
-    "name": "少数派",
-    "group": "科技阅读",
-    "kind": "text",
-    "format": "feed",
-    "url": "https://sspai.com/feed",
-    "originNote": "源仓库订阅源合集 174，使用官方 RSS"
-  },
-  {
-    "name": "爱范儿",
-    "group": "科技阅读",
-    "kind": "text",
-    "format": "feed",
-    "url": "https://www.ifanr.com/feed",
-    "originNote": "源仓库订阅源条目，使用发布者官方全文 RSS"
-  },
-  {
     "name": "Project Gutenberg 公版有声书",
     "group": "公版经典",
     "kind": "audio",
@@ -96,5 +80,310 @@
       "chapterTitle": "@filename",
       "chapterUrl": "@href"
     }
+  },
+  {
+    "name": "机核 · 核市奇谭",
+    "group": "文化播客",
+    "kind": "audio",
+    "format": "feed",
+    "url": "https://alioss.gcores.com/feeds/heshi.xml",
+    "originNote": "源仓库机核条目对应发布者官方播客 https://www.yckceo.com/yuedu/rsss/content/id/174.html"
+  },
+  {
+    "name": "机核 · 科幻的黄金时代",
+    "group": "文化播客",
+    "kind": "audio",
+    "format": "feed",
+    "url": "https://feed.xyzfm.space/tqrhwlptvah3",
+    "mediaHosts": [
+      "dts-api.xiaoyuzhoufm.com",
+      "media.xyzcdn.net"
+    ],
+    "originNote": "源仓库机核条目对应发布者官方播客 https://www.yckceo.com/yuedu/rsss/content/id/174.html"
+  },
+  {
+    "name": "台灣小說網",
+    "group": "繁體小說",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.twkan.cc/",
+    "search": "/search/{key}.html",
+    "discover": "/",
+    "sample": "鬥破蒼穹",
+    "rules": {
+      "list": ".bookbox",
+      "title": ".bookname a@text",
+      "book": ".bookname a@href",
+      "author": ".bookinfo .author@text",
+      "description": ".update@text",
+      "discoverList": "#fengtui .item",
+      "discoverTitle": "dt a[href^='/book/']@text",
+      "discoverBook": "dt a[href^='/book/']@href",
+      "discoverAuthor": "dt a[href^='/search/']@text",
+      "toc": "#allchapter dd:not([data-num]) a[href^='/chapter/']@href",
+      "chapters": "#allchapter dd a[href]",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "nextToc": "#linkNext@href",
+      "content": "#content p@text||#content@text"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/8048.html"
+  },
+  {
+    "name": "得奇小说网",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.deqitxt.com/",
+    "search": "/so/so.aspx?key={key}",
+    "discover": "/",
+    "sample": "夜无疆",
+    "rules": {
+      "list": "div.container div.item",
+      "title": "h3 a, h1 a@text",
+      "book": "h3 a, h1 a@href",
+      "author": "p:eq(1)@a@text",
+      "chapters": "#list li a[href]",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "content": "div.con p@text||div.con@text",
+      "nextContent": "div.prenext a:contains(下一页)@href"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/8020.html"
+  },
+  {
+    "name": "精华书阁",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://m.jhsssd.com/",
+    "search": "/search.html?ie=utf-8&word={key}&page=1",
+    "sample": "诡秘之主",
+    "rules": {
+      "list": ".searchbook",
+      "title": ".bookname@text",
+      "author": ".author@text",
+      "book": ".bookname a@href",
+      "chapters": "ul:eq(1)@a",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "nextToc": "@next",
+      "content": "#nr1@text",
+      "nextContent": "a#pb_next:contains(下一页)@href"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/5894.html"
+  },
+  {
+    "name": "读书网 · 国学古籍",
+    "group": "国学古籍",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.dushu.com/",
+    "search": "/search.aspx?qd={key}&f=0&r=2&t=0",
+    "discover": "/guoxue/",
+    "sample": "汉书",
+    "rules": {
+      "list": ".searchlist .book-info",
+      "title": "h3 a@text",
+      "book": "h3 a[href^='/guoxue/']@href",
+      "author": "h3 + p@text",
+      "description": ".disc@text",
+      "discoverList": "#J_commend .unfold",
+      "discoverTitle": "h3 a@text",
+      "discoverBook": "h3 a[href^='/guoxue/']@href",
+      "discoverAuthor": "h3 + p@text",
+      "chapters": ".booklist-table a[href^='/guoxue/']",
+      "chapterTitle": "@text",
+      "chapterUrl": "@href",
+      "content": ".content_txt@text"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/rsss/content/id/171.html"
+  },
+  {
+    "name": "梧桐中文",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.wtzw.com/",
+    "search": "/search-{key}.html?p=1",
+    "discover": "/shuku.html?category=3&p=1",
+    "sample": "我的少年班",
+    "rules": {
+      "list": ".w_picTxt_lr li",
+      "title": "a:eq(1)@text",
+      "author": "span:eq(1)@ownText",
+      "book": "a:eq(1)@href",
+      "description": "span:eq(6)@text",
+      "chapters": ".w_ulTxt li a",
+      "chapterTitle": "@ownText",
+      "chapterUrl": "@href",
+      "content": ".article@text",
+      "discoverList": ".w_picTxt_lr li",
+      "discoverTitle": "a:eq(1)@text",
+      "discoverAuthor": "span:eq(1)@text",
+      "discoverBook": "a:eq(1)@href",
+      "discoverDescription": "span:eq(2)@text"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuans/content/id/1334.html"
+  },
+  {
+    "name": "影书小说",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://wap.yingsx.com",
+    "search": "/s.php",
+    "searchForm": {
+      "type": "articlename",
+      "s": "{key}",
+      "submit": ""
+    },
+    "discover": "/top/monthvisit_1/",
+    "sample": "夜无疆",
+    "rules": {
+      "list": "ul.fk li",
+      "title": "a:eq(1)@text",
+      "author": "a:eq(2)@text",
+      "book": "a:eq(1)@href",
+      "toc": ".gengduo a@href",
+      "chapters": ".lb li",
+      "chapterTitle": "@text",
+      "chapterUrl": "a@href",
+      "nextToc": ".bt-next span a@href",
+      "content": "#nr@text",
+      "nextContent": "@next",
+      "discoverList": ".xbk",
+      "discoverTitle": "a:eq(1)@text",
+      "discoverAuthor": "a:eq(2)@text",
+      "discoverBook": "a:eq(1)@href",
+      "discoverDescription": "span:eq(2)@text"
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuans/content/id/1333.html"
+  },
+  {
+    "name": "飞卢小说（正版试读）",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://b.faloo.com",
+    "sample": "我在古代卖奶茶皇后娘娘天天催更",
+    "legado": {
+      "search": "https://b.faloo.com/l/0/1.html?t=1&k={{key}},{\n  \"charset\": \"gbk\"\n}",
+      "explore": [
+        "https://b.faloo.com/y_0_0_0_0_9_0_{{page}}.html"
+      ],
+      "rules": {
+        "searchList": "class.TwoBox02_02",
+        "searchTitle": "class.TwoBox02_08@tag.a.0@text",
+        "searchLink": "class.TwoBox02_03@tag.a.0@href",
+        "searchAuthor": "class.TwoBox02_09@tag.a.0@text",
+        "searchDescription": "class.TwoBox02_06@tag.a.0@text",
+        "infoTitle": "id.novelName@text",
+        "infoAuthor": "class.colorQianHui.1@text",
+        "infoDescription": ".fs14.1@text&&class.T-L-T-C-Box1@text##^(?=【)|\\s+##<br/>",
+        "chapters": "#mulu > div.DivTable > div > div > a",
+        "chapterTitle": "text",
+        "chapterUrl": "href",
+        "content": "class.noveContent@html"
+      }
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/7405.html"
+  },
+  {
+    "name": "笔趣阁（biquge.xin）",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.biquge.xin",
+    "sample": "霸天龙帝",
+    "legado": {
+      "search": "https://www.biquge.xin/search/result.html?searchkey={{key}}",
+      "explore": [
+        "/category/xuanhuan/{{page}}.html"
+      ],
+      "rules": {
+        "searchList": "li",
+        "searchTitle": ".novelname@text",
+        "searchLink": ".novelname@href",
+        "searchAuthor": "span:nth-child(2) > a@text",
+        "searchDescription": ".intro@text",
+        "exploreList": "li",
+        "exploreTitle": ".novelname@text",
+        "exploreLink": ".novelname@href",
+        "exploreAuthor": "span:nth-child(2) > a@text",
+        "exploreDescription": ".intro@text",
+        "infoTitle": "h1@text",
+        "infoAuthor": ".novelinfo-l li:nth-child(1) > a@text",
+        "infoDescription": "p@text",
+        "toc": ".dirlist@href",
+        "chapters": ".dirlist > li",
+        "chapterTitle": "a@text",
+        "chapterUrl": "a@href",
+        "content": "p@text"
+      },
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36"
+      }
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/6660.html"
+  },
+  {
+    "name": "三叠书阁",
+    "group": "网络小说",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.noveltri.com/zh-cn/",
+    "sample": "打到北极圈了，你让我继承皇位？",
+    "legado": {
+      "search": "/zh-cn/search?q={{key}}",
+      "explore": [
+        "/zh-cn/books/00665ea48045cae8/{{page}}.html"
+      ],
+      "rules": {
+        "searchList": "@css:.d-grid.books>.book.d-flex.shadow-sm",
+        "searchTitle": "@css:.fw-bold span@text",
+        "searchLink": "@css:a:eq(0)@href",
+        "searchAuthor": "@css:.small a@text",
+        "searchDescription": "@css:.description@text",
+        "exploreList": "@css:.d-grid.books>.book.d-flex.shadow-sm",
+        "exploreTitle": "@css:.fw-bold span@text",
+        "exploreLink": "@css:a:eq(0)@href",
+        "exploreAuthor": "@css:.small a@text",
+        "exploreDescription": "@css:.description@text",
+        "infoTitle": "@css:h3@text",
+        "infoAuthor": "@css:.list-inline-item.tags>a>strong@text",
+        "infoDescription": "@css:.description@text",
+        "chapters": "@css:.chapters>div",
+        "chapterTitle": "@css:span@text",
+        "chapterUrl": "@css:a@href",
+        "content": "@css:.px-sm-1>p@text"
+      }
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/6199.html"
+  },
+  {
+    "name": "古龙全集",
+    "group": "武侠经典",
+    "kind": "text",
+    "format": "html",
+    "url": "https://www.gulongwang.com",
+    "sample": "苍穹神剑",
+    "legado": {
+      "explore": [
+        "/"
+      ],
+      "rules": {
+        "exploreList": ".shuming@li",
+        "exploreTitle": "a.1@text",
+        "exploreLink": "a.1@href",
+        "exploreAuthor": "@js:'古龙'",
+        "chapters": "id.right@li@a",
+        "chapterTitle": "text##(?:^zed|正文\\s)",
+        "chapterUrl": "href",
+        "content": ".nr_con@html",
+        "replaceContent": "##（古龙网.*）"
+      }
+    },
+    "originNote": "https://www.yckceo.com/yuedu/shuyuan/content/id/5830.html"
   }
 ]

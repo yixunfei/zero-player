@@ -1,0 +1,17 @@
+{
+  "win-x64": {
+    "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7520/pdfium-win-x64.tgz",
+    "archiveSha256": "738027b292a9b023d121aab76d19c6ec025ddd584b96fa19b73d81af6d237a6a",
+    "librarySha256": "6f9ad538918a9de688cd526bf23c4666beb0e7db3e386b089f9ce08a259b0593"
+  },
+  "android-x64": {
+    "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7520/pdfium-android-x64.tgz",
+    "archiveSha256": "ad0988f7b59b617eb02a15e27888e34edb76cd13d136a4236411bfb99e410d31",
+    "librarySha256": "a21a319480ca8a32ec64a47a657689ee4444b813819edcc2c3941335f973928e"
+  },
+  "android-arm64": {
+    "url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7520/pdfium-android-arm64.tgz",
+    "archiveSha256": "785d4804656f42199c9bb2f5c69a6f3e07a1514cc251d1e12d425cf87b4982f8",
+    "librarySha256": "956f2684d697396ef7d201509005d123d0367b1f619cdd23c94e1430811984bf"
+  }
+}

@@ -1,16 +1,39 @@
 import 'dart:convert';
 
+import 'package:enough_convert/gbk.dart';
 import 'package:xml/xml.dart';
 
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../../core/network/document_encoding.dart';
 import '../../../core/network/header_policy.dart';
 import '../domain/book.dart';
+import '../domain/book_search.dart';
+import '../domain/legado_source.dart';
 import 'book_html.dart';
+import 'legado/legado_client.dart';
 
 final class BookClient {
   const BookClient(this.network);
   final DocumentClient network;
+  LegadoBookClient get _legado => LegadoBookClient(network);
+
+  Future<Book> details(BookSource source, Book book, CancellationToken token) =>
+      source.format == BookFormat.html && source.legado != null
+      ? _legado.details(source, book, token)
+      : Future.value(book);
+
+  bool _hasLegadoRules(BookSource source) =>
+      source.legado != null &&
+      (source.format != BookFormat.feed ||
+          (source.legado!.rules['articles'] ?? '').isNotEmpty);
+
+  Future<List<LegadoCategory>> categories(
+    BookSource source,
+    CancellationToken token,
+  ) => _hasLegadoRules(source)
+      ? _legado.categories(source, token)
+      : Future.value(const []);
 
   Future<Document> fetch(
     BookSource source,
@@ -24,25 +47,33 @@ final class BookClient {
       cancellation: token,
       maxBytes: maxBytes,
       networkTimeout: Duration(seconds: media ? 90 : 12),
-      validateTarget: (target) =>
-          source.resolve(source.endpoint, target.toString(), media: media),
+      validateTarget: (target) => source.requestTarget(target, media: media),
     );
   }
 
   Future<List<Book>> books(
     BookSource source,
     String query,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    LegadoCategory? category,
+    int page = 1,
+    Uri? bookAddress,
+  }) async {
+    if (_hasLegadoRules(source)) {
+      return _legado.books(
+        source,
+        query,
+        token,
+        category: category,
+        page: page,
+        bookAddress: bookAddress,
+      );
+    }
+    if (bookAddress != null) return [];
     if (source.format == BookFormat.featured) {
-      final key = bookIdentity(query);
-      return source.featured
-          .where(
-            (book) => bookIdentity(
-              '${book.title} ${book.author} ${book.description}',
-            ).contains(key),
-          )
-          .toList();
+      if (query.trim().isEmpty) return source.featured;
+      final match = BookSearchQuery(query, BookSearchField.all);
+      return source.featured.where((book) => match.rank(book) != null).toList();
     }
     if (source.format == BookFormat.feed) {
       final feed = await _feed(source, token);
@@ -50,18 +81,27 @@ final class BookClient {
       final text = bookIdentity(
         '${book.title} ${book.author} ${book.description}',
       );
-      return query.isEmpty || text.contains(bookIdentity(query)) ? [book] : [];
+      final key = bookIdentity(query);
+      return key.isEmpty ||
+              text.contains(key) ||
+              feed.$2.any(
+                (chapter) => bookIdentity(chapter.title).contains(key),
+              )
+          ? [book]
+          : [];
     }
     final discovery = query.isEmpty;
     final path = discovery
         ? source.discover
-        : source.search.replaceAll('{key}', Uri.encodeComponent(query));
+        : source.search.replaceAll('{key}', _encodeQuery(source, query));
     if (path.isEmpty) return [];
-    final response = await fetch(
-      source,
-      source.resolve(source.endpoint, path),
-      token,
-    );
+    final target = source.resolve(source.endpoint, path);
+    final response = discovery || source.searchForm.isEmpty
+        ? await fetch(source, target, token)
+        : await network.postForm(target, {
+            for (final entry in source.searchForm.entries)
+              entry.key: entry.value.replaceAll('{key}', query),
+          }, cancellation: token);
     final document = parseBookHtml(response.text);
     String rule(String key) {
       final discoverKey = 'discover${key[0].toUpperCase()}${key.substring(1)}';
@@ -71,12 +111,17 @@ final class BookClient {
     }
 
     final results = <Uri, Book>{};
-    for (final row in document.querySelectorAll(rule('list')).take(80)) {
+    for (final row in bookElements(document, rule('list')).take(80)) {
       final title = bookLabel(bookField(row, rule('title')));
       final link = bookField(row, rule('book'));
       if (title.isEmpty || link.isEmpty) continue;
       try {
         final uri = source.resolve(response.uri, link);
+        final cover = bookField(
+          row,
+          rule('cover').isEmpty ? 'img@src' : rule('cover'),
+        );
+        final category = bookLabel(bookField(row, rule('category')));
         results.putIfAbsent(
           uri,
           () => Book(
@@ -91,6 +136,8 @@ final class BookClient {
             ),
             uri,
             description: bookLabel(bookField(row, rule('description')), 600),
+            cover: bookCoverAddress(response.uri, cover),
+            category: category,
           ),
         );
       } on FormatException {
@@ -105,6 +152,7 @@ final class BookClient {
     Book book,
     CancellationToken token,
   ) async {
+    if (_hasLegadoRules(source)) return _legado.chapters(source, book, token);
     if (source.format == BookFormat.feed) {
       return (await _feed(source, token)).$2;
     }
@@ -124,10 +172,10 @@ final class BookClient {
           continue;
         }
       }
-      for (final row
-          in document
-              .querySelectorAll(source.rules['chapters']!)
-              .take(4000 - chapters.length)) {
+      for (final row in bookElements(
+        document,
+        source.rules['chapters']!,
+      ).take(4000 - chapters.length)) {
         final title = bookLabel(bookField(row, source.rules['chapterTitle']!));
         final link = bookField(row, source.rules['chapterUrl']!);
         if (title.isEmpty || link.isEmpty) continue;
@@ -152,8 +200,12 @@ final class BookClient {
   Future<String> text(
     BookSource source,
     BookChapter chapter,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    Book? book,
+  }) async {
+    if (_hasLegadoRules(source)) {
+      return _legado.text(source, chapter, token, book: book);
+    }
     if (source.format == BookFormat.feed) {
       if (chapter.body.isNotEmpty) return chapter.body;
       final feed = await _feed(source, token);
@@ -184,8 +236,12 @@ final class BookClient {
   Future<Uri> audio(
     BookSource source,
     BookChapter chapter,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    Book? book,
+  }) async {
+    if (_hasLegadoRules(source)) {
+      return _legado.audio(source, chapter, token, book: book);
+    }
     if (source.format == BookFormat.feed || source.directAudio) {
       return source.resolve(
         source.endpoint,
@@ -205,16 +261,16 @@ final class BookClient {
   Future<(Uri, List<int>)> sampleAudio(
     BookSource source,
     BookChapter chapter,
-    CancellationToken token,
-  ) async {
-    final uri = await audio(source, chapter, token);
+    CancellationToken token, {
+    Book? book,
+  }) async {
+    final uri = await audio(source, chapter, token, book: book);
     final payload = await network.http.open(
       uri,
       policy: HeaderPolicy({uri: const {}}),
       range: 'bytes=0-127',
       cancellation: token,
-      validateTarget: (target) =>
-          source.resolve(source.endpoint, target.toString(), media: true),
+      validateTarget: (target) => source.requestTarget(target, media: true),
     );
     if (!{200, 206}.contains(payload.response.statusCode)) {
       await payload.body.take(0).drain<void>();
@@ -230,7 +286,9 @@ final class BookClient {
     BookSource source,
     CancellationToken token,
   ) async {
-    final response = await fetch(source, source.endpoint, token);
+    final response = source.legado == null
+        ? await fetch(source, source.endpoint, token)
+        : await _legado.feedDocument(source, token);
     final raw = response.text;
     if (RegExp(r'<!\s*(DOCTYPE|ENTITY)', caseSensitive: false).hasMatch(raw)) {
       throw const FormatException('订阅不能包含 XML 实体或文档类型声明');
@@ -277,7 +335,16 @@ final class BookClient {
           final path = element.getAttribute(atom ? 'href' : 'url') ?? '';
           if (path.isEmpty) continue;
           try {
-            final uri = source.resolve(response.uri, path, media: true);
+            final address = Uri.parse(path);
+            // Some HTTPS publishers still advertise legacy HTTP enclosures.
+            final secure = address.scheme == 'http' && !address.hasPort
+                ? address.replace(scheme: 'https')
+                : address;
+            final uri = source.resolve(
+              response.uri,
+              secure.toString(),
+              media: true,
+            );
             items.putIfAbsent(uri, () => BookChapter(name, uri));
             break;
           } on FormatException {
@@ -310,3 +377,8 @@ final class BookClient {
     return (book, items.values.toList());
   }
 }
+
+String _encodeQuery(BookSource source, String query) => encodeDocumentComponent(
+  query,
+  source.searchCharset == 'utf-8' ? utf8 : gbk,
+);

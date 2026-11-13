@@ -13,6 +13,9 @@ import android.util.Rational
 import android.content.Intent
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 
 class MainActivity : FlutterActivity() {
@@ -27,6 +30,18 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zero_player/platform")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "setReaderImmersive" -> {
+                        val controller = WindowCompat.getInsetsController(window, window.decorView)
+                        val bars = WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars()
+                        if (call.arguments == true) {
+                            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            controller.hide(bars)
+                        } else {
+                            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                            controller.show(bars)
+                        }
+                        result.success(null)
+                    }
                     "playbackDeviceDiagnostics" -> result.success(playbackDiagnostics.snapshot())
                     "setPlayerOrientation" -> {
                         val orientation = when (call.argument<String>("mode")) {

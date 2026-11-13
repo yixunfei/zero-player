@@ -126,40 +126,55 @@ final class _MusicPageState extends State<MusicPage> {
         merged.putIfAbsent(track.key, () => track);
       }
       final groups = _groups(merged.values);
-      return Column(
-        children: [
-          _tabs(),
-          Expanded(
-            child: _view == 'discover'
-                ? MusicDiscovery(
-                    services: widget.services,
-                    onSearch: _search,
-                    controls: _searchControls(),
-                  )
-                : _view == 'styles'
-                ? MusicStylePlaylists(services: widget.services)
-                : _view != 'search'
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: MusicLibraryPanel(
+      return PopScope(
+        canPop: _view == 'discover',
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) setState(() => _view = 'discover');
+        },
+        child: Column(
+          children: [
+            if (_view != 'discover')
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _view = 'discover'),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('音乐首页'),
+                ),
+              ),
+            _tabs(),
+            Expanded(
+              child: _view == 'discover'
+                  ? MusicDiscovery(
                       services: widget.services,
-                      view: _view,
+                      onSearch: _search,
+                      controls: _searchControls(),
+                    )
+                  : _view == 'styles'
+                  ? MusicStylePlaylists(services: widget.services)
+                  : _view != 'search'
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: MusicLibraryPanel(
+                        services: widget.services,
+                        view: _view,
+                      ),
+                    )
+                  : ListView.builder(
+                      key: const PageStorageKey('music-results'),
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      itemCount: groups.length + 2,
+                      itemBuilder: (context, index) {
+                        if (index == 0) return _header(context);
+                        if (index == groups.length + 1) return _footer();
+                        return _track(groups, index - 1);
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    key: const PageStorageKey('music-results'),
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                    itemCount: groups.length + 2,
-                    itemBuilder: (context, index) {
-                      if (index == 0) return _header(context);
-                      if (index == groups.length + 1) return _footer();
-                      return _track(groups, index - 1);
-                    },
-                  ),
-          ),
-          MusicPlayer(controller: player),
-        ],
+            ),
+            MusicPlayer(controller: player),
+          ],
+        ),
       );
     },
   );

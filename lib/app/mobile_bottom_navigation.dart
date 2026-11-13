@@ -11,7 +11,7 @@ final class MobileBottomNavigation extends StatelessWidget {
   final String location;
   final ValueChanged<String> onNavigate;
   final VoidCallback onMore;
-  static const _routes = ['/', '/search', '/live', '/history'];
+  static const _routes = ['/', '/live', '/music', '/reading'];
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +24,16 @@ final class MobileBottomNavigation extends StatelessWidget {
       onDestinationSelected: (index) =>
           index == 4 ? onMore() : onNavigate(_routes[index]),
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.explore_outlined), label: '发现'),
-        NavigationDestination(icon: Icon(Icons.search), label: '搜索'),
+        NavigationDestination(icon: Icon(Icons.movie_outlined), label: '影院'),
         NavigationDestination(icon: Icon(Icons.live_tv), label: '直播'),
-        NavigationDestination(icon: Icon(Icons.history), label: '记录'),
+        NavigationDestination(
+          icon: Icon(Icons.library_music_outlined),
+          label: '音乐',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.auto_stories_outlined),
+          label: '阅读',
+        ),
         NavigationDestination(icon: Icon(Icons.menu), label: '更多'),
       ],
     );

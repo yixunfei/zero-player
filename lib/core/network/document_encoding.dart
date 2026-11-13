@@ -1,6 +1,29 @@
 import 'dart:convert';
 import 'package:enough_convert/gbk.dart';
 
+String encodeDocumentComponent(String value, Encoding encoding) {
+  if (encoding == utf8) return Uri.encodeComponent(value);
+  return encoding.encode(value).map((byte) {
+    if ((byte >= 0x30 && byte <= 0x39) ||
+        (byte >= 0x41 && byte <= 0x5a) ||
+        (byte >= 0x61 && byte <= 0x7a)) {
+      return String.fromCharCode(byte);
+    }
+    return '%${byte.toRadixString(16).padLeft(2, '0').toUpperCase()}';
+  }).join();
+}
+
+String encodeDocumentForm(Map<String, String> data, Encoding encoding) =>
+    encoding == utf8
+    ? Uri(queryParameters: data).query
+    : data.entries
+          .map(
+            (entry) =>
+                '${encodeDocumentComponent(entry.key, encoding)}='
+                '${encodeDocumentComponent(entry.value, encoding)}',
+          )
+          .join('&');
+
 String decodeDocumentText(List<int> bytes, {String? contentType}) {
   if (bytes.length >= 3 &&
       bytes[0] == 0xef &&

@@ -1,153 +1,184 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 
+import 'package:archive/archive.dart';
+
+import '../../../core/network/document_encoding.dart';
+import '../../sources/data/jsonc_decoder.dart';
 import '../domain/book.dart';
+import 'book_source_links.dart';
+import 'legado/legado_import.dart';
 
-({List<BookSource> sources, int rejected, int duplicates}) parseBookSources(
-  String input,
-) {
-  if (input.length > 8 * 1024 * 1024) throw const FormatException('来源文件超过大小限制');
-  final raw = jsonDecode(input);
-  final records = raw is List ? raw : [raw];
-  if (records.length > 3000) throw const FormatException('来源数量超过限制');
-  final sources = <String, BookSource>{};
-  var rejected = 0;
-  var duplicates = 0;
-  for (final record in records) {
+final class BookSourceImport {
+  const BookSourceImport(this.sources, this.duplicates, this.issues);
+  final List<BookSource> sources;
+  final int duplicates;
+  final Map<String, int> issues;
+  int get rejected => issues.values.fold(0, (sum, count) => sum + count);
+
+  String get issueSummary {
+    if (issues.isEmpty) return '';
+    final sorted = issues.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return '（${sorted.take(3).map((issue) => '${issue.key} ${issue.value}').join('、')}）';
+  }
+}
+
+Future<BookSourceImport> parseBookSourcesOffThread(String input) =>
+    Isolate.run(() => parseBookSources(input));
+
+Future<BookSourceImport> readBookSourceFile(String path) => Isolate.run(
+  () async {
+    final handle = await File(path).open();
     try {
-      if (record is! Map) throw const FormatException('无效记录');
-      final converted = record.containsKey('bookSourceUrl')
-          ? _legadoBook(record)
-          : record.containsKey('sourceUrl')
-          ? _legadoFeed(record)
-          : record;
-      final source = BookSource.fromJson(converted);
-      if (sources.containsKey(source.id)) {
-        duplicates++;
-      } else {
+      final length = await handle.length();
+      if (length > maxBookSourceBytes) {
+        throw const FormatException('来源文件超过 64 MiB');
+      }
+      final bytes = await handle.read(length + 1);
+      if (bytes.length != length) throw const FormatException('来源文件在导入期间发生变化');
+      return parseBookSourceBytes(bytes);
+    } finally {
+      await handle.close();
+    }
+  },
+);
+
+BookSourceImport parseBookSourceBytes(List<int> bytes) {
+  if (bytes.length > maxBookSourceBytes) {
+    throw const FormatException('来源文件超过 64 MiB');
+  }
+  final zip =
+      bytes.length >= 4 &&
+      bytes[0] == 0x50 &&
+      bytes[1] == 0x4b &&
+      ((bytes[2] == 3 && bytes[3] == 4) || (bytes[2] == 5 && bytes[3] == 6));
+  return zip
+      ? parseBookSourceRecords(_zipRecords(bytes))
+      : parseBookSources(decodeDocumentText(bytes));
+}
+
+BookSourceImport parseBookSources(String input) =>
+    parseBookSourceRecords(_decodeRecords(input));
+
+Iterable<Object?> _decodeRecords(String input) {
+  if (input.length > maxBookSourceBytes) {
+    throw const FormatException('来源文件超过 64 MiB');
+  }
+  final text = input.replaceFirst(RegExp(r'^\uFEFF'), '').trim();
+  Object? raw;
+  try {
+    raw = jsonDecode(text);
+  } on FormatException {
+    raw = decodeJsonc(text);
+  }
+  return _sourceRecords(raw);
+}
+
+Iterable<Object?> _zipRecords(List<int> bytes) sync* {
+  final directory = ZipDirectory()..read(InputMemoryStream(bytes));
+  if (directory.fileHeaders.length > 4000) {
+    throw const FormatException('备份条目过多');
+  }
+  const names = {
+    'booksource.json',
+    'book_sources.json',
+    'rsssource.json',
+    'rss_sources.json',
+  };
+  final selected = <String, ZipFile>{};
+  for (final header in directory.fileHeaders) {
+    final file = header.file;
+    if (file == null) continue;
+    final name = file.filename
+        .replaceAll(r'\', '/')
+        .split('/')
+        .last
+        .toLowerCase();
+    if (!names.contains(name)) continue;
+    if (selected.containsKey(name) ||
+        (header.versionMadeBy >> 8 == 3 &&
+            (header.externalFileAttributes >> 16) & 0xf000 == 0xa000) ||
+        file.flags & 1 != 0) {
+      throw const FormatException('备份中的书源文件重复、加密或使用符号链接');
+    }
+    selected[name] = file;
+  }
+  if (selected.isEmpty) throw const FormatException('备份中没有 Legado 书源或订阅文件');
+  var remaining = maxBookSourceBytes;
+  for (final file in selected.values) {
+    final size = file.uncompressedSize;
+    if (size < 0 || size > remaining) {
+      throw const FormatException('解压后的书源文件超过 64 MiB');
+    }
+    remaining -= size;
+    final output = OutputMemoryStream(size: size);
+    file.decompress(output);
+    final data = output.getBytes();
+    if (data.length != size || getCrc32(data) != file.crc32) {
+      throw const FormatException('备份中的书源文件校验失败');
+    }
+    yield* _decodeRecords(decodeDocumentText(data));
+  }
+}
+
+BookSourceImport parseBookSourceRecords(Iterable<Object?> records) {
+  final sources = <String, BookSource>{};
+  final versions = <String, int>{};
+  final issues = <String, int>{};
+  var duplicates = 0;
+  var count = 0;
+  for (final record in records) {
+    if (++count > 12000) throw const FormatException('单次导入最多解析 12000 条记录');
+    try {
+      final source = parseBookSourceRecord(record);
+      final version = source.updatedAt;
+      final previous = versions[source.id];
+      if (previous != null) duplicates++;
+      if (previous == null || version > previous) {
+        versions[source.id] = version;
         sources[source.id] = source;
       }
-    } catch (_) {
-      rejected++;
+    } on FormatException catch (error) {
+      issues.update(error.message, (count) => count + 1, ifAbsent: () => 1);
+    } on Object {
+      issues.update('记录格式无效', (count) => count + 1, ifAbsent: () => 1);
     }
   }
-  return (
-    sources: sources.values.toList(),
-    rejected: rejected,
-    duplicates: duplicates,
-  );
+  return BookSourceImport(sources.values.toList(), duplicates, issues);
 }
 
-Map _legadoFeed(Map raw) {
-  if (raw['enableJs'] == true ||
-      [
-        'loginUrl',
-        'loginUi',
-        'jsLib',
-        'ruleArticles',
-        'ruleContent',
-        'header',
-      ].any((key) => raw[key] != null && raw[key] != '')) {
-    throw const FormatException('仅支持标准 RSS/Atom 地址');
+Iterable<Object?> _sourceRecords(Object? value, [int depth = 0]) sync* {
+  if (depth > 4) throw const FormatException('来源清单嵌套过深');
+  if (value is List) {
+    for (final record in value) {
+      yield* _sourceRecords(record, depth + 1);
+    }
+  } else if (value is Map &&
+      !value.containsKey('bookSourceUrl') &&
+      !value.containsKey('sourceUrl') &&
+      !value.containsKey('format')) {
+    final collections = const [
+      'bookSources',
+      'bookSource',
+      'rssSources',
+      'rssSource',
+      'sources',
+      'data',
+    ].where((key) => value[key] is List || value[key] is Map);
+    if (collections.isEmpty) yield value;
+    for (final key in collections) {
+      yield* _sourceRecords(value[key], depth + 1);
+    }
+  } else {
+    yield value;
   }
-  return {
-    'name': raw['sourceName'],
-    'url': raw['sourceUrl'],
-    'kind': 'text',
-    'format': 'feed',
-    'group': raw['sourceGroup'],
-  };
 }
 
-Map _legadoBook(Map raw) {
-  final kind = switch (raw['bookSourceType'] ?? 0) {
-    0 => 'text',
-    1 => 'audio',
-    _ => throw const FormatException('仅支持文字书及有声书'),
-  };
-  if ([
-    'loginUrl',
-    'loginUi',
-    'jsLib',
-    'header',
-    'loginCheckJs',
-  ].any((key) => raw[key] != null && raw[key] != '')) {
-    throw const FormatException('来源依赖登录、请求头或脚本');
-  }
-  final search = raw['ruleSearch'] as Map;
-  final toc = raw['ruleToc'] as Map;
-  final content = raw['ruleContent'] as Map;
-  final info = raw['ruleBookInfo'] is Map
-      ? raw['ruleBookInfo'] as Map
-      : const {};
-  final searchUrl = raw['searchUrl'] as String;
-  if (searchUrl.contains(',') || searchUrl.contains('<')) {
-    throw const FormatException('仅支持静态 GET 搜索');
-  }
-  return {
-    'name': raw['bookSourceName'],
-    'url': raw['bookSourceUrl'],
-    'kind': kind,
-    'format': 'html',
-    'group': raw['bookSourceGroup'],
-    'search': searchUrl
-        .replaceAll('{{key}}', '{key}')
-        .replaceAll('{{page}}', '1'),
-    'rules': {
-      'list': _selector(search['bookList']),
-      'title': _selector(search['name']),
-      'author': _selector(search['author']),
-      'book': _selector(search['bookUrl']),
-      'description': _selector(search['intro']),
-      'toc': _selector(info['tocUrl']),
-      'chapters': _selector(toc['chapterList']),
-      'chapterTitle': _selector(toc['chapterName']),
-      'chapterUrl': _selector(toc['chapterUrl']),
-      'nextToc': _selector(toc['nextTocUrl']),
-      'content': _selector(content['content']),
-      'nextContent': _selector(content['nextContentUrl']),
-    },
-  };
-}
-
-String _selector(Object? value) {
-  if (value == null || value == '') return '';
-  final original = value as String;
-  if (RegExp(
-    r'@js\b|<|\{\{|\}\}|&&|\|\||javascript:',
-    caseSensitive: false,
-  ).hasMatch(original)) {
-    throw const FormatException('来源使用不受支持的动态规则');
-  }
-  if (original == 'text.下一页@href') return '@next';
-  final raw = original
-      .split('##')
-      .first
-      .replaceFirst(RegExp(r'^@css:', caseSensitive: false), '');
-  if (const {'text', 'html', 'textNodes'}.contains(raw)) return '@text';
-  if (const {'href', 'src'}.contains(raw)) return '@$raw';
-  final parts = raw.split('@');
-  final field =
-      const {'text', 'html', 'textNodes', 'href', 'src'}.contains(parts.last)
-      ? parts.removeLast()
-      : null;
-  final selector = parts
-      .map((part) {
-        final legacy = RegExp(
-          r'^(class|id|tag)\.([\w-]+)(?:\.(\d+))?$',
-        ).firstMatch(part);
-        if (legacy == null) return part;
-        final prefix = switch (legacy[1]) {
-          'class' => '.',
-          'id' => '#',
-          _ => '',
-        };
-        final index = legacy[3] == null
-            ? ''
-            : ':nth-of-type(${int.parse(legacy[3]!) + 1})';
-        return '$prefix${legacy[2]}$index';
-      })
-      .join(' ');
-  return field == null
-      ? selector
-      : '$selector@${const {'href', 'src'}.contains(field) ? field : 'text'}';
+BookSource parseBookSourceRecord(Object? record) {
+  if (record is! Map) throw const FormatException('记录格式无效');
+  if (record.containsKey('bookSourceUrl')) return importLegadoBook(record);
+  if (record.containsKey('sourceUrl')) return importLegadoFeed(record);
+  return BookSource.fromJson(record);
 }

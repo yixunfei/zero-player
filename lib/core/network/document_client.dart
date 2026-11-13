@@ -69,10 +69,11 @@ final class DocumentClient {
     Map<String, String> headers = const {},
     int maxBytes = 2 * 1024 * 1024,
     CancellationToken? cancellation,
+    Encoding encoding = utf8,
   }) => _post(
     uri,
-    utf8.encode(Uri(queryParameters: data).query),
-    'application/x-www-form-urlencoded;charset=UTF-8',
+    utf8.encode(encodeDocumentForm(data, encoding)),
+    'application/x-www-form-urlencoded;charset=${encoding == utf8 ? 'UTF-8' : encoding.name}',
     headers: headers,
     maxBytes: maxBytes,
     cancellation: cancellation,
@@ -134,6 +135,7 @@ final class DocumentClient {
     void Function(bool active)? onActivity,
     Duration networkTimeout = const Duration(seconds: 25),
     void Function(Uri target)? validateTarget,
+    Uri Function(Uri target)? mapRedirect,
   }) async {
     final token = CancellationToken();
     final unlink = cancellation?.listen(token.cancel);
@@ -150,6 +152,7 @@ final class DocumentClient {
             gzip: gzip,
             onActivity: budget.activity,
             validateTarget: validateTarget,
+            mapRedirect: mapRedirect,
           );
         } on RemoteFailure catch (failure) {
           final transient =
@@ -217,6 +220,7 @@ final class DocumentClient {
     bool gzip = false,
     void Function(bool active)? onActivity,
     void Function(Uri target)? validateTarget,
+    Uri Function(Uri target)? mapRedirect,
   }) async {
     try {
       final response = await http.open(
@@ -226,6 +230,7 @@ final class DocumentClient {
         priority: priority,
         onActivity: onActivity,
         validateTarget: validateTarget,
+        mapRedirect: mapRedirect,
       );
       if (response.response.statusCode != 200) {
         await response.body.take(0).drain<void>();

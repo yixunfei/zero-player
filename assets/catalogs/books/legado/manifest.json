@@ -1,0 +1,50 @@
+{
+  "repository": "https://github.com/aoaostar/legado",
+  "revision": "116806ea5342f6590a818aa8da0c8bb826177583",
+  "packs": [
+    {
+      "id": "b778fe6b",
+      "name": "全量书源",
+      "count": 3907,
+      "sha256": "a50c80e81e45a6ad77f6cdb94ab420e74de29691f8924692415a3e9f0e022747"
+    },
+    {
+      "id": "71e56d4f",
+      "name": "XIU2 精品书源",
+      "count": 22,
+      "sha256": "24fe11c400ddc8754703ff0c4d8a249baf024da3a15563de805cc134140959a0"
+    },
+    {
+      "id": "4dc410d1",
+      "name": "破冰书源",
+      "count": 128,
+      "sha256": "05da3da45910c8342d4935044c9af6298be0fbcee62af910b6aea2550fee44de"
+    },
+    {
+      "id": "e3e5d620",
+      "name": "关耳女频",
+      "count": 86,
+      "sha256": "10537479695e9168c63ad3225463124c47bb3730525f6142d9c1ff4ad0139627"
+    },
+    {
+      "id": "e29e19ee",
+      "name": "shidahuilang 书源",
+      "count": 939,
+      "sha256": "23d4db8fda293020843645ed3f29fb49236f5e1bff2f38286eac16caab54598c"
+    },
+    {
+      "id": "2a1f129b",
+      "name": "酷安 · 三舞313书源",
+      "count": 1554,
+      "sha256": "d2011e4d2e6b593cc4e879539f50bcb45fab3a3cc971c730422e588b3043facc"
+    },
+    {
+      "id": "3bb7b751",
+      "name": "酷安 · 开源阅读软件",
+      "count": 2117,
+      "sha256": "c9ff5d2c616d288cff99c9c426bb3dc623573429f488ea3ea24a4dff423867fa"
+    }
+  ],
+  "archiveSha256": "012a0e0d6e6adc8d303c32b578510e14b562088b3e965cb01a1a647b5e7e034d",
+  "records": 4845
+}

@@ -1,9 +1,129 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-12（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-13（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+
+## 网络小说模块后续任务（2026-11-13）
+
+- 本节点保留现有阅读实现作为回退基线。下一阶段移除内置出版书目及专用技术书入口、资源和代码，将「阅读」改为「网络小说」。后续单独设计出版模块。
+- 对照影院发现页实现指定渠道滚动加载，补齐渠道分类、栏目、分组、排行榜和书籍信息。用真实文本渠道与混合内容样本排查详情、目录、正文兼容性，区分网络连通和书籍接口可用性。
+- 优化聚合搜索、换源与下载的并发和取消。修复自动翻页与连续滚动，将自动阅读开关直接用于启动及停止。详情页保留可随滚动访问的章节导航、当前章定位和目录回顶。
+- 完成后运行 `flutter test --no-pub`、`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart`、Windows 与 Android 阅读专项回归。按 BUILD.md 串行重新打包 Windows x64 和 Android ARM64 开发测试版。
+
+## 阅读模块交互修复（2026-11-13）
+
+- 平板从左上角菜单打开侧栏。Android 从阅读子页左缘右滑返回，正文区横滑继续翻页。系统返回先关闭当前弹层或抽屉，再回到所属页面。
+- 阅读和听书发现页滚动时保持导航与视口高度。后台渠道健康信息更新保留书单及滚动位置，迟到的书目追加到列表末尾。搜索栏旁可折叠为渠道列表、重新展开书单或返回顶部。
+- 文本、EPUB 和 PDF 使用完整阅读区，工具栏浮在正文上，文本卷页覆盖整个画布。Android 使用系统栏控制接口进入沉浸，退出恢复应用全屏状态。自动阅读默认关闭，开启后按格式提供翻页间隔及滚动速度设置，由阅读菜单开始。手动交互或进入后台时暂停。
+- 「出版书目」独立提供文学与通识、学术专著、技术图书及独立详情。技术区包括书栈网样本和 Gutenberg 工程与技术书目。Gutenberg 下载后将文件、书架记录和出版信息一并写入。DOAB 与好读仍从原站获取。
+- `flutter test --no-pub` 通过 762 项，11 项按配置跳过。`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart` 和差异空白检查通过。日志前缀为 `build/reading-interaction-`。
+- Windows 原生通过五项出版与富文本用例和两项阅读流程用例。覆盖从书目下载并阅读真实 Gutenberg EPUB、书栈网正文与插图、PDF 搜索与目录、EPUB 续读及窄屏整页卷页。日志为 `.dart_tool/native-15c72ed1/public_reading_test.log` 和 `.dart_tool/native-39d6c204/reading_flow_test.log`。
+- Windows x64 Release 0.7.3+73 构建完成，目录为 `build/windows/x64/runner/Release/`。随包出版目录与源码摘要一致，固定 PDFium DLL 核验通过。构建日志为 `build/reading-interaction-windows-release.log`。
+- Android 17 x86_64 模拟器在平板尺寸验证全幅阅读、隐藏系统栏与左缘退出恢复，在手机尺寸验证 PDF 与 EPUB。使用 `:app:assembleDebug --offline` 构建独立测试包，再用 `flutter drive --use-application-binary` 运行。日志为 `build/reading-interaction-android-tablet.log` 和 `build/reading-interaction-android-public.log`。下一步是 Android 手机、平板与 TV 实机验收。
+
+## 阅读模块代码审查与修复（2026-11-13）
+
+- EPUB 导入与阅读共用解析器，修复旧文本解析器提前拒绝可读取的大章节，以及损坏 SVG 导致整章打不开的问题。保留路径、解压、符号链接和内容过滤校验。PDF 导入校验与应用副本使用同一份字节，副本无法写入时回滚书架、离线正文与出版信息。
+- EPUB 退出搜索后回到原章节及滚动位置，按目录或搜索结果切章时保存正确的位置。富文本进度与书架记录在同一事务写入。PDF 跨页搜索保持结果可操作。空网文章节可继续尝试合规的同名同作者版本，原章节的内容拦截仍生效。
+- 书栈网章节先显示正文，再加载受控图片。重试留在失败章节，回到目录或变更内容策略会取消当前请求。
+- 全量 Flutter 回归 761 项通过、11 项按配置跳过，静态分析、源码规模与差异空白检查通过。命令为 `flutter test --no-pub`、`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart` 和 `git diff --check`。日志前缀为 `build/reading-review-`。
+- Windows 串行通过 `public_reading_test.dart` 和 `reading_flow_test.dart`，覆盖 PDF／EPUB 搜索与续读、TXT 卷页跨章、真实 Gutenberg EPUB、书栈网正文及插图。日志在 `.dart_tool/native-301e6c08/`。Windows x64 Release 构建和固定 PDFium DLL 摘要核验通过，构建日志为 `build/reading-review-windows-release.log`。
+- Android 17 x86_64 模拟器通过 PDF／EPUB 三项业务用例，公网用例按配置跳过。在线 Gradle 解析受本机代理连接拒绝影响，使用已有依赖缓存离线构建独立 Debug 测试包后通过，日志为 `build/reading-review-android-offline.log` 和 `build/reading-review-android-native.log`。后续设备验收覆盖 Android 真机与 TV。
+
+## 出版入口、默认渠道恢复与 EPUB 排版续进（2026-11-13）
+
+- 根据本轮反馈，阅读首页新增显式「出版书目」「导入 EPUB / PDF」按钮；原入口隐藏在扩展菜单中，启用大量网文渠道不会屏蔽出版目录。源管理新增「一键还原默认渠道」，只恢复当前阅读／听书模块；停用额外渠道，保留收藏、分组、书架、下载与黑名单，沿用监管授权。
+- EPUB 应用书内链接的样式表和内嵌样式的常见选择器、级联及安全呈现属性，支持本地 SVG 和 ruby。资源继续受包路径、解压上限及内容策略校验，剥离脚本和外部链接，不加载远程 CSS／字体。CSS 伪选择器、媒体查询、嵌入字体及完整浏览器布局未实现。
+- 混合竖排按正文、注音、插图／图注、代码和表格的原顺序分页。正文直立、列从右向左，注音在字旁，技术块与图表独立成页并可滚动；支持整章横排切换。当前不复刻任意浮动、环绕、固定版式及复杂日文组注音，不能称为完整 EPUB 规范兼容。
+- EPUB 保存横排章内滚动位置、竖排页码与横竖排选择，兼容旧章节位置记录。位置随字号／视口及图片加载变化可能偏移；不承诺逐字锚点。修复关闭页面时滚动控件解绑导致位置被覆盖为 0 的问题。
+- 已验证：全量 Flutter 回归 757 项通过、11 项按配置跳过（`build/epub-all-tests.log`）；最终静态分析、源码规模及差异空白检查通过（`build/epub-final-analyze.log`、`build/epub-final-size.log`、`build/epub-final-diff-check.log`）。新增检查包含默认源恢复与黑名单保留、SVG 资源安全与文字过滤、窄屏竖排内容完整性、显式入口可见性。
+- Windows 原生 PDF／EPUB 两个业务用例通过，含 SVG／ruby／代码按序翻阅、超过 12 MiB 文件、横竖排切换及关闭重开后章内位置恢复（`.dart_tool/native-1a07613f/public_reading_test.log`，另 2 个公网用例按配置跳过）。已检查实际渲染截图 `build/epub-vertical.png`、`build/epub-horizontal.png`。本轮没有重新验证公网书站长期可用性。
+- Windows x64 Release 0.7.3+73 构建、安装器和便携包已完成，目录 `artifacts/device-test/0.7.3-20261113-133109/`；随包出版书目、PDFium 摘要与便携包运行文件比对通过，三个 ZIP CRC 通过，见 `build/epub-artifacts.json` 和 `build/epub-package.log`。旧测试包保留，未发布远端。
+- Android ARM64 开发测试 Release 0.7.3+73 已完成，独立包名 `dev.zeroplayer.zero_player.devtest`，包名／版本／ABI／三套字体／ZIP CRC／v2 签名及与旧包相同的证书均通过，随包出版书目和固定 PDFium 摘要通过。文件 `artifacts/device-test/0.7.3-20261113-133109/zero-player-0.7.3-android-arm64-devtest.apk`，SHA-256 `157d42d72d52e0240390b8ec1d13bcc236a7d2228cc7fcdaee410801bb83bbad`。包体 78.97 MiB，未达到旧 70 MiB 预算；增加了出版目录、PDFium 及其 Web 资源等，本轮未修改预算门禁，仅提供本地测试包。首次离线构建完成 Dart Release 编译后遇到既有生成文件混入 integration_test 注册的问题；备份后仅移除该测试注册，以 `-x :app:compileFlutterBuildRelease` 继续打包。失败及续打包日志分别为 `build/epub-android-release.log`、`build/epub-android-release-package.log`，原生成文件备份为 `build/epub-android-registrant-before.java`。Android 手机／平板真机未验收，Android TV 按本轮范围约定留待后续专项。
+
+## 出版图书、富文本阅读与模块导航（2026-11-13）
+
+- 本轮目标为出版书目与 EPUB／PDF 阅读、手机沉浸阅读、按模块导航与分类记录、自动阅读和卷页改进。沿用当前分支及原有未提交改动，未重新发布安装包。
+- 阅读扩展菜单新增「出版与技术图书」。随包元数据快照含 Gutenberg 78,518 条、好读旧站 4,068 条、好读二代 99 条、DOAB 263 条及书栈网技术书样本 1 条。DOAB 为 3 页 OAI 抽样，书栈网不是全站馆藏；只分发书目。中文「维吉尔」作者查询匹配古罗马诗人的 20 个版本，不混入名含 Virgil 的插画家。记录语种、版本、译者／贡献者与许可；Gutenberg 支持受控下载，其他渠道保留原站领取入口。可用 `python tool/sync_public_books.py` 更新快照。[Gutenberg 目录规则](https://www.gutenberg.org/policy/robot_access.html) · [维吉尔原站书目](https://www.gutenberg.org/ebooks/author/129) · [好读二代领取说明](https://haodoo.org/?page_id=20167)
+- 导入上限调为 128 MiB。EPUB 保存原文件、图片、代码、表格及 spine 章节顺序，提供横排图文、基本中文竖排、章节目录和全文检索。PDF 使用固定版本 PDFium 原生渲染，支持缩放、目录、文字搜索及页码恢复。包路径、解压大小、外部资源和内容策略仍校验；监管模式不开放这些未经审核的出版渠道。本地原文件随移除图书一起删除。
+- 手机阅读默认沉浸，可持久关闭；阅读页覆盖应用导航，退出恢复系统栏。正文翻页收起工具栏。自动翻页间隔 2–120 秒、滚动速度 5–150 像素／秒，手动操作、菜单和进入后台会暂停。卷页曲线跟随手指位置。富文本阅读同步进入阅读历史，文本阅读继续保存字符位置。
+- 全局菜单采用影院、直播、广播、音乐、阅读、记录、下载、本地、设置；手机底栏固定影院、直播、音乐、阅读、更多。记录／下载按影音、音乐、阅读、听书分类。各模块拥有独立导航栈；切换保留状态，返回先关闭当前详情，音乐子页面先返回发现。顶部渠道管理匹配当前模块，公共页面先选择类型。 自定义书源配置未改变时保留发现页状态，避免返回模块后重置分类或滚动位置；导航专项 9 项通过，见 `build/reading-final-navigation.log`。
+- 已有验证：全量 Flutter 回归 751 项通过、11 项按配置跳过（`build/reading-final-tests.log`）。Windows 原生通过真实 Gutenberg 228《The Aeneid》下载、作者／译者正文与章节对齐，以及 PDF 渲染／搜索／目录／缩放、超过 12 MiB 的图文竖排 EPUB；日志 `.dart_tool/native-33170afc/public_reading_test.log` 和 `.dart_tool/native-968af04b/reading_flow_test.log`。Android 17 x86_64 模拟器通过 PDF／EPUB 与原有阅读流程，日志 `build/reading-final-android-formats.log`、`build/reading-next-android-flow.log`，设备日志确认进入阅读隐藏系统栏、退出恢复。
+- PDFium 固定 chromium/7520，Windows x64、Android arm64／x64 下载包及库摘要保存在 `tool/pdfium_checksums.json`，可用 `python tool/verify_pdfium.py` 复核。Windows CMake 和 Android Gradle 在构建时校验库。Android 在 Windows 上改用插件固定版本真实目录，修复目录链接未被打包的问题；模拟器 APK 的实际 `.so` 摘要已复核。
+- 书栈网先返回 HTTP 429，恢复后已通过 Windows 应用内真实目录、安全容器运行时代码章节与 macOS 安装插图阅读（`.dart_tool/native-33170afc/public_reading_test.log`）。补齐了章节页二级目录、懒加载图片及声明 CDN 的受控获取；阅读正文优先取原站文章节点。源站短期可用不代表长期稳定。
+- 尚未验收：好读二代人工结账、Android／TV 真机及长时间阅读。复杂 EPUB 图文竖排、ruby、SVG 和完整 CSS 尚未支持；竖排可切换横排保留图文。EPUB 富文本恢复到章，章内滚动位置未恢复；扫描 PDF 无 OCR。下一步为真机长时阅读、真实复杂竖排样本和原站领取流程验收。
+- 全量静态分析、源码规模检查、差异空白检查及 Python 工具回归 14 项通过，日志 `build/reading-final-analyze.log`、`build/reading-next-size.log`、`build/reading-final-diff-check.log`、`build/reading-final-python-tests.log`。原生驱动仍输出既有 integration_test 检测提示，VM Service 断言及退出结果通过。
+- Windows x64 Release 0.7.3+73 已重新构建，目录 `build/windows/x64/runner/Release/`，日志 `build/reading-final-windows-release.log`。随包出版书目与源码字节一致，PDFium DLL 与固定发布包摘要均通过；校验记录 `build/reading-final-artifacts.json`。本轮 Android 为模拟器 Debug 验证，未构建 Android Release，不沿用旧发行包的大小与签名结论。
+- 收尾检查命令：`flutter test --no-pub`、`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart`；原生执行 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/public_reading_test.dart','integration_test/reading_flow_test.dart') -DartDefines @('RUN_PUBLIC_CATALOG_ONLINE=true')`。Flutter 平台测试与构建继续串行。
+
+## 阅读聚合搜索、渠道收藏与出版图书评估（2026-11-13）
+
+- 渠道聚合和单渠道书单支持选择聚合搜索或直开详情，默认聚合，偏好保存在本机。直开遇到目录失败或空目录时，可跳转搜索其他渠道。统一推荐仍从聚合搜索进入。
+- 发现页搜索使用独立结果页。书名与作者分字段匹配，过滤书源返回的无关推荐。完全相同的书名合并，展开显示各版本作者、渠道和本次搜索耗时。当前渠道优先，其后按收藏和耗时排列。点击详情中的作者进入作者搜索。启用渠道的馆藏决定覆盖范围。
+- Windows 实测 12 个默认启用渠道均完成搜索。「维吉尔」在全部字段命中 9 本书名含该词的网文，作者字段 0 条。「苍穹神剑」命中古龙全集中的同名作品。日志位于 `build/book-search-default-sources-final.log`。
+- 发现页、搜索结果渠道列表及图书详情均可收藏或取消收藏渠道。单渠道展示常用分类并支持筛选完整分类列表，分类名称和分页使用来源规则。
+- 出版与技术图书适合分开处理目录和正文格式。好读旧站提供网页阅读及 EPUB，好读二代通过填写姓名及邮件的免费结账流程发放 EPUB，适合先接入书目和原站入口。书栈网实测可读取《Docker 从入门到实践》的目录和 HTML 章节，含代码与图片，文件下载及授权需逐书确认。[好读旧站](https://haodoo.net/?M=hd&P=help) · [好读二代下载说明](https://haodoo.org/?page_id=20167) · [书栈网样本](https://www.bookstack.cn/books/docker_practice-1.10-zh)
+- 后续可从 Gutenberg 机器可读目录和 DOAB 开放书目扩展古典与学术馆藏，记录译者、语种、版本和许可。现有 EPUB 导入只提取文本，入口文件上限 12 MiB。技术书需要保留图表、代码和目录的 EPUB／HTML 阅读路径，PDF 需要独立分页渲染、缩放、目录和文本搜索。先验证含图、代码、中文竖排及大文件的样本，再扩展自动下载。[Gutenberg 目录](https://www.gutenberg.org/policy/robot_access.html) · [DOAB 元数据端点](https://directory.doabooks.org/oai/request?verb=Identify)
+- Flutter 全量回归 742 项通过、11 项按配置跳过，静态分析、源码规模检查及 Windows x64 Release 构建通过。Windows 和 Android 17 模拟器验证同名聚合、实际耗时、作者检索、收藏、直开失败换源和分类筛选。真实古龙全集及下载在 Windows 验证。Android／TV 真机待验证。日志位于 `build/book-search-all-tests.log`、`build/book-search-analyze.log`、`build/book-search-windows-release.log`、`.dart_tool/native-e33a6eff/reading_flow_test.log` 和 `build/book-search-android-emulator.log`。
+
+## 阅读发现、书源管理与追更（2026-11-13）
+
+- 首次进入阅读或听书时后台导入随包 Legado 书源，按快照校验值记录迁移进度，新源默认停用。书源管理支持全选筛选结果、批量启用或停用、删除和持久黑名单。导入共用黑名单检查，已有来源的启停设置继续沿用。监管模式只显示审核来源。
+- 发现首页汇总各已启用渠道的推荐书单，可按作品分类筛选，也可按渠道聚合、单渠道分页浏览和多选展示来源。点击作品进入聚合搜索，先显示原作品。Android 使用应用已有的系统返回路径。
+- 详情显示章节数、最近章、进度及来源提供的字数和时间，支持展开简介、搜索作者、目录正倒序和定位。全本或区间下载可选同书换源，按章节 ID 保存待续范围并跳过已有文件，受现有离线容量限制。
+- 书架支持分组、集合、书单和追更。进入阅读或书架时检查追更目录，本机保留已见章节、阅读进度和更新提示。来源变更导致旧目录末章无法匹配时，保守更新缓存并保留已有记录。
+- Flutter 全量回归 741 项通过，11 项按配置跳过，源码规模检查通过。Windows 原生验证推荐／渠道切换、聚合搜索优先展示及返回、本地阅读、QuickJS、真实古龙全集样本和指定区间下载跳过已保存章。日志位于 `build/reading-shelf-all-tests.log` 和 `.dart_tool/native-417d10c0/reading_flow_test.log`。
+- 全量静态分析及 Windows x64 Release 构建通过。Android 17 模拟器通过发现、聚合搜索返回、TXT 阅读和动态分类，公网下载按配置在 Windows 验证。日志位于 `build/reading-shelf-analyze.log`、`build/reading-shelf-windows.log` 和 `build/reading-shelf-android-emulator.log`。下一步为 Android／TV 真机及大目录、长时间下载场景的验收。
+- Android ARM64 开发测试 Release 0.7.3+73 为 69.42 MiB，版本、独立包名、ABI、v2 签名、ZIP CRC 和随包书源校验通过。产物 `build/app/outputs/apk/release/app-release.apk`，SHA-256 `2af4ac71a33156064a4c86a05742ad0ae1e7e1b931938a3a4b0daa393140be5c`。
+
+## 阅读发现、书源包与翻页（2026-11-12）
+
+- 阅读发现页以实际渠道展示书单。支持单渠道、收藏源和聚合搜索，Legado 分类保留上游名称与分页规则。作品缺少可用封面时生成布面书封。内置阅读源移除 IT 之家、少数派和爱范儿，并屏蔽旧版本遗留的对应渠道。审核内置保留 12 个阅读源和 3 个听书源。
+- 按上游 `116806ea5342f6590a818aa8da0c8bb826177583` 内置书源栏目 7 包、8,753 条原始规则记录。源管理可逐包或全量离线导入，新增渠道默认停用。实际全量导入解析出 2,038 个去重来源，6 个与审核内置重复，2 个受内容策略过滤，空白资料库新增 2,030 个。原始快照已与各上游 JSON 逐包核对。可用 `python tool/sync_aoaostar_sources.py` 重建。[上游发布快照](https://github.com/aoaostar/legado/tree/116806ea5342f6590a818aa8da0c8bb826177583)
+- Legado 新增命名分类和动态分类、同域书源的路径及后缀变体、书籍链接匹配，以及本地备份 ZIP 导入。规则继续使用受限网络与脚本运行环境。无可用入口、跨域规则、漫画及其他媒体类型按原因计入导入报告。具备可解析规则的源仍需逐个检测在线可用性。
+- 阅读器提供横向滑动、仿真翻页、纵向分页和连续滚动。两侧或上下点按翻页，中心打开工具栏，章末或章首可滑动切章。新增纸张纹理、页边距、章内查找高亮和字符位置保存。修复 TXT/EPUB 导入向后台 isolate 传递不可发送对象的问题。
+- Windows 原生通过渠道切换、320 像素布局、本地 TXT 阅读、卷页、章内查找、跨章、QuickJS 动态分类、上游古龙全集规则的目录与正文及离线保存。运行 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/reading_flow_test.dart') -DartDefines @('RUN_AOAOSTAR_ONLINE=true','CAPTURE_READING_UI=true')` 可复验，日志 `.dart_tool/native-60da3a07/reading_flow_test.log`。
+- `flutter test --no-pub` 739 项通过，11 项按配置跳过。Python 工具回归 14 项通过，静态分析、源码规模及差异检查通过。Windows x64 Release 0.7.3+73 构建通过，书源清单和压缩包随包字节已核对。日志位于 `build/reading-module-all-tests.log`、`build/reading-module-analyze.log` 和 `build/reading-module-windows-release.log`。
+- Android 17 x86_64 模拟器通过渠道切换、TXT 导入与离线阅读、仿真翻页、章内查找、跨章和 QuickJS 动态分类。公网书源用例按配置跳过，Windows 已完成该样本。日志位于 `build/reading-module-android-debug.log` 和 `build/reading-module-android-emulator.log`。Android / TV 真机与全量书源在线可用性待验收。
+- Android ARM64 开发测试 Release 0.7.3+73 构建通过，APK 69.37 MiB，独立包名 `dev.zeroplayer.zero_player.devtest`。版本、ABI、v2 签名、ZIP CRC、随包精选与 Legado 资源均已校验。文件 `build/app/outputs/apk/release/app-release.apk`，SHA-256 `d78b300b8c2b76c89912ea47a04e0f011055a40bde617e9ab15628ec2a28ca61`，构建日志 `build/reading-module-android-release.log`。
+
+## 阅读优化重新打包（2026-11-12）
+
+- 已生成 0.7.3+73 Windows 安装器、便携包及 Android ARM64 开发测试包，含本轮阅读优化。目录：`artifacts/device-test/0.7.3-20261112-123107/`。保留旧包，未发布到远端。
+- Android 离线 Release 重新构建成功；包名、版本、ABI、v2 签名、ZIP CRC 和随包书源清单校验通过，APK 66.19 MiB。Windows 安装器生成成功，三个 ZIP 的 CRC 已核验，五个附件 SHA-256 已生成。日志为 `build/reading-repack-android.log`、`build/reading-repack-package.log`。安装与真机运行仍待验收。
+
+## 阅读体验专项（2026-11-12）
+
+- 在既有未提交的 Legado 兼容工作上继续完善。发现页采用响应式封面卡片，显示作者与来源，支持作品分类筛选；缺少分类时使用来源分组。静态 HTML 和 Legado 搜索元数据保存封面与分类，详情、书架共用封面组件。图片通过书源的受控客户端及声明域名读取，缺失、错误或跨域受限时回退为书名封面。
+- 阅读器新增按视口排版的横向分页，保留滚动模式；支持触摸滑动、上下页按钮、键盘翻页、章末按钮续章、章节筛选和倒序、章内进度跳转。提供宋体／黑体／手写字体、字号行距、系统／暖纸／护眼／夜间配色、动画开关、时间与页码显示。
+- 新增本机书签、摘录和笔记，可返回记录位置或删除；移除本地书时清理对应记录。笔记展示继续受内容策略约束。分页按文字行切分，调整视口或字体后按章内比例恢复位置；不是跨版本逐字锚点。
+- 在线正文失败后可自动切换已启用的同书名、同作者版本，只接受章节名唯一对应，支持关闭自动切换及失败重试。换源成功显示实际来源，不覆写原书离线正文。聚合搜索逐批显示结果和请求进度，失败不清空成功结果，保留取消和重试。
+- 已验证：全量 `flutter test --no-pub` 729 项通过、11 项按配置跳过；新增专项 7 项通过，含 320×640、390×844、1280×720 交互、中文与 emoji 分页完整性、笔记存取、元数据解析、换源取消／禁用／歧义边界。全量静态分析及源码规模检查通过。日志见 `build/reading-enhancements-tests.log`、`build/reading-enhancements-analyze.log`。
+- Windows x64 Release 构建通过，产物位于 `build/windows/x64/runner/Release/`，日志为 `build/reading-enhancements-windows.log`；本轮未修改插件注册文件。最终专项日志为 `build/reading-enhancements-targeted.log`。
+- 下一步验收：真实源封面与连续跨章换源、长篇排版性能、Android/TV 真机触摸与遥控器。当前没有重新发布安装包，不将历史书源测活记录计为本轮在线可用性验证。
+
+
+## Legado 书源与订阅兼容（2026-11-12）
+
+- 「阅读／听书 → 源管理」支持导入 Legado 一键链接、公开 JSON 地址、源仓库详情页以及本地 JSON/TXT 文件。详情页按发布者提供的下载地址获取源文件。单份清单上限为 64 MiB 和 12000 条记录。订阅刷新按来源身份去重，保留启用、收藏和自定义分组。新增的用户源默认停用，导入继续受监管与内容过滤策略约束。
+- 解析器支持 Legado 2.x 平铺规则和 3.x 嵌套规则，覆盖搜索、发现、目录、正文、直连音频和自定义 RSS 文章规则。支持 CSS/JSoup、XPath、JSONPath、正则、GBK 地址、表单及 JSON 请求，以及有时限和内存上限的 JavaScript。脚本的同站 GET 由应用网络策略执行。依赖 WebView、登录、Cookie、Android 专有接口或未声明媒体域的源仍有兼容限制。[Legado 上游](https://github.com/LegadoTeam/legado)
+- 复核书源和订阅源单条目共 6201 条，5258 条通过字段及地址校验，去重后为 4232 个来源。另对 250 个候选发起在线探测，初测 10 个取得样本，筛查和复测后收录 4 个阅读源，分别是飞卢小说试读、笔趣阁（biquge.xin）、三叠书阁、古龙全集。当前共 15 个阅读源和 3 个听书源。[内置清单](../../assets/catalogs/books/verified.json)
+- Windows 原生验证 UU 看书的一键导入和原始 JavaScript 目录规则，并从真实 5589 条书源合集一次新增 1086 个源。合集导入识别 1824 条重复和 2679 条无法导入的规则，其中 2196 条同时缺少搜索和发现入口。单条目复核可运行 `dart run tool/audit_yckceo_legado.dart .dart_tool/yckceo/snapshot .dart_tool/legado-compat/online --inventory-only`，去掉 `--inventory-only` 可继续在线抽测。明细见 `compatibility.json`、`probes.jsonl` 和 `curated-retry.log`。
+- Flutter 全量回归 724 项通过、11 项按配置跳过，Python 工具回归 14 项通过。静态分析、源码规模和差异空白检查通过。Windows 原生复测全部 15 个内置阅读源的样本目录、正文和离线保存，以及 3 个听书源的音频下载、解码和离线播放。日志位于 `build/legado-all-tests.log` 和 `.dart_tool/native-34bb02d9/`。
+- Windows x64 Release 和 Android ARM64 开发测试 Release 构建通过。Android 在线依赖解析受本机代理影响，使用 Gradle 缓存离线构建成功。两端均核对 QuickJS 原生库和随包源清单，APK 为 66.17 MiB，版本、ABI、ZIP CRC、v2 签名和测试证书均已校验。日志位于 `build/legado-windows-release.log`、`build/legado-android-offline.log` 和 `build/legado-apk-verify.log`。Android/TV 真机待验收。
+- Android x86_64 模拟器通过脚本沙箱、UU 看书原始规则阅读和真实大合集导入三项原生用例，导入数量与 Windows 一致。两端 `flutter drive` 均输出既有 integration_test 注册提示，VM Service 驱动断言通过。Android 模拟器日志位于 `build/legado-android-emulator.log`。
+
+## 阅读与听书源仓库专项（2026-11-12）
+
+- 源仓库书源主栏目为 59 页、5851 条，四个栏目共 7103 条详情，均已取得。沿合集详情页的公开链接读取发布者的 CDN 文件，4 个合集下载返回 HTTP 403，已记录其成员名和网址。采集共解出 776907 条原始记录，包含合集重复收录。[书源](https://www.yckceo.com/yuedu/shuyuan/index.html) · [书源合集](https://www.yckceo.com/yuedu/shuyuans/index.html) · [订阅源](https://www.yckceo.com/yuedu/rss/index.html) · [订阅源合集](https://www.yckceo.com/yuedu/rsss/index.html)
+- 用播放器的解析器和网络客户端核验 2503 个去重后的阅读或听书候选，实际尝试 4135 套规则。27 个身份通过一轮自动样本核验，随后复核站点内容、分页、重复入口和稳定性。内置增加 7 个阅读源和 2 个听书订阅，共 11 个阅读源、3 个听书源。新增包括读书网国学古籍、梧桐中文、台灣小說網、得奇小说网、精华书阁、影书小说、IT 之家和机核两档文化播客。内置清单保存每个源的出处和探测样本，不随包附带正文或音频。
+- Legado 静态规则兼容扩展至 CSS 备选、按序号提取、纯文本多段正文、GBK 搜索地址和 UTF-8 表单搜索。JavaScript、XPath、JSONPath、登录规则、任意请求头和动态 WebView 规则仍超出兼容范围。RSS/Atom 可按条目标题检索，音频附件可使用发布者提供的 HTTPS 地址。单集下载上限调至 96 MiB 以覆盖两档播客的长节目，总离线配额为 512 MiB。[Legado 上游](https://github.com/LegadoTeam/legado)
+- 视频及直播候选按原模块能力复核。OmoFun 的详情和部分媒体清单可访问，主站与抽测镜像的搜索、分类均返回站点验证页。聚合直播地址超时，部分 CMS 候选与已有渠道重复。本次没有通过复核的新增点播或直播渠道。
+- 可复跑 `python tool/crawl_yckceo.py .dart_tool/yckceo/snapshot` 和 `dart run tool/audit_yckceo.dart .dart_tool/yckceo/snapshot .dart_tool/yckceo/audit-full`。同一快照可续跑，采集增加 `--retry-downloads` 可重新检查只取得成员信息的合集。原始发布数据和逐项证据留在忽略目录，核对结果见 `.dart_tool/yckceo/snapshot/crawl.json`、`.dart_tool/yckceo/audit-full/inventory.json` 和 `.dart_tool/yckceo/audit-full/probes.jsonl`。
+- 全量 Flutter 回归 718 项通过、11 项按配置跳过，Python 工具回归 14 项通过。静态分析、源码规模和差异空白检查通过。Windows 原生用例核对全部 11 个阅读源的搜索、目录、正文和离线保存，并验证 Gutenberg 样本及两档机核播客的完整下载、解码和离线播放。Windows x64 Release 构建通过，随包清单与源码 SHA-256 一致。日志位于 `build/yckceo-flutter-test.log`、`build/yckceo-final-analyze.log`、`.dart_tool/native-35750665/books_native_test.log` 和 `build/yckceo-windows-release.log`。Android/TV 实机和各源长期可用率待验收。
 
 ## 阅读与听书（2026-11-12）
 
+- 重新打包提交 `ee43063`，应用版本为 `0.7.3+73`。Windows 安装器、便携 ZIP、Android ARM64 开发测试 APK 和两份第三方附件保存在 [本地测试包目录](../../artifacts/device-test/0.7.3-20261112-065355/)。已校验 5 个附件的 SHA-256、ZIP/APK CRC、便携包与暂存文件、APK v2 签名及两端随包源清单。构建与校验日志在 `build/repack-reading-20261112/`。安装卸载和 Android/TV 真机运行待验收。
 - 功能分支 `codex/reading-audiobooks` 新增两个独立入口，各含发现、书架和源管理。支持搜索、检测、收藏与分组、目录筛选、同书换源和批量下载。换源按规范化后的书名和作者匹配，跨源下载只回退到章节名唯一对应的版本。阅读器支持 TXT、无 DRM 的文本 EPUB、离线章节和进度恢复。听书章节通过本机校验后离线播放，支持进度跳转和倍速。
 - 抽查 [书源](https://www.yckceo.com/yuedu/shuyuan/index.html)、[书源合集](https://www.yckceo.com/yuedu/shuyuans/index.html)、[订阅源](https://www.yckceo.com/yuedu/rss/index.html) 和 [订阅源合集](https://www.yckceo.com/yuedu/rsss/index.html) 共 70 份可解析 JSON、672 条原始记录。初筛按类型、规范化主机及订阅路径识别 140 条重复、66 条无法作为 HTTP(S) 地址使用的记录。根据规则、站点行为和实际样本继续过滤。
 - 内置 [UU 看书](https://www.yckceo.com/yuedu/shuyuan/content/id/8081.html) 和 [速读谷](https://www.yckceo.com/yuedu/shuyuans/content/id/1320.html) 的静态选择器。由 [爱范儿条目](https://www.yckceo.com/yuedu/rss/content/id/887.html) 与 [订阅精选合集](https://www.yckceo.com/yuedu/rsss/content/id/174.html) 找到爱范儿和少数派，接入两家发布者的官方 RSS。内置不随包复制正文。

@@ -68,5 +68,10 @@
     "source": "https://repo.maven.apache.org/maven2/com/antonkarpenko/ffmpeg-kit-min/2.2.3/ffmpeg-kit-min-2.2.3-sources.jar",
     "file": "ffmpeg-kit-min-2.2.3-sources.jar",
     "sha256": "08ac5cb6c97ac299ab0fa4d17e37f0cfe0b7ec88c47f8b49021f3ae9ed9f49fc"
+  },
+  {
+    "source": "https://pub.dev/api/archives/flutter_qjs_next-1.5.2.tar.gz",
+    "file": "flutter-qjs-next-1.5.2.tar.gz",
+    "sha256": "e5fd66c5abdb3cb81cb6700e3cc203abb5353b244ec8e6a16ba0304faf1f21b5"
   }
 ]

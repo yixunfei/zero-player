@@ -23,12 +23,14 @@ final class MediaHttpClient {
     RequestScheduler? scheduler,
     bool allowPrivateNetworks = false,
     bool Function(Uri)? allowLanOrigin,
+    bool allowLegacyQueryEncoding = false,
   }) : _scheduler =
            scheduler ?? RequestScheduler(globalLimit: 20, playbackReserve: 2),
        _ownsScheduler = scheduler == null,
        targetPolicy = NetworkTargetPolicy(
          allowPrivateNetworks: allowPrivateNetworks,
          allowLanOrigin: allowLanOrigin,
+         allowLegacyQueryEncoding: allowLegacyQueryEncoding,
        ) {
     _configureClient();
   }
@@ -69,6 +71,7 @@ final class MediaHttpClient {
     RequestPriority priority = RequestPriority.playback,
     void Function(bool active)? onActivity,
     void Function(Uri target)? validateTarget,
+    Uri Function(Uri target)? mapRedirect,
   }) async {
     if (!{'GET', 'POST'}.contains(method) ||
         (body != null && (method != 'POST' || body.length > 65536))) {
@@ -122,25 +125,17 @@ final class MediaHttpClient {
           response,
         );
         recorded = true;
+        final stream = _body(response, request, remove, cancellation, permit);
         if (method == 'GET' &&
             {301, 302, 303, 307, 308}.contains(response.statusCode)) {
           final location = response.headers.value(HttpHeaders.locationHeader);
-          await _body(
-            response,
-            request,
-            remove,
-            cancellation,
-            permit,
-          ).take(0).drain<void>();
+          await stream.take(0).drain<void>();
           if (location == null) throw const HttpException('Missing Location');
-          uri = uri.resolve(location);
+          final target = uri.resolve(location);
+          uri = mapRedirect?.call(target) ?? target;
           continue;
         }
-        return HttpPayload(
-          uri,
-          response,
-          _body(response, request, remove, cancellation, permit),
-        );
+        return HttpPayload(uri, response, stream);
       } catch (error) {
         if (!recorded) {
           recordRequestTrace(

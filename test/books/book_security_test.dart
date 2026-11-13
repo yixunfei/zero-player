@@ -12,7 +12,9 @@ import 'package:zero_player/features/books/data/audiobook_files.dart';
 import 'package:zero_player/features/books/data/book_html.dart';
 import 'package:zero_player/features/books/data/book_import.dart';
 import 'package:zero_player/features/books/data/book_store.dart';
-import 'package:zero_player/features/books/data/local_book.dart';
+import 'package:zero_player/features/books/data/legado/legado_request.dart';
+import 'package:zero_player/features/books/data/legado/legado_rules.dart';
+import 'package:zero_player/features/books/data/rich_book.dart';
 import 'package:zero_player/features/books/domain/book.dart';
 import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 
@@ -20,7 +22,7 @@ import '../../test_support/http_test_server.dart';
 
 void main() {
   test(
-    'source imports deduplicate host aliases and reject executable rules',
+    'source imports deduplicate host aliases and keep HTTPS request scope',
     () {
       final raw = {
         'bookSourceName': '书源',
@@ -55,9 +57,9 @@ void main() {
         ]),
       );
       expect(parsed.sources, hasLength(1));
-      expect(parsed.duplicates, 1);
-      expect(parsed.rejected, 6);
-      expect(parsed.sources.single.rules['content'], '#chapter@text');
+      expect(parsed.duplicates, 4);
+      expect(parsed.rejected, 3);
+      expect(parsed.sources.single.legado!.rules['content'], 'id.chapter@html');
     },
   );
 
@@ -112,9 +114,87 @@ void main() {
     expect(server.calls, {'/start': 1});
   });
 
+  _legadoFormTest();
   _readerTests();
   _storageTests();
   _fallbackTest();
+}
+
+void _legadoFormTest() {
+  test('Legado static form and indexed fallback rules survive import', () {
+    final raw = {
+      'bookSourceName': '示例',
+      'bookSourceType': '0',
+      'bookSourceUrl': 'https://fiction.test',
+      'searchUrl': '/search,{"method":"POST","body":"q={{key}}&page={{page}}"}',
+      'ruleSearch': {
+        'bookList': '@css:.missing||class.result',
+        'name': 'tag.a.1@ownText',
+        'bookUrl': 'tag.a.1@href',
+      },
+      'ruleToc': {
+        'chapterList': 'id.toc@tag.a',
+        'chapterName': 'text',
+        'chapterUrl': 'href',
+      },
+      'ruleContent': {'content': '@css:#chapter p@text'},
+    };
+    final source = parseBookSourceRecord(raw);
+    final restored = BookSource.fromJson(source.toJson());
+    final request = LegadoRequest.parse(
+      restored,
+      restored.endpoint,
+      restored.legado!.search,
+      key: '三体 & 续',
+      page: 2,
+    );
+    expect(request.uri.path, '/search');
+    expect(request.form, {'q': '三体 & 续', 'page': '2'});
+    final rules = LegadoRules(restored, restored.endpoint, '''
+      <div class="result"><a href="/wrong">广告</a><em>书籍</em>
+      <a href="/book"><span>标签</span>书名</a></div>
+      <main id="chapter"><p>第一段</p><p>第二段</p></main>
+    ''');
+    final row = rules
+        .elements(restored.legado!.rules['searchList']!, rules.root)
+        .single;
+    expect(rules.field(restored.legado!.rules['searchTitle']!, row), '书名');
+    expect(rules.field(restored.legado!.rules['searchLink']!, row), '/book');
+    expect(
+      rules.field(restored.legado!.rules['content']!, rules.root, long: true),
+      '第一段\n\n第二段',
+    );
+    final gbk = parseBookSourceRecord({
+      ...raw,
+      'searchUrl': '/search?q={{key}},{"charset":"GBK"}',
+    });
+    final gbkRequest = LegadoRequest.parse(
+      gbk,
+      gbk.endpoint,
+      gbk.legado!.search,
+      key: '三体',
+    );
+    expect(gbkRequest.uri.query, 'q=%C8%FD%CC%E5');
+    expect(
+      () => parseBookSourceRecord({
+        ...raw,
+        'searchUrl':
+            'https://collector.test/search,{"method":"POST","body":"q={{key}}"}',
+      }),
+      throwsFormatException,
+    );
+    final headerSource = parseBookSourceRecord({
+      ...raw,
+      'header': '{"User-Agent":"Legado example","Cookie":"token"}',
+      'searchUrl': '/search?q={{key}},{"headers":{"Authorization":"token"}}',
+    });
+    final headers = LegadoRequest.parse(
+      headerSource,
+      headerSource.endpoint,
+      headerSource.legado!.search,
+    ).headers;
+    expect(headers, {'User-Agent': 'Legado example'});
+  });
 }
 
 void _fallbackTest() {
@@ -188,41 +268,43 @@ void _readerTests() {
     expect(bookField(document, 'main@text', long: true), '第一段\n\n第二段\n\n结尾');
   });
 
-  test('EPUB uses the spine, removes active markup and rejects external paths', () {
-    List<int> epub(String second) {
-      final archive = Archive();
-      for (final item in {
-        'META-INF/container.xml':
-            '<container><rootfiles><rootfile full-path="OPS/book.opf"/></rootfiles></container>',
-        'OPS/book.opf':
-            '<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>'
-            '<dc:title>示例书</dc:title><dc:creator>作者</dc:creator></metadata>'
-            '<manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/>'
-            '<item id="two" href="$second" media-type="application/xhtml+xml"/></manifest>'
-            '<spine><itemref idref="two"/><itemref idref="one"/></spine></package>',
-        'OPS/one.xhtml': '<h1>章节一</h1><p>正文一</p>',
-        'OPS/two.xhtml': '<h1>章节二</h1><script>steal()</script><p>正文二</p>',
-      }.entries) {
-        archive.addFile(ArchiveFile.string(item.key, item.value));
+  test(
+    'EPUB uses the spine, removes active markup and rejects external paths',
+    () async {
+      List<int> epub(String second) {
+        final archive = Archive();
+        for (final item in {
+          'META-INF/container.xml':
+              '<container><rootfiles><rootfile full-path="OPS/book.opf"/></rootfiles></container>',
+          'OPS/book.opf':
+              '<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>'
+              '<dc:title>示例书</dc:title><dc:creator>作者</dc:creator></metadata>'
+              '<manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/>'
+              '<item id="two" href="$second" media-type="application/xhtml+xml"/></manifest>'
+              '<spine><itemref idref="two"/><itemref idref="one"/></spine></package>',
+          'OPS/one.xhtml': '<h1>章节一</h1><p>正文一</p>',
+          'OPS/two.xhtml': '<h1>章节二</h1><script>steal()</script><p>正文二</p>',
+        }.entries) {
+          archive.addFile(ArchiveFile.string(item.key, item.value));
+        }
+        return ZipEncoder().encode(archive);
       }
-      return ZipEncoder().encode(archive);
-    }
 
-    final book = parseLocalBook('fixture.epub', epub('two.xhtml'));
-    expect(book.title, '示例书');
-    expect(book.author, '作者');
-    expect(book.sections.map((s) => s.title), ['章节二', '章节一']);
-    expect(book.sections.first.text, '章节二\n\n正文二');
-    expect(
-      () =>
-          parseLocalBook('fixture.epub', epub('https://collector.test/secret')),
-      throwsFormatException,
-    );
-    expect(
-      () => parseLocalBook('fixture.epub', epub('../../secret')),
-      throwsFormatException,
-    );
-  });
+      final book = (await readEpubPackageOffThread(
+        'fixture.epub',
+        epub('two.xhtml'),
+      )).book;
+      expect(book.title, '示例书');
+      expect(book.author, '作者');
+      expect(book.sections.map((s) => s.title), ['章节二', '章节一']);
+      expect(book.sections.first.text.trim(), '章节二正文二');
+      expect(
+        () => readRichEpub(epub('https://collector.test/secret')),
+        throwsFormatException,
+      );
+      expect(() => readRichEpub(epub('../../secret')), throwsFormatException);
+    },
+  );
 }
 
 void _storageTests() {

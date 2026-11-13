@@ -10,24 +10,23 @@ final class AppBackDispatcher extends RootBackButtonDispatcher {
     required this.router,
     required this.platform,
     required this.shutdown,
+    required this.closeDrawer,
   });
 
   final GoRouter router;
   final PlatformServices platform;
   final Future<void> Function() shutdown;
+  final bool Function() closeDrawer;
   bool _dialogOpen = false;
   bool _exiting = false;
 
   @override
   Future<bool> invokeCallback(Future<bool> defaultValue) async {
     if (_exiting) return true;
+    if (closeDrawer()) return true;
     if (await super.invokeCallback(defaultValue)) return true;
     if (!platform.android) return false;
-    if (router.state.uri.path != '/') {
-      router.go('/');
-    } else {
-      unawaited(confirmExit());
-    }
+    unawaited(confirmExit());
     return true;
   }
 

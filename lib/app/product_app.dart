@@ -10,8 +10,6 @@ import 'package:go_router/go_router.dart';
 import '../features/catalog/presentation/detail_page.dart';
 import '../features/discovery/presentation/discovery_page.dart';
 import '../features/discovery/presentation/release_calendar_page.dart';
-import '../features/downloads/presentation/downloads_page.dart';
-import '../features/library/presentation/history_page.dart';
 import '../features/live/presentation/live_page.dart';
 import '../features/radio/presentation/radio_page.dart';
 import '../features/music/presentation/music_page.dart';
@@ -29,6 +27,7 @@ import 'application_fullscreen.dart';
 import 'list_keyboard_navigation.dart';
 import 'app_back_dispatcher.dart';
 import 'app_layout.dart';
+import 'media_library_hub.dart';
 
 final class ProductApp extends ConsumerStatefulWidget {
   const ProductApp({super.key});
@@ -41,6 +40,7 @@ final class _ProductAppState extends ConsumerState<ProductApp>
   late final AppServices services;
   late final GoRouter router;
   late final AppBackDispatcher backDispatcher;
+  final _shellScaffold = GlobalKey<ScaffoldState>();
   StreamSubscription<String>? _localOpens;
   int _openSequence = 0;
   @override
@@ -59,6 +59,7 @@ final class _ProductAppState extends ConsumerState<ProductApp>
       router: router,
       platform: services.platform,
       shutdown: services.closeSafely,
+      closeDrawer: _closeDrawer,
     );
     unawaited(services.subscriptions.refreshDue());
     services.sourceMonitor.start();
@@ -74,6 +75,17 @@ final class _ProductAppState extends ConsumerState<ProductApp>
         unawaited(_startFullscreen());
       }
     });
+  }
+
+  bool _closeDrawer() {
+    final scaffold = _shellScaffold.currentState;
+    if (scaffold == null ||
+        !scaffold.isDrawerOpen ||
+        ModalRoute.of(scaffold.context)?.isCurrent != true) {
+      return false;
+    }
+    scaffold.closeDrawer();
+    return true;
   }
 
   bool _exiting = false;
@@ -112,100 +124,111 @@ final class _ProductAppState extends ConsumerState<ProductApp>
 
   GoRouter _createRouter() => GoRouter(
     routes: [
-      ShellRoute(
+      StatefulShellRoute.indexedStack(
         builder: (context, state, child) => AppShell(
+          scaffoldKey: _shellScaffold,
           services: services,
           location: state.uri.path,
           child: child,
         ),
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (_, state) => DiscoveryPage(services: services),
-          ),
-          GoRoute(
-            path: '/search',
-            builder: (_, state) => PageListNavigation(
-              child: SearchPage(
-                services: services,
-                initial: state.uri.queryParameters['q'] ?? '',
-                preferredSourceId:
-                    state.uri.queryParameters['source'] ??
-                    services.searchSourceId,
+        branches: [
+          for (final route in <RouteBase>[
+            GoRoute(
+              path: '/',
+              builder: (_, state) => DiscoveryPage(services: services),
+            ),
+            GoRoute(
+              path: '/search',
+              builder: (_, state) => PageListNavigation(
+                child: SearchPage(
+                  key: ValueKey('search:${state.uri}'),
+                  services: services,
+                  initial: state.uri.queryParameters['q'] ?? '',
+                  preferredSourceId:
+                      state.uri.queryParameters['source'] ??
+                      services.searchSourceId,
+                ),
               ),
             ),
-          ),
-          GoRoute(
-            path: '/live',
-            builder: (_, state) => LivePage(services: services),
-          ),
-          GoRoute(
-            path: '/radio',
-            builder: (_, state) => RadioPage(services: services),
-          ),
-          GoRoute(
-            path: '/music',
-            builder: (_, state) => MusicPage(services: services),
-          ),
-          _bookRoute('/reading', BookKind.text),
-          _bookRoute('/audiobooks', BookKind.audio),
-          GoRoute(
-            path: '/calendar',
-            builder: (_, _) => ReleaseCalendarPage(services: services),
-          ),
-          GoRoute(
-            path: '/history',
-            builder: (_, state) =>
-                PageListNavigation(child: HistoryPage(services: services)),
-          ),
-          GoRoute(
-            path: '/local',
-            builder: (_, state) => LocalVideoPage(
-              key: ValueKey(state.uri.toString()),
-              services: services,
-              path: state.uri.queryParameters['path'],
-              id: state.uri.queryParameters['id'],
+            GoRoute(
+              path: '/live',
+              builder: (_, state) => LivePage(services: services),
             ),
-          ),
-          GoRoute(
-            path: '/downloads',
-            builder: (_, state) =>
-                PageListNavigation(child: DownloadsPage(services: services)),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (_, state) =>
-                PageListNavigation(child: SettingsPage(services: services)),
-          ),
+            GoRoute(
+              path: '/radio',
+              builder: (_, state) => RadioPage(services: services),
+            ),
+            GoRoute(
+              path: '/music',
+              builder: (_, state) => MusicPage(services: services),
+            ),
+            _bookRoute('/reading', BookKind.text),
+            _bookRoute('/audiobooks', BookKind.audio),
+            GoRoute(
+              path: '/calendar',
+              builder: (_, _) => ReleaseCalendarPage(services: services),
+            ),
+            GoRoute(
+              path: '/history',
+              builder: (_, state) => PageListNavigation(
+                child: MediaLibraryHub(services: services, downloads: false),
+              ),
+            ),
+            GoRoute(
+              path: '/local',
+              builder: (_, state) => LocalVideoPage(
+                key: ValueKey(state.uri.toString()),
+                services: services,
+                path: state.uri.queryParameters['path'],
+                id: state.uri.queryParameters['id'],
+              ),
+            ),
+            GoRoute(
+              path: '/downloads',
+              builder: (_, state) => PageListNavigation(
+                child: MediaLibraryHub(services: services, downloads: true),
+              ),
+            ),
+            GoRoute(
+              path: '/settings',
+              builder: (_, state) =>
+                  PageListNavigation(child: SettingsPage(services: services)),
+            ),
+          ])
+            StatefulShellBranch(routes: [route]),
         ],
       ),
-      GoRoute(
-        path: '/supervision',
-        builder: (_, state) => SupervisionPage(services: services),
-      ),
-      GoRoute(
-        path: '/sources',
-        builder: (_, state) =>
-            PageListNavigation(child: SourcesPage(services: services)),
-      ),
-      GoRoute(
-        path: '/detail/:source/:id',
-        builder: (_, state) => DetailPage(
-          services: services,
-          sourceId: state.pathParameters['source']!,
-          remoteId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/player',
-        redirect: (_, state) => state.extra is PlaybackRequest ? null : '/',
-        builder: (_, state) => PlayerPage(
-          services: services,
-          request: state.extra! as PlaybackRequest,
-        ),
-      ),
+      ..._standaloneRoutes(),
     ],
   );
+
+  List<RouteBase> _standaloneRoutes() => [
+    GoRoute(
+      path: '/supervision',
+      builder: (_, state) => SupervisionPage(services: services),
+    ),
+    GoRoute(
+      path: '/sources',
+      builder: (_, state) =>
+          PageListNavigation(child: SourcesPage(services: services)),
+    ),
+    GoRoute(
+      path: '/detail/:source/:id',
+      builder: (_, state) => DetailPage(
+        services: services,
+        sourceId: state.pathParameters['source']!,
+        remoteId: state.pathParameters['id']!,
+      ),
+    ),
+    GoRoute(
+      path: '/player',
+      redirect: (_, state) => state.extra is PlaybackRequest ? null : '/',
+      builder: (_, state) => PlayerPage(
+        services: services,
+        request: state.extra! as PlaybackRequest,
+      ),
+    ),
+  ];
 
   Future<void> _startFullscreen() async {
     try {

@@ -7,18 +7,28 @@ final class NetworkTargetPolicy {
   const NetworkTargetPolicy({
     this.allowPrivateNetworks = false,
     this.allowLanOrigin,
+    this.allowLegacyQueryEncoding = false,
   });
   final bool allowPrivateNetworks;
   final bool Function(Uri)? allowLanOrigin;
+  final bool allowLegacyQueryEncoding;
 
-  static void validateUri(Uri uri) {
+  static void validateUri(Uri uri, {bool legacyQueryEncoding = false}) {
+    final decoded = Uri.decodeFull(
+      (legacyQueryEncoding ? uri.replace(query: '') : uri).toString(),
+    );
     if (!{'http', 'https'}.contains(uri.scheme) ||
         !uri.hasAuthority ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.port < 1 ||
         uri.port > 65535 ||
-        RegExp(r'[\x00-\x1f\x7f]').hasMatch(Uri.decodeFull(uri.toString()))) {
+        RegExp(r'[\x00-\x1f\x7f]').hasMatch(decoded) ||
+        (legacyQueryEncoding &&
+            RegExp(
+              r'%(?:[01][0-9a-f]|7f)',
+              caseSensitive: false,
+            ).hasMatch(uri.query))) {
       throw const FormatException('仅允许不含凭据的 HTTP(S) 媒体地址');
     }
   }
@@ -35,7 +45,7 @@ final class NetworkTargetPolicy {
   }
 
   void validateAccess(Uri uri, {required bool originalOrigin}) {
-    validateUri(uri);
+    validateUri(uri, legacyQueryEncoding: allowLegacyQueryEncoding);
     if (allowPrivateNetworks) return;
     final address = InternetAddress.tryParse(uri.host);
     if (address == null || !isPrivate(address)) return;
@@ -78,7 +88,7 @@ final class NetworkTargetPolicy {
     String? proxyHost,
     int? proxyPort,
   ) async {
-    validateUri(uri);
+    validateUri(uri, legacyQueryEncoding: allowLegacyQueryEncoding);
     if (proxyHost != null) throw const FormatException('不支持未校验的代理目标');
     final addresses = await InternetAddress.lookup(
       uri.host,

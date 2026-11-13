@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 
@@ -16,12 +16,49 @@ import '../../supervision/application/content_policy.dart';
 import '../../supervision/domain/adult_source_evidence.dart';
 import '../../supervision/domain/supervision_rules.dart';
 import '../domain/book.dart';
+import '../domain/book_search.dart';
+import '../domain/legado_source.dart';
+import 'aoaostar_book_catalog.dart';
 import 'audiobook_files.dart';
 import 'book_client.dart';
+import 'book_import.dart';
+import 'book_source_links.dart';
 import 'book_store.dart';
 import 'local_book.dart';
+import 'rich_book.dart';
 
 typedef BookEdition = ({Book book, List<BookChapter> chapters});
+typedef BookImportChanges = ({
+  int added,
+  int updated,
+  int duplicates,
+  int skipped,
+});
+
+typedef BookSearchUpdate = ({
+  String? sourceId,
+  List<Book> books,
+  int completed,
+  int total,
+  bool failed,
+  int? latencyMs,
+});
+
+bool _retiredNewsHost(String host) => const [
+  'ithome.com',
+  'sspai.com',
+  'ifanr.com',
+].any((domain) => host == domain || host.endsWith('.$domain'));
+
+Uri? _bookAddress(String query) {
+  final uri = Uri.tryParse(query);
+  if (uri == null ||
+      !uri.hasAuthority ||
+      !const {'http', 'https'}.contains(uri.scheme)) {
+    return null;
+  }
+  return legacyBookUri(uri);
+}
 
 final class BooksRepository {
   BooksRepository(
@@ -31,7 +68,11 @@ final class BooksRepository {
     this.policy,
     Future<void> Function(File, CancellationToken, String) validateAudio,
   ) : store = BookStore(db),
-      _http = MediaHttpClient(maxConnectionsPerHost: 2) {
+      _http = MediaHttpClient(
+        maxConnectionsPerHost: 2,
+        allowLegacyQueryEncoding: true,
+      ) {
+    documents = Directory(p.join(root.path, 'book_documents'));
     audioFiles = AudiobookFiles(
       Directory(p.join(root.path, 'book_audio')),
       client,
@@ -40,6 +81,9 @@ final class BooksRepository {
     );
   }
 
+  late final Directory documents;
+  File documentFile(Book book, String extension) =>
+      File(p.join(documents.path, '${book.id}.$extension'));
   final BookStore store;
   final ContentPolicy policy;
   final MediaHttpClient _http;
@@ -47,6 +91,28 @@ final class BooksRepository {
   late final AudiobookFiles audioFiles;
   late final Future<List<BookSource>> _builtins = _loadBuiltins();
   final _verifiedSources = <String, BookSource>{};
+  final _refreshingSubscriptions = <String>{};
+  Future<void>? _seeding;
+
+  Future<void> ensureCatalog() async {
+    if (policy.supervision.enabled || policy.supervision.corrupted) return;
+    final running = _seeding ??= _seedCatalog();
+    try {
+      await running;
+    } finally {
+      if (identical(_seeding, running)) _seeding = null;
+    }
+  }
+
+  Future<void> _seedCatalog() async {
+    final catalog = await AoaoStarBookCatalog.load();
+    if (await store.read('books_catalog_revision') == catalog.revision) return;
+    await importSources(
+      (await catalog.read()).sources,
+      fromCatalog: true,
+      catalogRevision: catalog.revision,
+    );
+  }
 
   Future<List<BookSource>> _loadBuiltins() async {
     final data =
@@ -72,6 +138,8 @@ final class BooksRepository {
 
   bool sourceAllowed(BookSource source) =>
       kindAllowed(source.kind) &&
+      (source.kind != BookKind.text ||
+          !_retiredNewsHost(source.endpoint.host)) &&
       !(policy.filterAdult &&
           ([source.endpoint.host, ...source.mediaHosts].any(knownAdultHost))) &&
       policy.textAllowed(
@@ -83,31 +151,97 @@ final class BooksRepository {
   bool bookAllowed(Book book) {
     final verified = _verifiedSources[book.sourceId];
     return kindAllowed(book.kind) &&
+        (book.kind != BookKind.text || !_retiredNewsHost(book.uri.host)) &&
         (!policy.supervision.enabled ||
             (verified != null && sourceAllowed(verified))) &&
         !(policy.filterAdult && knownAdultHost(book.uri.host)) &&
         policy.textAllowed(
-          '${book.title} ${book.author} ${book.description} ${book.uri.host}',
+          '${book.title} ${book.author} ${book.description} ${book.category} ${book.uri.host}',
         );
   }
 
-  Future<List<BookSourceEntry>> sources(BookKind kind) async =>
-      (await store.sources(await _builtins))
-          .where(
-            (entry) =>
-                entry.source.kind == kind &&
-                sourceAllowed(entry.source) &&
-                policy.textAllowed('', category: entry.group),
-          )
-          .toList();
+  Future<List<BookSourceEntry>> sources(
+    BookKind kind, {
+    bool enabledOnly = false,
+  }) async {
+    final blocked = await store.blockedSources();
+    return (await store.sources(await _builtins, enabledOnly: enabledOnly))
+        .where(
+          (entry) =>
+              entry.source.kind == kind &&
+              !blocked.containsKey(entry.source.id) &&
+              sourceAllowed(entry.source) &&
+              policy.textAllowed('', category: entry.group),
+        )
+        .toList();
+  }
 
   Future<BookSource> _active(Book book) async {
     if (!bookAllowed(book)) throw const ContentBlocked();
-    final entry = (await sources(
-      book.kind,
-    )).where((e) => e.source.id == book.sourceId).firstOrNull;
-    if (entry == null || !entry.enabled) throw const FormatException('请先启用该来源');
+    return _enabledSource(book.kind, book.sourceId);
+  }
+
+  Future<BookSourceEntry?> sourceEntry(BookKind kind, String id) async {
+    await _builtins;
+    if (await _blocked(id)) return null;
+    final entry = await store.source(_verifiedSources[id], id);
+    if (entry == null ||
+        entry.source.kind != kind ||
+        !sourceAllowed(entry.source) ||
+        !policy.textAllowed('', category: entry.group)) {
+      return null;
+    }
+    return entry;
+  }
+
+  Future<BookSource> _enabledSource(BookKind kind, String id) async {
+    await _builtins;
+    if (await _blocked(id)) throw const ContentBlocked();
+    final entry = await store.source(_verifiedSources[id], id);
+    if (entry == null || !entry.enabled || entry.source.kind != kind) {
+      throw const FormatException('请先启用该来源');
+    }
+    if (!sourceAllowed(entry.source) ||
+        !policy.textAllowed('', category: entry.group)) {
+      throw const ContentBlocked();
+    }
     return entry.source;
+  }
+
+  Future<List<LegadoCategory>> categories(
+    BookKind kind,
+    String sourceId,
+    CancellationToken token,
+  ) async {
+    final source = await _enabledSource(kind, sourceId);
+    final categories = await client.categories(source, token);
+    token.check();
+    if (!sourceAllowed(source)) throw const ContentBlocked();
+    return categories
+        .where((category) => policy.textAllowed(category.title))
+        .toList();
+  }
+
+  Future<void> restoreDefaultSources(BookKind kind) async {
+    policy.supervision.require(SensitiveOperation.channels);
+    final builtins = (await _builtins).where((s) => s.kind == kind).toList();
+    final blocked = await store.blockedSources();
+    final existing = await store.sources(await _builtins);
+    await store.db.atomic(() async {
+      for (final entry in existing.where((e) => e.source.kind == kind)) {
+        await store.saveSource(entry.source, {'enabled': false});
+      }
+      for (final source in builtins) {
+        if (blocked.containsKey(source.id) || !sourceAllowed(source)) continue;
+        final key = 'books_source:${source.id}';
+        final old = await store.read(key);
+        await store.write(key, {
+          if (old is Map) ...old,
+          'enabled': true,
+          'removed': false,
+        });
+      }
+    }, tables: {'app_meta'});
   }
 
   Future<void> saveSource(
@@ -116,64 +250,274 @@ final class BooksRepository {
   ) async {
     policy.supervision.require(SensitiveOperation.channels);
     if (!sourceAllowed(source)) throw const ContentBlocked();
-    await store.saveSource(source, updates);
+    await store.db.atomic(() async {
+      if (await _blocked(source.id)) throw const ContentBlocked();
+      await store.saveSource(source, updates);
+    }, tables: {'app_meta'});
   }
 
-  Future<String> sourceDocument(String address, CancellationToken token) async {
+  Future<void> setSourcesEnabled(
+    BookKind kind,
+    Set<String> ids,
+    bool enabled,
+  ) async {
+    policy.supervision.require(SensitiveOperation.channels);
+    await store.db.atomic(() async {
+      final eligible = (await sources(kind)).where(
+        (entry) => ids.contains(entry.source.id) && entry.enabled != enabled,
+      );
+      policy.supervision.require(SensitiveOperation.channels);
+      await store.setSourcesEnabled(
+        eligible.map((entry) => entry.source.id).toSet(),
+        enabled,
+      );
+    }, tables: {'app_meta'});
+  }
+
+  Future<void> blockSource(BookSource source) => store.db.atomic(() async {
+    policy.supervision.require(SensitiveOperation.channels);
+    if (!sourceAllowed(source)) throw const ContentBlocked();
+    final blocked = await store.blockedSources();
+    await store.write('books_source_blacklist', {
+      ...blocked,
+      source.id: '${source.name} · ${source.endpoint.host}',
+    });
+    final aliases = await store.read('books_source_blacklist_aliases');
+    await store.write('books_source_blacklist_aliases', {
+      if (aliases is Map) ...aliases,
+      _blacklistAlias(source): source.id,
+    });
+    await store.saveSource(source, {'enabled': false});
+  }, tables: {'app_meta'});
+
+  Future<bool> _blocked(String id) async =>
+      (await store.blockedSources()).containsKey(id);
+
+  String _blacklistAlias(BookSource source) {
+    final host = source.endpoint.host.replaceFirst(RegExp(r'^www\.'), '');
+    final path = source.endpoint.path == '/' ? '' : source.endpoint.path;
+    return '${source.kind.name}:$host$path?${source.endpoint.query}:${source.sourceKey}';
+  }
+
+  Future<void> unblockSource(String id) => store.db.atomic(() async {
+    policy.supervision.require(SensitiveOperation.channels);
+    final blocked = await store.blockedSources()
+      ..remove(id);
+    await store.write('books_source_blacklist', blocked);
+    final aliases = await store.read('books_source_blacklist_aliases');
+    if (aliases is Map) {
+      await store.write(
+        'books_source_blacklist_aliases',
+        {...aliases}..removeWhere((_, sourceId) => sourceId == id),
+      );
+    }
+  }, tables: {'app_meta'});
+
+  void _requireSubscriptionAccess() {
     policy.supervision.require(SensitiveOperation.channels);
     if (policy.supervision.enabled || policy.supervision.corrupted) {
       throw const ContentBlocked();
     }
-    final uri = publicBookUri(Uri.parse(address));
-    final response = await client.network.get(
-      uri,
-      maxBytes: 8 * 1024 * 1024,
-      cancellation: token,
-      validateTarget: (target) {
-        if (publicBookUri(target).host != uri.host ||
-            !policy.textAllowed(target.host) ||
-            (policy.filterAdult && knownAdultHost(target.host))) {
-          throw const FormatException('来源文件跳转超出允许范围');
-        }
-      },
-    );
-    return response.text;
   }
 
-  Future<({int added, int duplicates})> importSources(
-    List<BookSource> incoming,
+  Future<({BookSourceImport parsed, BookImportChanges changes})> subscribe(
+    String address,
+    CancellationToken token,
   ) async {
-    policy.supervision.require(SensitiveOperation.channels);
-    final existing = (await store.sources(
-      await _builtins,
-    )).map((e) => e.source.id).toSet();
-    var added = 0;
-    var duplicates = 0;
-    if (existing.length + incoming.length > 400) {
-      throw const FormatException('来源管理最多保存 400 个渠道');
+    _requireSubscriptionAccess();
+    final uri = bookSourceLink(address);
+    final id = bookSubscriptionId(uri);
+    if (!_refreshingSubscriptions.add(id)) {
+      throw const FormatException('此订阅正在刷新');
     }
+    try {
+      final input = await BookSourceDocuments(client.network, (host) {
+        _requireSubscriptionAccess();
+        return policy.textAllowed(host) &&
+            !(policy.filterAdult && knownAdultHost(host));
+      }).load(uri, token);
+      token.check();
+      final parsed = await parseBookSourcesOffThread(input);
+      token.check();
+      if (parsed.sources.isEmpty) {
+        throw FormatException('没有可导入来源${parsed.issueSummary}');
+      }
+      final changes = await importSources(
+        parsed.sources,
+        subscription: uri,
+        token: token,
+      );
+      return (parsed: parsed, changes: changes);
+    } finally {
+      _refreshingSubscriptions.remove(id);
+    }
+  }
+
+  Future<List<BookSourceSubscription>> subscriptions() async {
+    if (policy.supervision.enabled || policy.supervision.corrupted) return [];
+    return (await store.subscriptions())
+        .where(
+          (entry) =>
+              policy.textAllowed(entry.url.host) &&
+              !(policy.filterAdult && knownAdultHost(entry.url.host)),
+        )
+        .toList();
+  }
+
+  Future<({BookSourceImport parsed, BookImportChanges changes})> importCatalog(
+    AoaoStarBookCatalog catalog,
+    CancellationToken token, {
+    String? packId,
+  }) async {
+    _requireSubscriptionAccess();
+    token.check();
+    final parsed = await catalog.read(packId: packId);
+    token.check();
+    final changes = await importSources(
+      parsed.sources,
+      fromCatalog: true,
+      token: token,
+    );
+    return (parsed: parsed, changes: changes);
+  }
+
+  Future<void> removeSubscription(BookSourceSubscription entry) async {
+    _requireSubscriptionAccess();
+    if (_refreshingSubscriptions.contains(entry.id)) {
+      throw const FormatException('请先完成订阅刷新');
+    }
+    await store.deleteSubscription(entry);
+  }
+
+  Future<BookImportChanges> importSources(
+    List<BookSource> incoming, {
+    Uri? subscription,
+    CancellationToken? token,
+    bool fromCatalog = false,
+    String? catalogRevision,
+  }) async {
+    policy.supervision.require(SensitiveOperation.channels);
+    final builtins = await _builtins;
+    final subscriptionId = subscription == null
+        ? null
+        : bookSubscriptionId(subscription);
+    var added = 0;
+    var updated = 0;
+    var duplicates = 0;
+    var skipped = 0;
     await store.db.atomic(() async {
-      for (final source in incoming) {
+      final current = await store.sources(builtins);
+      final existing = {for (final entry in current) entry.source.id: entry};
+      final blocked = await store.blockedSources();
+      final aliases = await store.blockedAliases();
+      final seen = <String>{};
+      final customCount = current
+          .where((entry) => !entry.source.builtin && !entry.fromCatalog)
+          .length;
+      final pending = <({BookSource source, BookSourceEntry? previous})>[];
+      Future<void> flush() async {
+        await store.writeImported(
+          pending,
+          subscriptionId: subscriptionId,
+          fromCatalog: fromCatalog,
+        );
+        pending.clear();
+      }
+
+      for (final candidate in incoming) {
+        token?.check();
         policy.supervision.require(SensitiveOperation.channels);
-        if (!sourceAllowed(source)) continue;
-        if (!existing.add(source.id)) {
+        if (subscription != null || fromCatalog) _requireSubscriptionAccess();
+        final source = _keepLegacyKey(candidate, existing);
+        if (aliases.contains(_blacklistAlias(candidate)) ||
+            blocked.containsKey(candidate.id) ||
+            blocked.containsKey(source.id) ||
+            !sourceAllowed(source)) {
+          skipped++;
+          continue;
+        }
+        if (!seen.add(source.id)) {
           duplicates++;
           continue;
         }
-        await store.saveSource(source, {'enabled': false});
-        added++;
+        final previous = existing[source.id];
+        if (previous != null) {
+          final owned =
+              subscriptionId != null &&
+              previous.subscriptionId == subscriptionId;
+          final newerCatalog =
+              fromCatalog &&
+              previous.fromCatalog &&
+              source.updatedAt > previous.source.updatedAt;
+          if (!previous.source.builtin &&
+              (owned || newerCatalog) &&
+              jsonEncode(source.toJson()) !=
+                  jsonEncode(previous.source.toJson())) {
+            pending.add((source: source, previous: previous));
+            updated++;
+          } else {
+            duplicates++;
+          }
+        } else if (!fromCatalog && customCount + added >= 12000) {
+          skipped++;
+        } else {
+          pending.add((source: source, previous: null));
+          added++;
+        }
+        if (pending.length >= 128) await flush();
       }
+      if (pending.isNotEmpty) await flush();
+      token?.check();
+      if (subscription != null || fromCatalog) _requireSubscriptionAccess();
+      if (catalogRevision != null) {
+        await store.write('books_catalog_revision', catalogRevision);
+      }
+      await _recordSubscription(subscription, added + updated + duplicates);
     }, tables: {'app_meta'});
-    return (added: added, duplicates: duplicates);
+    return (
+      added: added,
+      updated: updated,
+      duplicates: duplicates,
+      skipped: skipped,
+    );
+  }
+
+  Future<void> _recordSubscription(Uri? address, int count) async {
+    if (address == null || count == 0) return;
+    _requireSubscriptionAccess();
+    await store.saveSubscription(
+      BookSourceSubscription(
+        address,
+        count,
+        DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  BookSource _keepLegacyKey(
+    BookSource source,
+    Map<String, BookSourceEntry> existing,
+  ) {
+    if (source.sourceKey.isEmpty ||
+        source.sourceKey.contains('#') ||
+        source.sourceKey.startsWith('alias:') ||
+        existing.containsKey(source.id)) {
+      return source;
+    }
+    final legacy = existing[source.legacyId]?.source;
+    if (legacy == null ||
+        legacy.builtin ||
+        legacy.legado == null ||
+        legacy.endpoint != source.endpoint) {
+      return source;
+    }
+    return BookSource.fromJson(source.toJson()..remove('sourceKey'));
   }
 
   Future<void> removeSource(BookSource source) async {
     policy.supervision.require(SensitiveOperation.channels);
-    if (source.builtin) {
-      await store.saveSource(source, {'enabled': false});
-    } else {
-      await store.deleteSource(source);
-    }
+    if (!sourceAllowed(source)) throw const ContentBlocked();
+    await store.deleteSource(source);
   }
 
   Future<void> probe(
@@ -182,11 +526,18 @@ final class BooksRepository {
     CancellationToken token,
   ) async {
     policy.supervision.require(SensitiveOperation.channels);
-    if (!sourceAllowed(source)) throw const ContentBlocked();
+    if (!sourceAllowed(source) || await _blocked(source.id)) {
+      throw const ContentBlocked();
+    }
     final watch = Stopwatch()..start();
     var status = '';
     try {
-      final books = await client.books(source, query, token);
+      final books = await client.books(
+        source,
+        query,
+        token,
+        bookAddress: _bookAddress(query),
+      );
       final book = books.where(bookAllowed).firstOrNull;
       if (book == null) throw const FormatException('没有匹配作品，试试该源中已知的书名');
       final chapters = await client.chapters(source, book, token);
@@ -195,12 +546,17 @@ final class BooksRepository {
           .firstOrNull;
       if (chapter == null) throw const FormatException('目录没有可用章节');
       if (source.kind == BookKind.text) {
-        final body = await client.text(source, chapter, token);
+        final body = await client.text(source, chapter, token, book: book);
         if (body.trim().length < 40 || !policy.textAllowed(body)) {
           throw const FormatException('正文为空、过短或被内容策略拦截');
         }
       } else {
-        final (uri, bytes) = await client.sampleAudio(source, chapter, token);
+        final (uri, bytes) = await client.sampleAudio(
+          source,
+          chapter,
+          token,
+          book: book,
+        );
         audiobookExtension(
           bytes,
           isM4b: uri.path.toLowerCase().endsWith('.m4b'),
@@ -225,41 +581,155 @@ final class BooksRepository {
     BookKind kind,
     String query,
     CancellationToken token, {
-    String? group,
+    String? sourceId,
+    LegadoCategory? category,
+    int page = 1,
+    int? maxSources,
+    Set<String>? sourceIds,
+    String? preferredSource,
+    String? excludedSource,
     bool favorites = false,
+    BookSearchField field = BookSearchField.all,
+    void Function(BookSearchUpdate)? onProgress,
   }) async {
     if (!kindAllowed(kind)) throw const ContentBlocked();
     if (query.isNotEmpty && !policy.textAllowed(query)) {
       throw const ContentBlocked();
     }
-    final selected =
-        (await sources(kind))
-            .where(
-              (e) =>
-                  e.enabled &&
-                  (group == null || group == e.group) &&
-                  (!favorites || e.favorite),
-            )
-            .toList()
-          ..sort((a, b) => (b.favorite ? 1 : 0).compareTo(a.favorite ? 1 : 0));
-    var failed = 0;
-    final results = <Book>[];
-    for (var start = 0; start < selected.length; start += 4) {
-      token.check();
-      final batch = await Future.wait(
-        selected.skip(start).take(4).map((entry) async {
-          try {
-            return await client.books(entry.source, query, token);
-          } on Exception {
-            failed++;
-            return <Book>[];
-          }
-        }),
-      );
-      results.addAll(batch.expand((books) => books));
-    }
+    final address = _bookAddress(query);
+    final entries = (await sources(kind, enabledOnly: true)).where((entry) {
+      if (!entry.enabled ||
+          entry.source.id == excludedSource ||
+          (sourceId != null && sourceId != entry.source.id) ||
+          (sourceIds != null && !sourceIds.contains(entry.source.id))) {
+        return false;
+      }
+      if (address != null) return entry.source.acceptsBookAddress(address);
+      return entry.source.hasDiscovery ||
+          (query.isNotEmpty && entry.source.hasSearch);
+    }).toList();
+    final prioritized = _prioritize(entries, preferredSource, favorites);
+    final selected = maxSources == null
+        ? prioritized
+        : prioritized.take(maxSources).toList();
     token.check();
-    return (books: results.where(bookAllowed).toList(), failed: failed);
+    onProgress?.call((
+      sourceId: null,
+      books: [],
+      completed: 0,
+      total: selected.length,
+      failed: false,
+      latencyMs: null,
+    ));
+    return _searchSources(
+      selected,
+      query,
+      token,
+      category,
+      page,
+      address,
+      field,
+      onProgress,
+    );
+  }
+
+  List<BookSourceEntry> _prioritize(
+    Iterable<BookSourceEntry> entries,
+    String? preferredSource,
+    bool favorites,
+  ) => [
+    ...entries.where(
+      (entry) =>
+          entry.source.id == preferredSource && (!favorites || entry.favorite),
+    ),
+    ...entries.where(
+      (entry) => entry.source.id != preferredSource && entry.favorite,
+    ),
+    if (!favorites)
+      ...entries.where(
+        (entry) => entry.source.id != preferredSource && !entry.favorite,
+      ),
+  ];
+
+  Future<({List<Book> books, int failed})> _searchSources(
+    List<BookSourceEntry> selected,
+    String query,
+    CancellationToken token,
+    LegadoCategory? category,
+    int page,
+    Uri? address,
+    BookSearchField field,
+    void Function(BookSearchUpdate)? onProgress,
+  ) async {
+    final results = <String, List<Book>>{};
+    final match = address == null && query.trim().isNotEmpty
+        ? BookSearchQuery(query, field)
+        : null;
+    var failed = 0;
+    var cursor = 0, completed = 0;
+    Future<void> fetchSources() async {
+      while (cursor < selected.length) {
+        token.check();
+        final source = selected[cursor++].source;
+        var books = <Book>[];
+        var failure = false;
+        int? latencyMs;
+        try {
+          if (sourceAllowed(source) && !await _blocked(source.id)) {
+            final watch = Stopwatch()..start();
+            final found = await client.books(
+              source,
+              query,
+              token,
+              category: category,
+              page: page,
+              bookAddress: address,
+            );
+            latencyMs = watch.elapsedMilliseconds;
+            if (sourceAllowed(source) && !await _blocked(source.id)) {
+              final allowEpisodeMatches =
+                  source.kind == BookKind.audio &&
+                  source.format == BookFormat.feed &&
+                  field == BookSearchField.all;
+              books = found
+                  .where(
+                    (book) =>
+                        bookAllowed(book) &&
+                        (match == null ||
+                            allowEpisodeMatches ||
+                            match.rank(book) != null),
+                  )
+                  .toList();
+            }
+          }
+        } on Exception {
+          failed++;
+          failure = true;
+        }
+        token.check();
+        results[source.id] = books;
+        onProgress?.call((
+          sourceId: source.id,
+          books: books,
+          completed: ++completed,
+          total: selected.length,
+          failed: failure,
+          latencyMs: latencyMs,
+        ));
+      }
+    }
+
+    await Future.wait(
+      List.generate(math.min(4, selected.length), (_) => fetchSources()),
+    );
+    token.check();
+    return (
+      books: selected
+          .expand((entry) => results[entry.source.id] ?? const <Book>[])
+          .where(bookAllowed)
+          .toList(),
+      failed: failed,
+    );
   }
 
   Future<List<BookChapter>> chapters(
@@ -267,7 +737,9 @@ final class BooksRepository {
     CancellationToken token, {
     bool refresh = false,
   }) async {
-    if (!bookAllowed(book)) throw const ContentBlocked();
+    if (!bookAllowed(book) || await _blocked(book.sourceId)) {
+      throw const ContentBlocked();
+    }
     final saved = await store.entry(book);
     if (saved != null && saved.chapters.isNotEmpty && !refresh) {
       return saved.chapters.where((c) => policy.textAllowed(c.title)).toList();
@@ -285,6 +757,32 @@ final class BooksRepository {
     return chapters;
   }
 
+  Future<Book> details(Book book, CancellationToken token) async {
+    if (book.sourceId == 'local') return book;
+    final source = await _active(book);
+    final result = await client.details(source, book, token);
+    token.check();
+    return sourceAllowed(source) && bookAllowed(result) ? result : book;
+  }
+
+  Future<void> checkFollowing(BookKind kind, CancellationToken token) async {
+    final entries = (await store.shelf()).where(
+      (entry) =>
+          entry.following && entry.book.kind == kind && bookAllowed(entry.book),
+    );
+    for (final entry in entries) {
+      token.check();
+      try {
+        final fresh = await chapters(entry.book, token, refresh: true);
+        token.check();
+        if (fresh.isEmpty || !bookAllowed(entry.book)) continue;
+        await store.updateFollowedChapters(entry.book, fresh);
+      } on Exception {
+        token.check();
+      }
+    }
+  }
+
   Future<List<BookEdition>> alternatives(
     Book book,
     CancellationToken token,
@@ -292,7 +790,12 @@ final class BooksRepository {
     final title = bookIdentity(book.title);
     final author = bookIdentity(book.author);
     if (author.isEmpty) return [];
-    final results = await find(book.kind, book.title, token);
+    final results = await find(
+      book.kind,
+      book.title,
+      token,
+      field: BookSearchField.title,
+    );
     final alternatives = <BookEdition>[];
     for (final candidate
         in results.books
@@ -342,16 +845,71 @@ final class BooksRepository {
     CancellationToken token,
   ) async {
     requireBook(book, chapter);
+    if (await _blocked(book.sourceId)) throw const ContentBlocked();
     var body = await store.text(book, chapter);
     if (body == null) {
       final source = await _active(book);
-      body = await client.text(source, chapter, token);
+      body = await client.text(source, chapter, token, book: book);
       if (!sourceAllowed(source)) throw const ContentBlocked();
     }
     token.check();
+    if (await _blocked(book.sourceId)) throw const ContentBlocked();
+    token.check();
     requireBook(book, chapter);
     if (!policy.textAllowed(body)) throw const ContentBlocked();
+    if (body.trim().isEmpty) throw const FormatException('章节正文为空');
     return body;
+  }
+
+  /// A failed chapter can only fall back to an unambiguous same-author edition.
+  Future<({String text, Book sourceBook})> readWithFallback(
+    Book book,
+    BookChapter chapter,
+    CancellationToken token, {
+    bool automatic = true,
+  }) async {
+    try {
+      return (text: await readText(book, chapter, token), sourceBook: book);
+    } on ContentBlocked {
+      rethrow;
+    } on Exception {
+      token.check();
+      requireBook(book, chapter);
+      if (!automatic || book.sourceId == 'local') rethrow;
+      for (final edition in await alternatives(book, token)) {
+        final match = matchingChapter(edition.chapters, chapter);
+        if (match == null) continue;
+        final String text;
+        try {
+          text = await readText(edition.book, match, token);
+        } on Exception {
+          token.check();
+          continue;
+        }
+        if (await _blocked(book.sourceId)) throw const ContentBlocked();
+        token.check();
+        requireBook(book, chapter);
+        return (text: text, sourceBook: edition.book);
+      }
+      rethrow;
+    }
+  }
+
+  Future<List<int>> coverBytes(Book book, CancellationToken token) async {
+    final source = await _active(book);
+    final uri = source.resolve(book.uri, book.cover, media: true);
+    final document = await client.fetch(
+      source,
+      uri,
+      token,
+      media: true,
+      maxBytes: 2 * 1024 * 1024,
+    );
+    token.check();
+    if (!sourceAllowed(source) || !bookAllowed(book)) {
+      throw const ContentBlocked();
+    }
+    return document.bytes;
   }
 
   Future<void> download(
@@ -359,9 +917,11 @@ final class BooksRepository {
     BookChapter chapter,
     CancellationToken token, {
     List<BookEdition> alternatives = const [],
+    bool tryOriginal = true,
   }) async {
     requireBook(book, chapter);
-    final candidates = [(book, chapter)];
+    if (await _blocked(book.sourceId)) throw const ContentBlocked();
+    final candidates = [if (tryOriginal) (book, chapter)];
     for (final edition in alternatives) {
       final match = matchingChapter(edition.chapters, chapter);
       if (match != null) candidates.add((edition.book, match));
@@ -391,24 +951,28 @@ final class BooksRepository {
     throw last ?? const FormatException('没有可用章节');
   }
 
-  Future<Book> importLocal(File file) async {
-    const max = 12 * 1024 * 1024;
+  Future<Book> importLocal(
+    File file, {
+    Map<String, String> catalogMetadata = const {},
+  }) async {
     final name = p.basename(file.path);
-    if (!{'.txt', '.epub'}.contains(p.extension(name).toLowerCase())) {
-      throw const FormatException('仅支持 TXT 和 EPUB');
+    final extension = p.extension(name).toLowerCase();
+    if (!{'.txt', '.epub', '.pdf'}.contains(extension)) {
+      throw const FormatException('仅支持 TXT、EPUB 和 PDF');
     }
     if (policy.supervision.enabled || !kindAllowed(BookKind.text)) {
       throw const ContentBlocked();
     }
-    final length = await file.length();
-    if (length == 0 || length > max) {
-      throw const FormatException('电子书文件需小于 12 MiB');
-    }
-    final bytes = await file
-        .openRead(0, max + 1)
-        .fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk));
-    if (bytes.length > max) throw const FormatException('电子书文件需小于 12 MiB');
-    final parsed = await Isolate.run(() => parseLocalBook(name, bytes));
+    final bytes = await readLocalBookBytes(file);
+    final package = extension == '.epub'
+        ? await readEpubPackageOffThread(name, bytes)
+        : (
+            book: extension == '.pdf'
+                ? await parsePdfBook(name, bytes)
+                : await parseTextBookOffThread(name, bytes),
+            metadata: const <String, String>{},
+          );
+    final parsed = package.book;
     if (parsed.sections.isEmpty || parsed.sections.length > 4000) {
       throw const FormatException('电子书正文为空或章节过多');
     }
@@ -419,29 +983,98 @@ final class BooksRepository {
       parsed.author,
       Uri(scheme: 'book', path: sha256.convert(bytes).toString()),
     );
-    if (!bookAllowed(book) ||
-        parsed.sections.any(
-          (section) =>
-              !policy.textAllowed(section.title) ||
-              !policy.textAllowed(section.text),
-        )) {
-      throw const ContentBlocked();
+    void authorize() {
+      if (!bookAllowed(book) ||
+          parsed.sections.any(
+            (section) =>
+                !policy.textAllowed(section.title) ||
+                !policy.textAllowed(section.text),
+          )) {
+        throw const ContentBlocked();
+      }
     }
+
+    authorize();
     final contents = {
       for (final (index, section) in parsed.sections.indexed)
         BookChapter(section.title, book.uri.replace(fragment: '$index')):
             section.text,
     };
-    await store.db.atomic(() async {
-      await store.saveTexts(book, contents);
-      await store.saveBook(
-        book,
-        chapters: contents.keys.toList(),
-        favorite: true,
-      );
-    }, tables: {'app_meta'});
+    await _saveLocalImport(
+      book,
+      contents,
+      {
+        ...catalogMetadata,
+        for (final field in package.metadata.entries)
+          if (field.value.trim().isNotEmpty) field.key: field.value,
+      },
+      authorize,
+      file: extension == '.txt'
+          ? null
+          : documentFile(book, extension.substring(1)),
+      bytes: bytes,
+    );
     return book;
   }
+
+  Future<void> _saveLocalImport(
+    Book book,
+    Map<BookChapter, String> contents,
+    Map<String, String> publication,
+    void Function() authorize, {
+    required File? file,
+    required List<int> bytes,
+  }) async {
+    Directory? staging;
+    try {
+      if (file != null) {
+        await documents.create(recursive: true);
+        staging = await documents.createTemp('.pending-');
+        await File(
+          p.join(staging.path, 'document'),
+        ).writeAsBytes(bytes, flush: true);
+      }
+      await store.db.atomic(() async {
+        authorize();
+        await store.saveTexts(book, contents);
+        await store.saveBook(
+          book,
+          chapters: contents.keys.toList(),
+          favorite: true,
+        );
+        if (publication.isNotEmpty) {
+          final key = 'publication_${book.id}';
+          final existing = await store.read(key);
+          await store.write(key, {
+            if (existing is Map) ...existing,
+            for (final field in publication.entries)
+              if (field.value.trim().isNotEmpty) field.key: field.value,
+          });
+        }
+        if (file != null) {
+          await File(p.join(staging!.path, 'document')).rename(file.path);
+        }
+      }, tables: {'app_meta'});
+    } finally {
+      if (staging != null) {
+        try {
+          final pending = File(p.join(staging.path, 'document'));
+          if (await pending.exists()) await pending.delete();
+          await staging.delete();
+        } on FileSystemException {
+          // A failed cleanup must not mask the outcome of the import.
+        }
+      }
+    }
+  }
+
+  Future<void> removeLocalBook(Book book) => store.db.atomic(() async {
+    await store.removeLocal(book);
+    for (final extension in ['epub', 'pdf']) {
+      final file = documentFile(book, extension);
+      if (await file.exists()) await file.delete();
+    }
+  }, tables: {'app_meta'});
 
   Future<void> close() async {
     _http.close();

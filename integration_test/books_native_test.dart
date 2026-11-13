@@ -14,7 +14,7 @@ void main() {
   MediaKit.ensureInitialized();
 
   testWidgets(
-    'curated sources deliver chapters and Gutenberg plays offline',
+    'curated reading sources deliver searchable chapters and offline text',
     (tester) async {
       final root = await Directory.systemTemp.createTemp('zero-books-');
       final services = AppServices.scoped(root, AppDatabase.memory());
@@ -25,66 +25,47 @@ void main() {
         final books = services.books;
         final token = CancellationToken();
         final textSources = await books.sources(BookKind.text);
-        expect(textSources.length, 4);
+        expect(textSources.length, greaterThanOrEqualTo(12));
+        expect(
+          textSources.every((entry) => entry.source.format != BookFormat.feed),
+          isTrue,
+        );
         await Future.wait(
           textSources.map((entry) async {
             final source = entry.source;
-            final discovery = await books.client.books(source, '', token);
-            expect(discovery, isNotEmpty, reason: source.name);
+            if (source.hasDiscovery) {
+              final discovery = await books.client.books(source, '', token);
+              expect(discovery, isNotEmpty, reason: source.name);
+            }
             final results = await books.client.books(
               source,
               source.sample,
               token,
             );
             expect(results, isNotEmpty, reason: source.name);
-            final work = results.first;
+            final work = results.firstWhere(
+              (result) =>
+                  bookIdentity(result.title) == bookIdentity(source.sample),
+              orElse: () => results.first,
+            );
             final chapters = await books.chapters(work, token);
             expect(chapters, isNotEmpty, reason: source.name);
-            final body = await books.readText(work, chapters.first, token);
+            final chapter = chapters
+                .take(6)
+                .firstWhere(
+                  (chapter) => RegExp(r'第.{1,12}[章节回]').hasMatch(chapter.title),
+                  orElse: () => chapters.first,
+                );
+            final body = await books.readText(work, chapter, token);
             expect(body.length, greaterThan(100), reason: source.name);
-            await books.download(work, chapters.first, token);
+            await books.download(work, chapter, token);
             expect(
-              await books.store.text(work, chapters.first),
+              await books.store.text(work, chapter),
               body,
               reason: source.name,
             );
           }),
         );
-
-        final audioSource = (await books.sources(BookKind.audio)).single.source;
-        final library = await books.client.books(audioSource, '', token);
-        expect(library.length, 2);
-        for (final work in library) {
-          final chapters = await books.chapters(work, token);
-          expect(chapters.length, greaterThan(1), reason: work.title);
-          final chapter = chapters.first;
-          await books.download(work, chapter, token);
-          final session = await books.audioFiles.open(work, chapter);
-          final engine = services.createAudiobookEngine();
-          try {
-            await engine.open(session.uri);
-            for (
-              var i = 0;
-              i < 80 && engine.snapshot.position.inSeconds < 2;
-              i++
-            ) {
-              await tester.pump(const Duration(milliseconds: 100));
-            }
-            expect(
-              engine.snapshot.duration.inSeconds,
-              greaterThan(2),
-              reason: work.title,
-            );
-            expect(
-              engine.snapshot.position.inSeconds,
-              greaterThanOrEqualTo(2),
-              reason: work.title,
-            );
-          } finally {
-            await engine.dispose();
-            session.close();
-          }
-        }
       } finally {
         await services.close();
         await root.delete(recursive: true);
@@ -92,4 +73,66 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 4)),
   );
+
+  testWidgets(
+    'audiobooks and podcast feeds download and play offline',
+    (tester) async {
+      final root = await Directory.systemTemp.createTemp('zero-audiobooks-');
+      final services = AppServices.scoped(root, AppDatabase.memory());
+      try {
+        await services.settings.load();
+        await services.supervision.load();
+        await tester.pumpWidget(const SizedBox());
+        final books = services.books;
+        final token = CancellationToken();
+        final sources = await books.sources(BookKind.audio);
+        expect(sources.length, greaterThanOrEqualTo(3));
+        for (final entry in sources) {
+          final library = await books.client.books(entry.source, '', token);
+          expect(library, isNotEmpty, reason: entry.source.name);
+          for (final work in library) {
+            final chapters = await books.chapters(work, token);
+            expect(chapters.length, greaterThan(1), reason: work.title);
+            await _playChapter(tester, services, work, chapters.first, token);
+          }
+        }
+      } finally {
+        await services.close();
+        await root.delete(recursive: true);
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 8)),
+  );
+}
+
+Future<void> _playChapter(
+  WidgetTester tester,
+  AppServices services,
+  Book work,
+  BookChapter chapter,
+  CancellationToken token,
+) async {
+  final books = services.books;
+  await books.download(work, chapter, token);
+  final session = await books.audioFiles.open(work, chapter);
+  final engine = services.createAudiobookEngine();
+  try {
+    await engine.open(session.uri);
+    for (var i = 0; i < 80 && engine.snapshot.position.inSeconds < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      engine.snapshot.duration.inSeconds,
+      greaterThan(2),
+      reason: work.title,
+    );
+    expect(
+      engine.snapshot.position.inSeconds,
+      greaterThanOrEqualTo(2),
+      reason: work.title,
+    );
+  } finally {
+    await engine.dispose();
+    session.close();
+  }
 }
