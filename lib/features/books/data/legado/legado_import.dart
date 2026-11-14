@@ -121,6 +121,7 @@ Map<String, String> _modernBookRules(Map raw) {
   return {
     ..._listRules('search', search),
     ..._listRules('explore', explore),
+    'nextExplore': _text(explore['nextExploreUrl'] ?? explore['nextPageUrl']),
     'infoInit': _text(info['init']),
     'infoTitle': _text(info['name']),
     'infoAuthor': _text(info['author']),
@@ -153,6 +154,7 @@ Map<String, String> _listRules(String prefix, Map group) => {
   '${prefix}WordCount': _text(group['wordCount']),
   '${prefix}Latest': _text(group['lastChapter']),
   '${prefix}Updated': _text(group['updateTime']),
+  '${prefix}Rank': _text(group['rank']),
 };
 
 Map<String, String> _oldBookRules(Map raw) => {

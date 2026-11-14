@@ -290,10 +290,10 @@ void _readerTests() {
         return ZipEncoder().encode(archive);
       }
 
-      final book = (await readEpubPackageOffThread(
+      final book = await parseEpubBookOffThread(
         'fixture.epub',
         epub('two.xhtml'),
-      )).book;
+      );
       expect(book.title, '示例书');
       expect(book.author, '作者');
       expect(book.sections.map((s) => s.title), ['章节二', '章节一']);

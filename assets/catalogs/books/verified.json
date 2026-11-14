@@ -49,8 +49,120 @@
       "chapterTitle": "@text",
       "chapterUrl": "@href",
       "content": ".con@text",
-      "nextContent": "@next"
-    }
+      "nextContent": "@next",
+      "discoverCategory": ".itemtxt p span:nth-child(2)@text",
+      "discoverRank": ".itemtxt h3 b@text",
+      "discoverLatest": ".itemtxt li:first-child a@text",
+      "discoverUpdated": ".itemtxt li:first-child i@text",
+      "nextDiscover": "@next",
+      "infoDescription": ".des@text",
+      "infoCategory": ".itemtxt p span:nth-child(2)@text",
+      "infoWordCount": ".itemtxt h1 i@text",
+      "infoLatest": ".itemtxt li:first-child a@text",
+      "infoUpdated": "#dir span@text"
+    },
+    "discoveryCategories": [
+      {
+        "title": "最新更新",
+        "url": "/zuixin/",
+        "group": "栏目"
+      },
+      {
+        "title": "排行榜",
+        "url": "/paihang/",
+        "group": "栏目"
+      },
+      {
+        "title": "完结小说",
+        "url": "/wanjie/",
+        "group": "栏目"
+      },
+      {
+        "title": "玄幻",
+        "url": "/xuanhuan/",
+        "group": "分类"
+      },
+      {
+        "title": "仙侠",
+        "url": "/xianxia/",
+        "group": "分类"
+      },
+      {
+        "title": "都市",
+        "url": "/dushi/",
+        "group": "分类"
+      },
+      {
+        "title": "历史",
+        "url": "/lishi/",
+        "group": "分类"
+      },
+      {
+        "title": "军事",
+        "url": "/junshi/",
+        "group": "分类"
+      },
+      {
+        "title": "科幻",
+        "url": "/kehuan/",
+        "group": "分类"
+      },
+      {
+        "title": "言情",
+        "url": "/yanqing/",
+        "group": "分类"
+      },
+      {
+        "title": "轻",
+        "url": "/qing/",
+        "group": "分类"
+      },
+      {
+        "title": "诸天无限",
+        "url": "/zhutianwuxian/",
+        "group": "分类"
+      },
+      {
+        "title": "奇幻",
+        "url": "/qihuan/",
+        "group": "分类"
+      },
+      {
+        "title": "游戏",
+        "url": "/youxi/",
+        "group": "分类"
+      },
+      {
+        "title": "悬疑",
+        "url": "/xuanyi/",
+        "group": "分类"
+      },
+      {
+        "title": "体育",
+        "url": "/tiyu/",
+        "group": "分类"
+      },
+      {
+        "title": "武侠",
+        "url": "/wuxia/",
+        "group": "分类"
+      },
+      {
+        "title": "官场",
+        "url": "/guanchang/",
+        "group": "分类"
+      },
+      {
+        "title": "乡村",
+        "url": "/xiangcun/",
+        "group": "分类"
+      },
+      {
+        "title": "现实",
+        "url": "/xianshi/",
+        "group": "分类"
+      }
+    ]
   },
   {
     "name": "Project Gutenberg 公版有声书",

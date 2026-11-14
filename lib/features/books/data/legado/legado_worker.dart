@@ -200,7 +200,7 @@ final class _LegadoEvaluation {
     final rows = evaluator.elements(rules['${prefix}List'] ?? '', root);
     if (rows.isEmpty) return _detailBook();
     final result = <String, Book>{};
-    for (final row in rows.take(100)) {
+    for (final row in rows) {
       final name = bookLabel(_field('${prefix}Title', row));
       final linkRule = '${prefix}Link';
       final link = (rules[linkRule] ?? '').isEmpty
@@ -231,10 +231,14 @@ final class _LegadoEvaluation {
           wordCount: bookLabel(_optional('${prefix}WordCount', row)),
           latestChapter: bookLabel(_optional('${prefix}Latest', row)),
           updatedLabel: bookLabel(_optional('${prefix}Updated', row)),
+          rankLabel: bookLabel(_optional('${prefix}Rank', row)),
         ),
       );
     }
-    return LegadoPage(books: result.values.toList());
+    return LegadoPage(
+      books: result.values.toList(),
+      links: job.discovery ? _links('nextExplore', root) : const [],
+    );
   }
 
   LegadoPage _detailBook() {
@@ -297,7 +301,21 @@ final class _LegadoEvaluation {
       if (title.isEmpty || _optional('chapterVolume', row) == 'true') continue;
       final media =
           source.kind == BookKind.audio && (rules['content'] ?? '').isEmpty;
-      final request = _request(_link('chapterUrl', row), media: media);
+      final explicit = (rules['chapterUrl'] ?? '').isNotEmpty;
+      final link = _link('chapterUrl', row);
+      final request = _request(
+        link.isEmpty &&
+                !explicit &&
+                job.page == 1 &&
+                rows.length == 1 &&
+                row is dom.Element &&
+                row.localName == 'body'
+            ? job.book?.request.isNotEmpty == true
+                  ? job.book!.request
+                  : '${job.uri}'
+            : link,
+        media: media,
+      );
       if (request == null) continue;
       result.putIfAbsent(
         request.targetKey,
@@ -343,11 +361,20 @@ final class _LegadoEvaluation {
 
   LegadoPage _content() {
     final root = evaluator.root;
-    final body = evaluator.field(rules['content'] ?? '', root, long: true);
-    return LegadoPage(
-      content: cleanLegadoContent(body, rules['replaceContent'] ?? ''),
-      links: _links('nextContent', root),
-    );
+    final rule = rules['content'] ?? '';
+    final body = evaluator.field(rule, root, long: true);
+    final content = cleanLegadoContent(body, rules['replaceContent'] ?? '');
+    if (content.isEmpty &&
+        evaluator
+            .elements(rule.replaceFirst(RegExp(r'@(?:text|html)$'), ''), root)
+            .whereType<dom.Element>()
+            .any(
+              (node) =>
+                  node.localName == 'img' || node.querySelector('img') != null,
+            )) {
+      throw const FormatException('章节仅提供图片，文本阅读器无法打开');
+    }
+    return LegadoPage(content: content, links: _links('nextContent', root));
   }
 
   LegadoPage _audio() {

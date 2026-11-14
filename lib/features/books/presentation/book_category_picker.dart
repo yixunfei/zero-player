@@ -9,8 +9,9 @@ String bookCategoryLabel(LegadoCategory item, int index) =>
 Future<LegadoCategory?> showBookCategoryPicker(
   BuildContext context,
   List<LegadoCategory> categories,
-  LegadoCategory? selected,
-) {
+  LegadoCategory? selected, {
+  String title = '渠道分类',
+}) {
   var query = '';
   return showDialog<LegadoCategory>(
     context: context,
@@ -21,11 +22,13 @@ Future<LegadoCategory?> showBookCategoryPicker(
             .where(
               (row) =>
                   key.isEmpty ||
-                  bookIdentity(bookCategoryLabel(row.$2, row.$1)).contains(key),
+                  bookIdentity(
+                    '${row.$2.group} ${bookCategoryLabel(row.$2, row.$1)}',
+                  ).contains(key),
             )
             .toList();
         return AlertDialog(
-          title: const Text('渠道分类'),
+          title: Text(title),
           content: SizedBox(
             width: 480,
             height: MediaQuery.sizeOf(context).height * .48,
@@ -47,6 +50,9 @@ Future<LegadoCategory?> showBookCategoryPicker(
                             final (original, item) = visible[index];
                             return ListTile(
                               title: Text(bookCategoryLabel(item, original)),
+                              subtitle: item.group.isEmpty
+                                  ? null
+                                  : Text(item.group),
                               selected: item == selected,
                               trailing: item == selected
                                   ? const Icon(Icons.check)

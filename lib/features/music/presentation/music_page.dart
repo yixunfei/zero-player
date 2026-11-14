@@ -29,6 +29,7 @@ final class _MusicPageState extends State<MusicPage> {
   late final _query = TextEditingController(text: browser.query);
   final _scroll = ScrollController();
   late String _view;
+  (String, String?) _playlistEntry = ('neteasePlaylist', null);
   String _searchKind = '综合';
   (String?, bool) _selection = (null, false);
 
@@ -149,9 +150,17 @@ final class _MusicPageState extends State<MusicPage> {
                       services: widget.services,
                       onSearch: _search,
                       controls: _searchControls(),
+                      onPlaylists: (provider, section) => setState(() {
+                        _playlistEntry = (provider, section);
+                        _view = 'styles';
+                      }),
                     )
                   : _view == 'styles'
-                  ? MusicStylePlaylists(services: widget.services)
+                  ? MusicStylePlaylists(
+                      services: widget.services,
+                      initialProvider: _playlistEntry.$1,
+                      initialSection: _playlistEntry.$2,
+                    )
                   : _view != 'search'
                   ? SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -189,7 +198,7 @@ final class _MusicPageState extends State<MusicPage> {
           for (final item in const [
             ('discover', '发现音乐'),
             ('search', '搜索'),
-            ('styles', '风格歌单'),
+            ('styles', '在线歌单'),
             ('playlists', '我的歌单'),
             ('history', '播放历史'),
             ('downloads', '离线音乐'),
@@ -198,7 +207,10 @@ final class _MusicPageState extends State<MusicPage> {
               label: Text(item.$2),
               selected: _view == item.$1,
               onSelected: (_) {
-                setState(() => _view = item.$1);
+                setState(() {
+                  _playlistEntry = ('neteasePlaylist', null);
+                  _view = item.$1;
+                });
                 if (item.$1 == 'discover' &&
                     widget.services.musicRecommendations.items.isEmpty) {
                   unawaited(widget.services.musicRecommendations.initialize());

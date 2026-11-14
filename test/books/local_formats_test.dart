@@ -6,15 +6,13 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
-import 'package:zero_player/features/books/data/public_catalog.dart';
 import 'package:zero_player/features/books/data/rich_book.dart';
 import 'package:zero_player/features/books/presentation/reader_style.dart';
 
-import '../../test_support/public_book_fixtures.dart';
+import '../../test_support/local_book_fixtures.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  _publicCatalog();
   _epubParsing();
   _svgSecurity();
   _importFailures();
@@ -31,61 +29,6 @@ void main() {
       expect(p.scrollSpeed, 150);
       expect(ReaderPreferences.fromJson(p.toJson()).toJson(), p.toJson());
       expect(const ReaderPreferences().immersive, isTrue);
-    },
-  );
-}
-
-void _publicCatalog() {
-  test(
-    'public catalog has real Virgil editions and translator metadata',
-    () async {
-      final rows = await PublicCatalog.load();
-      final virgil = rows
-          .where(
-            (r) =>
-                r['source'] == 'Gutenberg' &&
-                publicationMatches(r, '维吉尔', '作者'),
-          )
-          .toList();
-      expect(virgil.length, greaterThanOrEqualTo(20));
-      expect(virgil.any((r) => '${r['author']}'.contains('Finlay')), isFalse);
-      expect(
-        virgil.any(
-          (r) =>
-              r['title'] == 'The Aeneid' && '${r['author']}'.contains('Dryden'),
-        ),
-        isTrue,
-      );
-      expect(
-        rows.map((r) => r['source']).toSet(),
-        containsAll(
-          PublicationCollection.values
-              .expand((collection) => collection.sources)
-              .toSet(),
-        ),
-      );
-      expect(
-        rows
-            .where(
-              (r) =>
-                  PublicationCollection.forBook(r) ==
-                  PublicationCollection.academic,
-            )
-            .length,
-        greaterThan(50),
-      );
-      final technical = rows.where(
-        (r) =>
-            PublicationCollection.forBook(r) == PublicationCollection.technical,
-      );
-      expect(
-        technical.map((r) => r['title']),
-        containsAll(['Docker 从入门到实践', 'The Project Gutenberg RST Manual']),
-      );
-      expect(
-        virgil.map(PublicationCollection.forBook),
-        everyElement(PublicationCollection.literature),
-      );
     },
   );
 }
@@ -192,23 +135,18 @@ void _importFailures() {
       await repo.removeLocalBook(book);
       final target = repo.documentFile(book, 'epub');
       final conflict = await Directory(target.path).create();
-      const catalog = {'source': 'Gutenberg', 'author': '目录作者'};
       await expectLater(
-        repo.importLocal(file, catalogMetadata: catalog),
+        repo.importLocal(file),
         throwsA(isA<FileSystemException>()),
       );
       expect(await repo.store.entry(book), isNull);
-      expect(await repo.store.read('publication_${book.id}'), isNull);
       expect(await repo.store.savedText(book), isEmpty);
       expect(await repo.documents.list().map((entry) => entry.path).toList(), [
         conflict.path,
       ]);
       await conflict.delete();
-      await repo.importLocal(file, catalogMetadata: catalog);
+      await repo.importLocal(file);
       expect(await target.readAsBytes(), await file.readAsBytes());
-      final metadata = await repo.store.read('publication_${book.id}') as Map;
-      expect(metadata['source'], 'Gutenberg');
-      expect(metadata['author'], book.author);
     },
   );
   test(

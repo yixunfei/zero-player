@@ -62,6 +62,9 @@ final class BookSource {
       searchForm = _form(data['searchForm']),
       searchCharset = data['searchCharset'] as String? ?? 'utf-8',
       discover = _rule(data['discover'], 1024),
+      discoveryCategories = LegadoSource.readCategories(
+        data['discoveryCategories'],
+      ),
       sample = bookLabel(data['sample'], 80),
       rules = _rules(data['rules']),
       legado = data['legado'] == null
@@ -131,6 +134,7 @@ final class BookSource {
   final bool builtin;
   final bool directAudio;
   final LegadoSource? legado;
+  final List<LegadoCategory> discoveryCategories;
   late final List<Book> featured;
   final Map<String, String> rules;
   final Set<String> mediaHosts;
@@ -152,6 +156,7 @@ final class BookSource {
   bool get hasDiscovery =>
       format != BookFormat.html ||
       discover.isNotEmpty ||
+      discoveryCategories.isNotEmpty ||
       (legado != null &&
           legado!.enabledExplore &&
           legado!.categories.isNotEmpty);
@@ -196,6 +201,10 @@ final class BookSource {
     if (searchForm.isNotEmpty) 'searchForm': searchForm,
     if (searchCharset != 'utf-8') 'searchCharset': searchCharset,
     'discover': discover,
+    if (discoveryCategories.isNotEmpty)
+      'discoveryCategories': discoveryCategories
+          .map((item) => item.toJson())
+          .toList(),
     'sample': sample,
     'rules': rules,
     if (legado != null) 'legado': legado!.toJson(),
@@ -223,7 +232,7 @@ final class BookSource {
 
   static Map<String, String> _rules(Object? raw) {
     if (raw == null) return const {};
-    if (raw is! Map || raw.length > 24) throw const FormatException('规则数量无效');
+    if (raw is! Map || raw.length > 40) throw const FormatException('规则数量无效');
     return Map.unmodifiable(
       {
         for (final entry in raw.entries)
@@ -236,6 +245,16 @@ final class BookSource {
             'cover',
             'category',
             'discoverCover',
+            'discoverRank',
+            'discoverWordCount',
+            'discoverLatest',
+            'discoverUpdated',
+            'nextDiscover',
+            'infoDescription',
+            'infoWordCount',
+            'infoUpdated',
+            'infoLatest',
+            'infoCategory',
             'discoverCategory',
             'discoverList',
             'discoverTitle',
@@ -283,6 +302,8 @@ final class BookSource {
   }
 }
 
+typedef BookDiscoveryPage = ({List<Book> books, String? next});
+
 final class Book {
   const Book(
     this.sourceId,
@@ -297,9 +318,10 @@ final class Book {
     this.wordCount = '',
     this.latestChapter = '',
     this.updatedLabel = '',
+    this.rankLabel = '',
   });
   final String sourceId, title, author, description, request, cover, category;
-  final String wordCount, latestChapter, updatedLabel;
+  final String wordCount, latestChapter, updatedLabel, rankLabel;
   final BookKind kind;
   final Uri uri;
   String get id => stableId('$sourceId:${request.isEmpty ? uri : request}');
@@ -316,6 +338,7 @@ final class Book {
     if (wordCount.isNotEmpty) 'wordCount': wordCount,
     if (latestChapter.isNotEmpty) 'latestChapter': latestChapter,
     if (updatedLabel.isNotEmpty) 'updatedLabel': updatedLabel,
+    if (rankLabel.isNotEmpty) 'rankLabel': rankLabel,
     if (request.isNotEmpty) 'request': request,
   };
   factory Book.fromJson(Map data) => Book(
@@ -331,6 +354,7 @@ final class Book {
     wordCount: bookLabel(data['wordCount']),
     latestChapter: bookLabel(data['latestChapter']),
     updatedLabel: bookLabel(data['updatedLabel']),
+    rankLabel: bookLabel(data['rankLabel']),
   );
 
   Book withDetails(Book details) => Book(
@@ -345,6 +369,7 @@ final class Book {
         : details.description,
     cover: details.cover.isEmpty ? cover : details.cover,
     category: details.category.isEmpty ? category : details.category,
+    rankLabel: rankLabel,
     wordCount: details.wordCount.isEmpty ? wordCount : details.wordCount,
     latestChapter: details.latestChapter.isEmpty
         ? latestChapter

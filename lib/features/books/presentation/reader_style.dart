@@ -457,7 +457,6 @@ List<Widget> _automationSettings(
   SwitchListTile(
     contentPadding: EdgeInsets.zero,
     title: const Text('自动阅读'),
-    subtitle: const Text('启用后可从阅读菜单开始'),
     value: settings.autoEnabled,
     onChanged: (value) => change(settings.copyWith(autoEnabled: value)),
   ),

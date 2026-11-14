@@ -28,7 +28,11 @@ final class MusicRepository {
           name:
               musicSources[provider] ??
               musicPlaylistProviders[provider] ??
-              provider,
+              switch (provider) {
+                'appleHome' => 'Apple Music',
+                'wfu' => 'WFU 音乐精选',
+                _ => provider,
+              },
           kind: 'music',
           enabled: true,
           endpoint: Uri.parse(switch (provider) {
@@ -36,6 +40,8 @@ final class MusicRepository {
             'flacHi' => 'https://flac.music.hi.cn',
             'kugou' => 'https://www.kugou.com',
             'qqPlaylist' => 'https://y.qq.com',
+            'appleHome' => 'https://rss.marketingtools.apple.com',
+            'wfu' => 'https://music1.wfuapp.com',
             'archive' => 'https://archive.org',
             'lxHuibq' => 'https://lxmusicapi.onrender.com',
             'qqmp3' => 'https://www.qqmp3.vip',

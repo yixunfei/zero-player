@@ -19,7 +19,7 @@ Future<void> showModuleSources(
     '/live': '直播',
     '/radio': '广播',
     '/music': '音乐',
-    '/reading': '阅读',
+    '/reading': '网络小说',
     '/audiobooks': '听书',
   };
   if (!kinds.containsKey(module)) {

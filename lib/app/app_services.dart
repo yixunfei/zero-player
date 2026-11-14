@@ -92,7 +92,13 @@ final class AppServices {
   MusicOpenApi get musicOpenApi => _musicOpenApi ??= MusicOpenApi(musicPlayer);
   MusicRecommendations? _musicRecommendations;
   MusicRecommendations get musicRecommendations =>
-      _musicRecommendations ??= MusicRecommendations(network, db);
+      _musicRecommendations ??= MusicRecommendations(
+        network,
+        db,
+        sourceAllowed: (provider) =>
+            contentPolicy.sourceAllowed(music.sourceFor(provider)),
+        textAllowed: contentPolicy.textAllowed,
+      );
   MusicLibrary? _musicLibrary;
   MusicLibrary get musicLibrary => _musicLibrary ??= MusicLibrary(db);
   MusicDownloads? _musicDownloads;

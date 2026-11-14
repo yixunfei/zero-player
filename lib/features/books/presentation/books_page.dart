@@ -12,10 +12,10 @@ import '../domain/book_search.dart';
 import 'book_shelf_view.dart';
 import 'book_detail_page.dart';
 import 'book_discovery_view.dart';
+import '../data/qidian_catalog.dart';
 import 'book_page_route.dart';
 import 'book_search_page.dart';
 import 'book_sources_page.dart';
-import 'public_library_page.dart';
 
 final class BooksPage extends StatefulWidget {
   const BooksPage({
@@ -175,9 +175,18 @@ final class _BooksPageState extends State<BooksPage> {
     );
   }
 
-  Future<void> _searchBook(Book book, {bool direct = false}) => direct
-      ? _open(book)
-      : _search(book.title, preferred: book, field: BookSearchField.title);
+  Future<void> _searchBook(Book book, {bool direct = false}) {
+    if (book.sourceId == qidianRecommendationId) {
+      return _search(
+        book.title,
+        field: BookSearchField.title,
+        skipQidian: true,
+      );
+    }
+    return direct
+        ? _open(book)
+        : _search(book.title, preferred: book, field: BookSearchField.title);
+  }
 
   Future<void> _search(
     String query, {
@@ -186,6 +195,7 @@ final class _BooksPageState extends State<BooksPage> {
     String? sourceId,
     bool favorites = false,
     String? excludedSource,
+    bool skipQidian = false,
   }) async {
     await Navigator.of(context).push(
       BookPageRoute<void>(
@@ -198,6 +208,7 @@ final class _BooksPageState extends State<BooksPage> {
           sourceId: sourceId,
           favoritesOnly: favorites,
           excludedSource: excludedSource,
+          skipQidian: skipQidian,
           onSourceFavorite: _sourceFavoriteChanged,
           onOpen: _open,
         ),
@@ -279,16 +290,6 @@ final class _BooksPageState extends State<BooksPage> {
     }
   }
 
-  Future<void> _openPublicationLibrary() async {
-    await Navigator.of(context, rootNavigator: true).push(
-      BookPageRoute<void>(
-        builder: (_) =>
-            PublicLibraryPage(services: _services, bookRoute: _detailRoute),
-      ),
-    );
-    if (mounted) await _reloadShelf();
-  }
-
   @override
   void dispose() {
     _followToken?.cancel();
@@ -308,7 +309,7 @@ final class _BooksPageState extends State<BooksPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _header(),
-            if (!_audio && widget.libraryMode == null) _publicationActions(),
+            if (!_audio && widget.libraryMode == null) _readingActions(),
             Expanded(
               child: _error != null
                   ? Center(
@@ -353,17 +354,12 @@ final class _BooksPageState extends State<BooksPage> {
     );
   }
 
-  Widget _publicationActions() => Padding(
+  Widget _readingActions() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     child: Wrap(
       spacing: 8,
       runSpacing: 4,
       children: [
-        FilledButton.tonalIcon(
-          icon: const Icon(Icons.library_books_outlined),
-          label: const Text('出版书目'),
-          onPressed: _openPublicationLibrary,
-        ),
         OutlinedButton.icon(
           onPressed: _import,
           icon: const Icon(Icons.upload_file),
@@ -390,7 +386,7 @@ final class _BooksPageState extends State<BooksPage> {
       final theme = Theme.of(context);
       final compact = constraints.maxWidth < 620;
       final title = Text(
-        _audio ? '听书' : '阅读',
+        _audio ? '听书' : '网络小说',
         style: theme.textTheme.headlineMedium?.copyWith(
           fontFamily: 'NotoSerifSC',
           fontWeight: FontWeight.w700,

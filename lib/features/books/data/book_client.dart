@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:enough_convert/gbk.dart';
 import 'package:xml/xml.dart';
@@ -18,10 +19,37 @@ final class BookClient {
   final DocumentClient network;
   LegadoBookClient get _legado => LegadoBookClient(network);
 
-  Future<Book> details(BookSource source, Book book, CancellationToken token) =>
-      source.format == BookFormat.html && source.legado != null
-      ? _legado.details(source, book, token)
-      : Future.value(book);
+  Future<Book> details(
+    BookSource source,
+    Book book,
+    CancellationToken token,
+  ) async {
+    _requireNovelSource(source);
+    if (source.format != BookFormat.html) return book;
+    if (source.legado != null) return _legado.details(source, book, token);
+    if (!source.rules.keys.any((key) => key.startsWith('info'))) return book;
+    final response = await fetch(source, book.uri, token);
+    token.check();
+    final document = parseBookHtml(response.text);
+    String info(String key, [int limit = 160]) =>
+        bookLabel(bookField(document, source.rules[key] ?? ''), limit);
+    return book.withDetails(
+      Book(
+        book.sourceId,
+        book.kind,
+        book.title,
+        '',
+        book.uri,
+        description: info('infoDescription', 4000),
+        category: info('infoCategory'),
+        wordCount: info('infoWordCount'),
+        latestChapter: info('infoLatest'),
+        updatedLabel: info(
+          'infoUpdated',
+        ).replaceFirst(RegExp(r'^更新时间[:：]\s*'), ''),
+      ),
+    );
+  }
 
   bool _hasLegadoRules(BookSource source) =>
       source.legado != null &&
@@ -33,7 +61,7 @@ final class BookClient {
     CancellationToken token,
   ) => _hasLegadoRules(source)
       ? _legado.categories(source, token)
-      : Future.value(const []);
+      : Future.value(source.discoveryCategories);
 
   Future<Document> fetch(
     BookSource source,
@@ -51,6 +79,37 @@ final class BookClient {
     );
   }
 
+  Future<BookDiscoveryPage> discover(
+    BookSource source,
+    CancellationToken token, {
+    LegadoCategory? category,
+    int page = 1,
+    String? cursor,
+  }) async {
+    _requireNovelSource(source);
+    if (_hasLegadoRules(source) && source.format == BookFormat.html) {
+      return _legado.discover(
+        source,
+        token,
+        category: category,
+        page: page,
+        cursor: cursor,
+      );
+    }
+    if (source.format != BookFormat.html) {
+      return (books: await books(source, '', token), next: null);
+    }
+    final path =
+        cursor ??
+        category?.address ??
+        source.discoveryCategories.firstOrNull?.address ??
+        source.discover;
+    if (path.isEmpty) return (books: <Book>[], next: null);
+    final target = source.resolve(source.endpoint, path);
+    final response = await fetch(source, target, token);
+    return _parseHtmlBooks(source, response, token, discovery: true);
+  }
+
   Future<List<Book>> books(
     BookSource source,
     String query,
@@ -59,6 +118,17 @@ final class BookClient {
     int page = 1,
     Uri? bookAddress,
   }) async {
+    _requireNovelSource(source);
+    if (query.isEmpty &&
+        bookAddress == null &&
+        source.format == BookFormat.html) {
+      return (await discover(
+        source,
+        token,
+        category: category,
+        page: page,
+      )).books;
+    }
     if (_hasLegadoRules(source)) {
       return _legado.books(
         source,
@@ -102,7 +172,37 @@ final class BookClient {
             for (final entry in source.searchForm.entries)
               entry.key: entry.value.replaceAll('{key}', query),
           }, cancellation: token);
-    final document = parseBookHtml(response.text);
+    return (await _parseHtmlBooks(
+      source,
+      response,
+      token,
+      discovery: discovery,
+    )).books;
+  }
+
+  Future<BookDiscoveryPage> _parseHtmlBooks(
+    BookSource source,
+    Document response,
+    CancellationToken token, {
+    required bool discovery,
+  }) async {
+    token.check();
+    final text = response.text;
+    final uri = response.uri;
+    final parsed = await Isolate.run(
+      () => _htmlBooks(source, uri, text, discovery),
+    );
+    token.check();
+    return parsed;
+  }
+
+  static BookDiscoveryPage _htmlBooks(
+    BookSource source,
+    Uri base,
+    String text,
+    bool discovery,
+  ) {
+    final document = parseBookHtml(text);
     String rule(String key) {
       final discoverKey = 'discover${key[0].toUpperCase()}${key.substring(1)}';
       return (discovery ? source.rules[discoverKey] : null) ??
@@ -111,12 +211,12 @@ final class BookClient {
     }
 
     final results = <Uri, Book>{};
-    for (final row in bookElements(document, rule('list')).take(80)) {
+    for (final row in bookElements(document, rule('list'))) {
       final title = bookLabel(bookField(row, rule('title')));
       final link = bookField(row, rule('book'));
       if (title.isEmpty || link.isEmpty) continue;
       try {
-        final uri = source.resolve(response.uri, link);
+        final uri = source.resolve(base, link);
         final cover = bookField(
           row,
           rule('cover').isEmpty ? 'img@src' : rule('cover'),
@@ -136,15 +236,26 @@ final class BookClient {
             ),
             uri,
             description: bookLabel(bookField(row, rule('description')), 600),
-            cover: bookCoverAddress(response.uri, cover),
+            cover: bookCoverAddress(base, cover),
             category: category,
+            wordCount: bookLabel(bookField(row, rule('wordCount'))),
+            latestChapter: bookLabel(bookField(row, rule('latest'))),
+            updatedLabel: bookLabel(bookField(row, rule('updated'))),
+            rankLabel: bookLabel(bookField(row, rule('rank'))),
           ),
         );
       } on FormatException {
         continue;
       }
     }
-    return results.values.toList();
+    final next = discovery
+        ? bookField(document, source.rules['nextDiscover'] ?? '')
+        : '';
+    final target = next.isEmpty ? null : source.resolve(base, next);
+    return (
+      books: results.values.toList(),
+      next: target == base ? null : target?.toString(),
+    );
   }
 
   Future<List<BookChapter>> chapters(
@@ -152,6 +263,7 @@ final class BookClient {
     Book book,
     CancellationToken token,
   ) async {
+    _requireNovelSource(source);
     if (_hasLegadoRules(source)) return _legado.chapters(source, book, token);
     if (source.format == BookFormat.feed) {
       return (await _feed(source, token)).$2;
@@ -220,9 +332,22 @@ final class BookClient {
     var next = chapter.uri;
     for (var page = 0; page < 10 && visited.add(next); page++) {
       final response = await fetch(source, next, token);
+      if (response.contentType?.toLowerCase().startsWith('image/') == true) {
+        throw const FormatException('章节仅提供图片，文本阅读器无法打开');
+      }
       final document = parseBookHtml(response.text);
       final body = bookField(document, source.rules['content']!, long: true);
-      if (body.isEmpty) throw const FormatException('来源未返回章节正文');
+      if (body.isEmpty) {
+        final selector = source.rules['content']!.replaceFirst(
+          RegExp(r'@(?:text|html)$'),
+          '',
+        );
+        final imageOnly = bookElements(document, selector).any(
+          (node) =>
+              node.localName == 'img' || node.querySelector('img') != null,
+        );
+        throw FormatException(imageOnly ? '章节仅提供图片，文本阅读器无法打开' : '来源未返回章节正文');
+      }
       if (!parts.contains(body)) parts.add(body);
       final more = bookField(document, source.rules['nextContent'] ?? '');
       if (more.isEmpty) break;
@@ -382,3 +507,10 @@ String _encodeQuery(BookSource source, String query) => encodeDocumentComponent(
   query,
   source.searchCharset == 'utf-8' ? utf8 : gbk,
 );
+
+void _requireNovelSource(BookSource source) {
+  if (source.kind == BookKind.text &&
+      source.endpoint.host.replaceFirst(RegExp(r'^www\.'), '') == 'dict.cn') {
+    throw const FormatException('海词渠道提供词典释义，缺少小说详情、目录和章节正文');
+  }
+}

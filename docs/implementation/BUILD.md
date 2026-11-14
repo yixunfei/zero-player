@@ -6,9 +6,9 @@
 
 PDF 阅读固定使用 pdfrx 2.2.24 和 PDFium chromium/7520。Windows x64、Android arm64／x64 发布包与原生库的摘要见 `tool/pdfium_checksums.json`；使用 `python tool/verify_pdfium.py win-x64 <pdfium.dll> --archive <pdfium-win-x64.tgz>` 校验。Windows CMake 与 Android Gradle 会拒绝不匹配的库。Android 插件 JNI 目录指向该固定版本的真实目录，避免 Windows 目录链接被 AGP 忽略；不能替换为系统中任意 PDFium。
 
-串行执行 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/public_reading_test.dart','integration_test/reading_flow_test.dart') -DartDefines @('RUN_PUBLIC_CATALOG_ONLINE=true')`。公开网络开关验证 Gutenberg 的真实《The Aeneid》EPUB；PDF 图像渲染／搜索／目录／缩放及含图、代码、竖排和大文件 EPUB 使用随仓库构造样本。原生测试结束后按既有流程 `flutter pub get`，再构建普通 Release。
+串行执行 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/local_reading_formats_test.dart','integration_test/reading_flow_test.dart')`。PDF 图像渲染、搜索、目录与缩放，以及图文、代码、竖排和大文件 EPUB 使用仓库的合成样本。原生测试结束后按既有流程 `flutter pub get`，再构建普通 Release。
 
-本轮 EPUB 排版专项：`flutter test --no-pub`、`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart`；原生运行 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/public_reading_test.dart') -DartDefines @('CAPTURE_READING_UI=true')`，截图输出到 `build/epub-vertical.png`、`build/epub-horizontal.png`。公网样本仍由独立开关控制。
+EPUB 排版截图可用 `./tool/run_windows_native.ps1 -TestFiles @('integration_test/local_reading_formats_test.dart') -DartDefines @('CAPTURE_READING_UI=true')`，输出到 `build/epub-vertical.png`、`build/epub-horizontal.png`。网络小说的速读谷回归使用 `reading_flow_test.dart` 和 `RUN_NOVELS_ONLINE=true`，古龙全集使用独立开关 `RUN_AOAOSTAR_ONLINE=true`。
 
 2026-11-13 本地 Android 包为 78.97 MiB，超过历史 70 MiB 包体预算；本轮不作为满足该预算的正式发行。版本／ABI／字体／签名／资源摘要检查已通过，详情见 STATUS.md。离线 Gradle 构建遇到生成的 integration_test 注册残留时，先保留文件备份并核实本轮 Dart Release 编译已成功，再只移除该测试注册，以相同参数加 `-x :app:compileFlutterBuildRelease` 续打包；不得复用其他源码或入口的旧 AOT。
 

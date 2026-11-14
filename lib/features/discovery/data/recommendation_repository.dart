@@ -102,7 +102,7 @@ final class RecommendationRepository {
         ],
       );
       await db.customStatement(
-        'DELETE FROM recommendation_cache WHERE updated_at < ?',
+        "DELETE FROM recommendation_cache WHERE provider GLOB 'douban:*' AND updated_at < ?",
         [
           DateTime.now()
               .subtract(const Duration(days: 7))
@@ -110,8 +110,9 @@ final class RecommendationRepository {
         ],
       );
       await db.customStatement(
-        'DELETE FROM recommendation_cache WHERE provider NOT IN '
-        '(SELECT provider FROM recommendation_cache ORDER BY updated_at DESC LIMIT 32)',
+        "DELETE FROM recommendation_cache WHERE provider GLOB 'douban:*' AND provider NOT IN "
+        "(SELECT provider FROM recommendation_cache WHERE provider GLOB 'douban:*' "
+        'ORDER BY updated_at DESC LIMIT 32)',
       );
     });
   }

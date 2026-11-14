@@ -10,6 +10,7 @@ import '../data/books_repository.dart';
 import '../data/rich_book.dart';
 import '../domain/book.dart';
 import 'reader_style.dart';
+import 'reader_automation.dart';
 import 'reader_pagination.dart' show ReaderTapZones;
 import 'reader_system_ui.dart';
 import 'vertical_book_text.dart';
@@ -34,7 +35,7 @@ class RichReaderPage extends StatefulWidget {
 }
 
 class _RichReaderState extends State<RichReaderPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   GlobalKey<VerticalBookTextState> _vertical = GlobalKey();
   bool _horizontal = false;
   bool _validated = false;
@@ -52,8 +53,9 @@ class _RichReaderState extends State<RichReaderPage>
   String _query = '';
   String _selection = '';
   bool _controls = false, _auto = false;
-  double _elapsed = 0;
-  Timer? _timer, _saveTimer;
+  bool _configuring = false;
+  Timer? _saveTimer;
+  late final _automation = ReaderAutomation(this, _advanceAutomatically);
   double? _resumeOffset;
   double _lastScrollOffset = 0, _scrollFraction = 0;
   bool _restoringScroll = false;
@@ -72,37 +74,40 @@ class _RichReaderState extends State<RichReaderPage>
     _load();
   }
 
+  bool get _continuous =>
+      !_isPdf &&
+      (_horizontal || _sections?[_index].vertical == false) &&
+      _style.mode == ReaderTurnMode.scroll;
+
+  void _advanceAutomatically(double? seconds) {
+    if (!_ready ||
+        _controls ||
+        (!_configuring && ModalRoute.of(context)?.isCurrent != true)) {
+      return;
+    }
+    if (seconds == null || !_continuous) {
+      if (seconds == null) _next(1);
+      return;
+    }
+    if (!_scroll.hasClients || !_scroll.position.hasContentDimensions) return;
+    final position = _scroll.position;
+    if (position.pixels < position.maxScrollExtent - .01) {
+      position.jumpTo(
+        (position.pixels + _style.scrollSpeed * seconds).clamp(
+          0.0,
+          position.maxScrollExtent,
+        ),
+      );
+    } else {
+      _crossSection(1);
+    }
+  }
+
   void _startAutomation() {
-    if (!_ready || !_style.autoEnabled || _auto) return;
+    if (!_ready || !_style.autoEnabled) return;
     _hideControls();
-    setState(() => _auto = true);
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      if (!_ready || _controls || ModalRoute.of(context)?.isCurrent != true) {
-        _elapsed = 0;
-        return;
-      }
-      if (!_isPdf &&
-          _scroll.hasClients &&
-          _scroll.position.hasContentDimensions &&
-          _style.mode == ReaderTurnMode.scroll) {
-        if (_scroll.offset < _scroll.position.maxScrollExtent) {
-          _scroll.jumpTo(
-            (_scroll.offset + _style.scrollSpeed * .05).clamp(
-              0,
-              _scroll.position.maxScrollExtent,
-            ),
-          );
-          return;
-        }
-        _next(1);
-      } else {
-        _elapsed += .05;
-        if (_elapsed >= _style.autoSeconds) {
-          _elapsed = 0;
-          _next(1);
-        }
-      }
-    });
+    if (!_auto) setState(() => _auto = true);
+    _automation.start(scroll: _continuous, interval: _style.autoSeconds);
   }
 
   void _onPolicyChanged() {
@@ -176,6 +181,7 @@ class _RichReaderState extends State<RichReaderPage>
       });
       _save();
       _systemUi.apply(_style.immersive);
+      if (!_isPdf && _style.autoEnabled) _startAutomation();
     } on Exception {
       if (mounted && _error == null) {
         setState(() => _error = '无法打开电子书，文件可能损坏或格式不受支持');
@@ -219,10 +225,8 @@ class _RichReaderState extends State<RichReaderPage>
   }
 
   void _stop() {
-    _timer?.cancel();
-    _timer = null;
+    _automation.stop();
     if (_auto) setState(() => _auto = false);
-    _elapsed = 0;
   }
 
   void _scrolled() {
@@ -320,6 +324,7 @@ class _RichReaderState extends State<RichReaderPage>
     if (!_ready) return;
     _hideControls();
     if (_index == index) return;
+    final continuous = _continuous;
     if (_scroll.hasClients) _scroll.jumpTo(0);
     _saveTimer?.cancel();
     setState(() {
@@ -330,6 +335,7 @@ class _RichReaderState extends State<RichReaderPage>
       _resumeOffset = null;
       _selection = '';
     });
+    if (_auto && continuous != _continuous) _startAutomation();
     _save();
   }
 
@@ -401,7 +407,7 @@ class _RichReaderState extends State<RichReaderPage>
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _automation.dispose();
     _saveTimer?.cancel();
     _save();
     _searcher?.dispose();
@@ -585,20 +591,29 @@ class _RichReaderState extends State<RichReaderPage>
   );
 
   Future<void> _settings() async {
-    _stop();
+    _configuring = true;
     await showReaderSettings(
       context,
-      _style,
+      _style.copyWith(autoEnabled: _auto),
       (settings) {
         if (!mounted || !_ready) return;
         if (settings.immersive != _style.immersive) {
           _systemUi.apply(settings.immersive);
         }
+        final previous = _style;
         setState(() => _style = settings);
+        if (!settings.autoEnabled) {
+          _stop();
+        } else if (!_auto ||
+            previous.mode != settings.mode ||
+            previous.autoSeconds != settings.autoSeconds) {
+          _startAutomation();
+        }
       },
       rich: true,
       pdf: _isPdf,
     );
+    _configuring = false;
     if (mounted && _ready) {
       await widget.repository.store.write(
         'books_reader_preferences',
@@ -655,6 +670,7 @@ class _RichReaderState extends State<RichReaderPage>
       _index = (controller.pageNumber ?? _index + 1) - 1;
     });
     _save();
+    if (_style.autoEnabled && !_auto) _startAutomation();
     try {
       final outline = await document.loadOutline();
       if (mounted && _ready) setState(() => _outline = outline);
@@ -719,12 +735,6 @@ class _RichReaderState extends State<RichReaderPage>
         onPressed: _toggleControls,
         icon: const Icon(Icons.more_horiz),
       ),
-      if (_style.autoEnabled)
-        IconButton(
-          tooltip: _auto ? '停止自动阅读' : '自动阅读',
-          onPressed: _auto ? _stop : _startAutomation,
-          icon: Icon(_auto ? Icons.pause : Icons.play_arrow),
-        ),
       IconButton(
         tooltip: '下一页',
         onPressed: () => _manualTurn(1),

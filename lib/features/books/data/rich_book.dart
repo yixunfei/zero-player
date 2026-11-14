@@ -43,26 +43,23 @@ typedef RichSection = ({String title, String html, String text, bool vertical});
 Future<List<RichSection>> readRichEpubOffThread(List<int> bytes) =>
     Isolate.run(() => readRichEpub(bytes));
 
-Future<({LocalBook book, Map<String, String> metadata})>
-readEpubPackageOffThread(String filename, List<int> bytes) => Isolate.run(() {
-  final package = _readEpub(bytes);
-  return (
-    book: (
-      title: package.title.isEmpty
-          ? bookLabel(p.basenameWithoutExtension(filename))
-          : package.title,
-      author: package.author,
-      sections: [
-        for (final section in package.sections)
-          (
-            title: section.title,
-            text: section.text.trim().isEmpty ? '[插图]' : section.text,
-          ),
-      ],
-    ),
-    metadata: package.metadata,
-  );
-});
+Future<LocalBook> parseEpubBookOffThread(String filename, List<int> bytes) =>
+    Isolate.run(() {
+      final package = _readEpub(bytes);
+      return (
+        title: package.title.isEmpty
+            ? bookLabel(p.basenameWithoutExtension(filename))
+            : package.title,
+        author: package.author,
+        sections: [
+          for (final section in package.sections)
+            (
+              title: section.title,
+              text: section.text.trim().isEmpty ? '[插图]' : section.text,
+            ),
+        ],
+      );
+    });
 
 List<RichSection> readRichEpub(List<int> bytes) => _readEpub(bytes).sections;
 
@@ -79,13 +76,9 @@ bool _unsafeEpubPath(String path) =>
     path.contains('\u0000');
 
 /// No extraction to disk or external resource loading. Bound decoded resources.
-({
-  String title,
-  String author,
-  Map<String, String> metadata,
-  List<RichSection> sections,
-})
-_readEpub(List<int> bytes) {
+({String title, String author, List<RichSection> sections}) _readEpub(
+  List<int> bytes,
+) {
   final directory = ZipDirectory()..read(InputMemoryStream(bytes));
   if (directory.fileHeaders.length > 4000) {
     throw const FormatException('EPUB 条目过多');
@@ -163,13 +156,7 @@ _readEpub(List<int> bytes) {
   return _readEpubSpine(package, p.posix.dirname(path), read, resolve);
 }
 
-({
-  String title,
-  String author,
-  Map<String, String> metadata,
-  List<RichSection> sections,
-})
-_readEpubSpine(
+({String title, String author, List<RichSection> sections}) _readEpubSpine(
   XmlElement package,
   String folder,
   List<int> Function(String) read,
@@ -204,30 +191,7 @@ _readEpubSpine(
     sections.add(loaded.putIfAbsent(path, () => _section(path, read, resolve)));
   }
   if (sections.isEmpty) throw const FormatException('EPUB 阅读顺序为空');
-  return (
-    title: label('title'),
-    author: label('creator'),
-    metadata: _publicationMetadata(metadata),
-    sections: sections,
-  );
-}
-
-Map<String, String> _publicationMetadata(Iterable<XmlElement> elements) {
-  const fields = {
-    'creator': 'author',
-    'contributor': 'translator',
-    'language': 'language',
-    'date': 'version',
-    'rights': 'license',
-    'publisher': 'publisher',
-  };
-  return {
-    for (final field in fields.entries)
-      field.value: elements
-          .where((e) => e.name.local == field.key)
-          .map((e) => e.innerText)
-          .join('; '),
-  };
+  return (title: label('title'), author: label('creator'), sections: sections);
 }
 
 RichSection _section(

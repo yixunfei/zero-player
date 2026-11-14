@@ -11,15 +11,30 @@ List<LegadoCategory> legadoCategories(Object? raw) => _categories(
 Iterable<LegadoCategory> _categories(Object? raw, int depth) sync* {
   if (depth > 4) return;
   if (raw is List) {
+    var group = '';
     for (final item in raw) {
-      yield* _categories(item, depth + 1);
+      for (final category in _categories(item, depth + 1)) {
+        if (category.address.isEmpty) {
+          group = category.title;
+        } else {
+          yield LegadoCategory(
+            category.title,
+            category.address,
+            group: category.group.isEmpty ? group : category.group,
+          );
+        }
+      }
     }
     return;
   }
   if (raw is Map) {
     final url = raw['url'];
     if (url is String) {
-      yield LegadoCategory(bookLabel(raw['title'] ?? raw['name']), url.trim());
+      yield LegadoCategory(
+        bookLabel(raw['title'] ?? raw['name']),
+        url.trim(),
+        group: bookLabel(raw['group']),
+      );
     }
     return;
   }
@@ -39,12 +54,21 @@ Iterable<LegadoCategory> _categories(Object? raw, int depth) sync* {
     yield LegadoCategory('', text);
     return;
   }
+  var group = '';
   for (final line in splitLegadoRule(text, '\n')) {
     for (final part in splitLegadoRule(line, '&&')) {
       final pair = splitLegadoRule(part, '::');
-      yield pair.length == 1
-          ? LegadoCategory('', part)
-          : LegadoCategory(bookLabel(pair.first), pair.skip(1).join('::'));
+      if (pair.length == 1) {
+        if (part.isNotEmpty) yield LegadoCategory('', part, group: group);
+        continue;
+      }
+      final title = bookLabel(pair.first);
+      final address = pair.skip(1).join('::');
+      if (address.isEmpty) {
+        group = title;
+      } else {
+        yield LegadoCategory(title, address, group: group);
+      }
     }
   }
 }

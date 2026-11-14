@@ -1,3 +1,4 @@
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -10,21 +11,12 @@ import 'package:integration_test/integration_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:zero_player/app/app_services.dart';
 import 'package:zero_player/core/persistence/app_database.dart';
-import 'package:zero_player/core/network/cancellation_token.dart';
 import 'package:zero_player/features/books/data/rich_book.dart';
-import 'package:zero_player/features/books/domain/book.dart';
 import 'package:zero_player/features/books/presentation/rich_reader_page.dart';
-import 'package:zero_player/features/books/presentation/books_page.dart';
-import 'package:zero_player/features/books/presentation/book_detail_page.dart';
-import 'package:zero_player/features/books/presentation/publication_detail_page.dart';
-import 'package:zero_player/features/books/presentation/technical_book_page.dart';
-import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
-import '../test_support/public_book_fixtures.dart';
+import '../test_support/local_book_fixtures.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  _onlineSample();
-  _technicalSample();
   testWidgets(
     'PDF native render, outline, text search, zoom and page navigation',
     (tester) async {
@@ -289,174 +281,6 @@ Future<void> _checkEpubPaging(WidgetTester tester) async {
   expect(scroll.offset, 0);
 }
 
-void _onlineSample() {
-  testWidgets(
-    'Gutenberg Virgil 228 downloads and imports real EPUB',
-    (tester) async {
-      await _withServices((services) async {
-        final uri = Uri.parse(
-          'https://www.gutenberg.org/cache/epub/228/pg228-images-3.epub',
-        );
-        final result = await services.books.client.network.get(
-          uri,
-          cancellation: CancellationToken(),
-          validateTarget: (u) {
-            if (u.host != uri.host) {
-              throw const FormatException('unexpected host');
-            }
-          },
-        );
-        final book = await _downloadPublicationThroughLibrary(tester, services);
-        expect(book.title, contains('Aeneid'));
-        expect(book.author, contains('Virgil'));
-        final rich = await readRichEpubOffThread(result.bytes);
-        final entry = await services.books.store.entry(book);
-        expect(entry!.chapters.length, rich.length);
-        expect(rich.length, greaterThan(10));
-        expect(rich.any((s) => s.text.contains('Dryden')), isTrue);
-      });
-    },
-    skip: !const bool.fromEnvironment('RUN_PUBLIC_CATALOG_ONLINE'),
-  );
-}
-
-Future<Book> _downloadPublicationThroughLibrary(
-  WidgetTester tester,
-  AppServices services,
-) async {
-  try {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: BooksPage(services: services, kind: BookKind.text),
-        ),
-      ),
-    );
-    await tester.tap(find.text('出版书目'));
-    await _wait(tester, () => find.byType(TextField).evaluate().isNotEmpty);
-    await tester.enterText(find.byType(TextField), 'The Aeneid');
-    final result = find.widgetWithText(ListTile, 'The Aeneid');
-    await _wait(tester, () => result.evaluate().isNotEmpty);
-    await tester.ensureVisible(result);
-    await tester.tap(result);
-    await tester.pumpAndSettle();
-    expect(find.byType(PublicationDetailPage), findsOneWidget);
-    await tester.tap(find.text('下载 EPUB 并阅读'));
-    await _wait(
-      tester,
-      () => find.text('开始阅读').evaluate().isNotEmpty,
-      attempts: 450,
-    );
-    final book = tester
-        .widget<BookDetailPage>(find.byType(BookDetailPage))
-        .initial;
-    await tester.ensureVisible(find.text('开始阅读'));
-    await tester.tap(find.text('开始阅读'));
-    final reader = find.byType(RichReaderPage);
-    final content = find.descendant(
-      of: reader,
-      matching: find.byType(HtmlWidget),
-    );
-    await _wait(tester, () => content.evaluate().isNotEmpty);
-    expect(tester.widget<HtmlWidget>(content.first).html, isNotEmpty);
-    return book;
-  } finally {
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpAndSettle();
-  }
-}
-
-void _technicalSample() {
-  testWidgets(
-    'Bookstack real directory and technical HTML with code',
-    (tester) async {
-      await _withServices((services) async {
-        await _openTechnicalFromLibrary(tester, services);
-        await _wait(
-          tester,
-          () => find.textContaining('安全容器运行时').evaluate().isNotEmpty,
-        );
-        await tester.tap(find.textContaining('安全容器运行时').first);
-        await _wait(
-          tester,
-          () => find.byType(HtmlWidget).evaluate().isNotEmpty,
-        );
-        final body = tester.widget<HtmlWidget>(find.byType(HtmlWidget));
-        expect(body.html, contains('Kata Containers'));
-        expect(body.html, contains('<code>'));
-        expect(body.html, isNot(contains('<script')));
-        await tester.tap(find.byTooltip('章节目录'));
-        await tester.pumpAndSettle();
-        await tester.scrollUntilVisible(
-          find.text('3.7 macOS'),
-          300,
-          scrollable: find.byType(Scrollable),
-        );
-        await tester.tap(find.text('3.7 macOS'));
-        await _wait(
-          tester,
-          () => find
-              .byWidgetPredicate(
-                (widget) =>
-                    widget is HtmlWidget &&
-                    widget.html.contains('Docker Desktop'),
-              )
-              .evaluate()
-              .isNotEmpty,
-        );
-        await _wait(
-          tester,
-          () => find
-              .byWidgetPredicate(
-                (widget) =>
-                    widget is HtmlWidget &&
-                    widget.html.contains('data:image/jpeg;base64,'),
-              )
-              .evaluate()
-              .isNotEmpty,
-          attempts: 400,
-        );
-        final illustrated = tester.widget<HtmlWidget>(find.byType(HtmlWidget));
-        expect(illustrated.html, contains('data:image/jpeg;base64,'));
-        expect(illustrated.html, isNot(contains('loading.gif')));
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpAndSettle();
-      });
-    },
-    skip: !const bool.fromEnvironment('RUN_PUBLIC_CATALOG_ONLINE'),
-  );
-}
-
-Future<void> _openTechnicalFromLibrary(
-  WidgetTester tester,
-  AppServices services,
-) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: BooksPage(services: services, kind: BookKind.text),
-      ),
-    ),
-  );
-  await tester.tap(find.text('出版书目'));
-  await _wait(
-    tester,
-    () => find.widgetWithText(ChoiceChip, '技术图书').evaluate().isNotEmpty,
-  );
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(ChoiceChip, '技术图书'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(ListTile, 'Docker 从入门到实践'));
-  await tester.pumpAndSettle();
-  expect(find.byType(PublicationDetailPage), findsOneWidget);
-  await tester.tap(find.text('应用内阅读'));
-  await _wait(
-    tester,
-    () => find.byType(TechnicalBookPage).evaluate().isNotEmpty,
-  );
-}
-
 Future<void> _wait(
   WidgetTester tester,
   bool Function() ready, {
@@ -479,7 +303,7 @@ Future<void> _wait(
 }
 
 Future<void> _withServices(Future<void> Function(AppServices) run) async {
-  final root = await Directory.systemTemp.createTemp('public-reading-');
+  final root = await Directory.systemTemp.createTemp('local-reading-formats-');
   final services = AppServices.scoped(root, AppDatabase.memory());
   try {
     await services.settings.load();

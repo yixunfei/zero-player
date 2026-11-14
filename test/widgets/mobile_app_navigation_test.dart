@@ -7,11 +7,8 @@ import 'package:zero_player/features/books/presentation/books_page.dart';
 import 'package:zero_player/features/books/presentation/book_detail_page.dart';
 import 'package:zero_player/features/books/presentation/book_page_route.dart';
 import 'package:zero_player/features/books/presentation/book_reader_page.dart';
-import 'package:zero_player/features/books/presentation/public_library_page.dart';
-import 'package:zero_player/features/books/presentation/publication_detail_page.dart';
 import 'package:zero_player/features/books/presentation/reader_pagination.dart';
 import 'package:zero_player/features/books/presentation/reader_style.dart';
-import 'package:zero_player/features/books/data/public_catalog.dart';
 import 'package:zero_player/features/books/domain/book.dart';
 import '../../test_support/mobile_app_fixture.dart';
 
@@ -39,7 +36,6 @@ void main() {
   _viewportAndExitTests();
   _immersiveRouteTest();
   _discoveryStateTest();
-  _publicationRouteTest();
 }
 
 void _discoveryStateTest() {
@@ -85,10 +81,22 @@ void _discoveryStateTest() {
     router.go('/reading');
     await fixture.waitFor(
       tester,
+      () => find.text('按渠道聚合').evaluate().isNotEmpty,
+    );
+    expect(find.text('导入 EPUB / PDF').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('按渠道聚合'));
+    await fixture.waitFor(
+      tester,
+      () => find.widgetWithText(OutlinedButton, '聚合渠道').evaluate().isNotEmpty,
+    );
+    await tester.tap(find.widgetWithText(OutlinedButton, '聚合渠道'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, '本机测试书目'));
+    await tester.pumpAndSettle();
+    await fixture.waitFor(
+      tester,
       () => find.text('星际航行0').evaluate().isNotEmpty,
     );
-    expect(find.text('出版书目').hitTestable(), findsOneWidget);
-    expect(find.text('导入 EPUB / PDF').hitTestable(), findsOneWidget);
     final scroll = tester
         .widget<CustomScrollView>(find.byType(CustomScrollView))
         .controller!;
@@ -120,13 +128,19 @@ Future<void> _discoveryControls(
   await tester.tap(find.byTooltip('返回顶部'));
   await tester.pumpAndSettle();
   expect(scroll.offset, 0);
-  await tester.tap(find.byTooltip('折叠书单，仅显示渠道'));
+  expect(find.byTooltip('渠道操作'), findsOneWidget);
+  await tester.tap(find.byTooltip('渠道操作'));
   await tester.pumpAndSettle();
-  expect(find.text('星际航行0'), findsNothing);
-  expect(find.widgetWithText(ListTile, '本机测试书目'), findsOneWidget);
-  await tester.tap(find.byTooltip('展开全部书单'));
+  await tester.tap(find.text('复制渠道链接'));
   await tester.pumpAndSettle();
-  expect(find.text('星际航行0'), findsWidgets);
+  expect(
+    platformCalls.any(
+      (call) =>
+          call.method == 'Clipboard.setData' &&
+          (call.arguments as Map)['text'] == 'https://reading-state.test/',
+    ),
+    isTrue,
+  );
 }
 
 void _immersiveRouteTest() {
@@ -208,85 +222,6 @@ Future<void> _tabletBackOrder(WidgetTester tester) async {
   );
   expect(find.byType(BooksPage), findsOneWidget);
   expect(find.byType(Drawer).hitTestable(), findsNothing);
-}
-
-void _publicationRouteTest() {
-  testWidgets('publication directory uses independent routes after scrolling', (
-    tester,
-  ) async {
-    await tester.runAsync(() async {
-      await PublicCatalog.load();
-    });
-    await fixture.pump(tester, size: const Size(1024, 760));
-    final router = GoRouter.of(tester.element(find.byType(AppShell)));
-    router.go('/reading');
-    await fixture.waitFor(
-      tester,
-      () => find.text('出版书目').evaluate().isNotEmpty,
-    );
-    await tester.tap(find.text('出版书目'));
-    final directory = find.byType(PublicLibraryPage);
-    final list = find.descendant(
-      of: directory,
-      matching: find.byType(CustomScrollView),
-    );
-    await fixture.waitFor(tester, () => list.evaluate().isNotEmpty);
-    final controller = tester.widget<CustomScrollView>(list).controller!;
-    await tester.drag(list, const Offset(0, -570));
-    await tester.pumpAndSettle();
-    final offset = controller.offset;
-    expect(offset, greaterThan(100));
-    final entry = find
-        .descendant(of: directory, matching: find.byType(ListTile))
-        .hitTestable()
-        .first;
-    await tester.tap(entry);
-    await fixture.settle(tester);
-    expect(find.byType(PublicationDetailPage), findsOneWidget);
-    expect(find.text('下载 EPUB 并阅读'), findsOneWidget);
-    expect(find.byType(Drawer).hitTestable(), findsNothing);
-    await tester.dragFrom(const Offset(8, 360), const Offset(240, 0));
-    await fixture.settle(tester);
-    expect(find.byType(PublicationDetailPage), findsNothing);
-    expect(controller.offset, closeTo(offset, 1));
-    await _expectTechnicalPublications(tester, controller);
-    await tester.binding.handlePopRoute();
-    await fixture.settle(tester);
-    expect(find.byType(BooksPage), findsOneWidget);
-    expect(find.byType(Drawer).hitTestable(), findsNothing);
-    expect(tester.takeException(), isNull);
-    await fixture.finish(tester);
-  });
-}
-
-Future<void> _expectTechnicalPublications(
-  WidgetTester tester,
-  ScrollController controller,
-) async {
-  controller.jumpTo(0);
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(ChoiceChip, '技术图书'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(ListTile, 'Docker 从入门到实践'));
-  await fixture.settle(tester);
-  expect(find.text('应用内阅读'), findsOneWidget);
-  await tester.binding.handlePopRoute();
-  await fixture.settle(tester);
-  expect(find.byType(PublicationDetailPage), findsNothing);
-  await tester.enterText(
-    find.byType(TextField),
-    'The Project Gutenberg RST Manual',
-  );
-  await tester.pump(const Duration(milliseconds: 250));
-  await fixture.settle(tester);
-  await tester.tap(
-    find.widgetWithText(ListTile, 'The Project Gutenberg RST Manual'),
-  );
-  await fixture.settle(tester);
-  expect(find.text('下载 EPUB 并阅读'), findsOneWidget);
-  await tester.binding.handlePopRoute();
-  await fixture.settle(tester);
-  expect(find.byType(PublicationDetailPage), findsNothing);
 }
 
 void _basicNavigationTests() {

@@ -10,6 +10,7 @@ import '../../../core/platform/platform_services.dart';
 import '../data/books_repository.dart';
 import '../domain/book.dart';
 import 'reader_pagination.dart';
+import 'reader_automation.dart';
 import 'reader_style.dart';
 import 'reader_system_ui.dart';
 
@@ -36,7 +37,7 @@ final class BookReaderPage extends StatefulWidget {
 }
 
 final class _BookReaderPageState extends State<BookReaderPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   late BookChapter _chapter = widget.initial;
   late final _systemUi = ReaderSystemUi(widget.platform);
   GlobalKey<ReaderViewportState> _viewport = GlobalKey();
@@ -44,10 +45,11 @@ final class _BookReaderPageState extends State<BookReaderPage>
   final _contentsFocus = FocusNode(debugLabel: '章节目录');
   final _progress = ValueNotifier<ReaderProgress>(readerProgress(0));
   CancellationToken? _token;
-  Timer? _saveTimer, _clock, _autoTimer;
+  Timer? _saveTimer, _clock;
+  late final _automation = ReaderAutomation(this, _advanceAutomatically);
   bool _autoRunning = false;
   bool _preferencesLoaded = false;
-  double _autoElapsed = 0;
+  bool _configuring = false;
   ReaderPreferences _style = const ReaderPreferences();
   ReaderProgress? _retryPosition;
   TextRange? _highlight;
@@ -102,7 +104,10 @@ final class _BookReaderPageState extends State<BookReaderPage>
       _preferencesLoaded = true;
       _systemUi.apply(_style.immersive);
     }
-    if (mounted && _token == null) await _open(widget.initial, resume: true);
+    if (mounted && _token == null) {
+      await _open(widget.initial, resume: true);
+      if (mounted && _style.autoEnabled) _startAutomation();
+    }
   }
 
   void _policyChanged() {
@@ -217,6 +222,7 @@ final class _BookReaderPageState extends State<BookReaderPage>
 
   void _fail(CancellationToken token, String message) {
     if (mounted && !token.isCancelled) {
+      _stopAutomation();
       setState(() {
         _loading = false;
         _error = message;
@@ -305,15 +311,27 @@ final class _BookReaderPageState extends State<BookReaderPage>
   }
 
   Future<void> _settings() async {
-    _stopAutomation();
-    await showReaderSettings(context, _style, (settings) {
-      if (mounted) {
-        if (_style.immersive != settings.immersive) {
+    _configuring = true;
+    await showReaderSettings(
+      context,
+      _style.copyWith(autoEnabled: _autoRunning),
+      (settings) {
+        if (!mounted) return;
+        final previous = _style;
+        if (previous.immersive != settings.immersive) {
           _systemUi.apply(settings.immersive);
         }
         setState(() => _style = settings);
-      }
-    });
+        if (!settings.autoEnabled) {
+          _stopAutomation();
+        } else if (!_autoRunning ||
+            previous.mode != settings.mode ||
+            previous.autoSeconds != settings.autoSeconds) {
+          _startAutomation();
+        }
+      },
+    );
+    _configuring = false;
     if (mounted) {
       await _books.store.write('books_reader_preferences', _style.toJson());
     }
@@ -322,7 +340,7 @@ final class _BookReaderPageState extends State<BookReaderPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _autoTimer?.cancel();
+    _automation.dispose();
     _systemUi.restore();
     _saveTimer?.cancel();
     _clock?.cancel();
@@ -555,7 +573,11 @@ final class _BookReaderPageState extends State<BookReaderPage>
                   tooltip: _autoRunning ? '停止自动阅读' : '阅读菜单',
                   iconSize: 20,
                   color: palette.ink,
-                  onPressed: _ready ? _toggleControls : null,
+                  onPressed: !_ready
+                      ? null
+                      : _autoRunning
+                      ? _stopAutomation
+                      : _toggleControls,
                   icon: Icon(
                     _autoRunning
                         ? Icons.pause_circle_outline
@@ -656,12 +678,6 @@ final class _BookReaderPageState extends State<BookReaderPage>
                   icon: const Icon(Icons.chevron_right),
                   onPressed: () => _page(1),
                 ),
-                if (_style.autoEnabled)
-                  IconButton(
-                    tooltip: '自动阅读',
-                    icon: const Icon(Icons.play_circle_outline),
-                    onPressed: _toggleAutomation,
-                  ),
               ],
             ),
           ],

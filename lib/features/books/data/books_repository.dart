@@ -25,6 +25,7 @@ import 'book_import.dart';
 import 'book_source_links.dart';
 import 'book_store.dart';
 import 'local_book.dart';
+import 'qidian_catalog.dart';
 import 'rich_book.dart';
 
 typedef BookEdition = ({Book book, List<BookChapter> chapters});
@@ -88,6 +89,7 @@ final class BooksRepository {
   final ContentPolicy policy;
   final MediaHttpClient _http;
   late final client = BookClient(DocumentClient(_http));
+  late final qidian = QidianCatalog(client.network, policy, store.db);
   late final AudiobookFiles audioFiles;
   late final Future<List<BookSource>> _builtins = _loadBuiltins();
   final _verifiedSources = <String, BookSource>{};
@@ -220,6 +222,29 @@ final class BooksRepository {
     return categories
         .where((category) => policy.textAllowed(category.title))
         .toList();
+  }
+
+  Future<BookDiscoveryPage> discover(
+    BookKind kind,
+    String sourceId,
+    CancellationToken token, {
+    LegadoCategory? category,
+    int page = 1,
+    String? cursor,
+  }) async {
+    final source = await _enabledSource(kind, sourceId);
+    final result = await client.discover(
+      source,
+      token,
+      category: category,
+      page: page,
+      cursor: cursor,
+    );
+    if (!sourceAllowed(source) || await _blocked(sourceId)) {
+      throw const ContentBlocked();
+    }
+    token.check();
+    return (books: result.books.where(bookAllowed).toList(), next: result.next);
   }
 
   Future<void> restoreDefaultSources(BookKind kind) async {
@@ -531,6 +556,7 @@ final class BooksRepository {
     }
     final watch = Stopwatch()..start();
     var status = '';
+    var stage = '搜索';
     try {
       final books = await client.books(
         source,
@@ -540,11 +566,16 @@ final class BooksRepository {
       );
       final book = books.where(bookAllowed).firstOrNull;
       if (book == null) throw const FormatException('没有匹配作品，试试该源中已知的书名');
-      final chapters = await client.chapters(source, book, token);
+      stage = '详情';
+      final details = await client.details(source, book, token);
+      if (!bookAllowed(details)) throw const ContentBlocked();
+      stage = '目录';
+      final chapters = await client.chapters(source, details, token);
       final chapter = chapters
           .where((c) => policy.textAllowed(c.title))
           .firstOrNull;
       if (chapter == null) throw const FormatException('目录没有可用章节');
+      stage = source.kind == BookKind.text ? '正文' : '音频';
       if (source.kind == BookKind.text) {
         final body = await client.text(source, chapter, token, book: book);
         if (body.trim().length < 40 || !policy.textAllowed(body)) {
@@ -564,11 +595,11 @@ final class BooksRepository {
       }
       status = '可用 · ${watch.elapsedMilliseconds} ms';
     } on FormatException catch (error) {
-      status = error.message;
+      status = '$stage · ${error.message}';
     } on RemoteFailure catch (error) {
-      status = error.message;
+      status = '$stage · ${error.message}';
     } on Exception {
-      status = '检测失败';
+      status = '$stage · 检测失败';
     }
     token.check();
     await saveSource(source, {
@@ -588,6 +619,7 @@ final class BooksRepository {
     Set<String>? sourceIds,
     String? preferredSource,
     String? excludedSource,
+    bool skipQidian = false,
     bool favorites = false,
     BookSearchField field = BookSearchField.all,
     void Function(BookSearchUpdate)? onProgress,
@@ -599,6 +631,7 @@ final class BooksRepository {
     final address = _bookAddress(query);
     final entries = (await sources(kind, enabledOnly: true)).where((entry) {
       if (!entry.enabled ||
+          (skipQidian && isQidianHost(entry.source.endpoint.host)) ||
           entry.source.id == excludedSource ||
           (sourceId != null && sourceId != entry.source.id) ||
           (sourceIds != null && !sourceIds.contains(entry.source.id))) {
@@ -795,29 +828,40 @@ final class BooksRepository {
       book.title,
       token,
       field: BookSearchField.title,
+      excludedSource: book.sourceId,
     );
-    final alternatives = <BookEdition>[];
-    for (final candidate
-        in results.books
-            .where(
-              (other) =>
-                  other.sourceId != book.sourceId &&
-                  bookIdentity(other.title) == title &&
-                  bookIdentity(other.author) == author,
-            )
-            .take(5)) {
-      token.check();
-      try {
-        final catalog = await chapters(candidate, token);
-        if (catalog.isNotEmpty) {
-          alternatives.add((book: candidate, chapters: catalog));
+    final candidates = results.books
+        .where(
+          (other) =>
+              other.sourceId != book.sourceId &&
+              bookIdentity(other.title) == title &&
+              bookIdentity(other.author) == author,
+        )
+        .toList();
+    final editions = List<BookEdition?>.filled(candidates.length, null);
+    var cursor = 0;
+    Future<void> loadCatalogs() async {
+      while (cursor < candidates.length) {
+        token.check();
+        final index = cursor++;
+        final candidate = candidates[index];
+        try {
+          final catalog = await chapters(candidate, token);
+          token.check();
+          if (catalog.isNotEmpty) {
+            editions[index] = (book: candidate, chapters: catalog);
+          }
+        } on Exception {
+          token.check();
         }
-      } on Exception {
-        continue;
       }
     }
+
+    await Future.wait(
+      List.generate(math.min(3, candidates.length), (_) => loadCatalogs()),
+    );
     token.check();
-    return alternatives;
+    return editions.whereType<BookEdition>().toList();
   }
 
   BookChapter? matchingChapter(
@@ -896,6 +940,9 @@ final class BooksRepository {
   }
 
   Future<List<int>> coverBytes(Book book, CancellationToken token) async {
+    if (book.sourceId == qidianRecommendationId) {
+      return qidian.cover(book, token);
+    }
     final source = await _active(book);
     final uri = source.resolve(book.uri, book.cover, media: true);
     final document = await client.fetch(
@@ -932,8 +979,18 @@ final class BooksRepository {
       try {
         if (book.kind == BookKind.text) {
           final body = await readText(candidate, part, token);
-          requireBook(book, chapter);
-          await store.saveText(book, chapter, body);
+          await store.db.atomic(() async {
+            if (await _blocked(book.sourceId) ||
+                await _blocked(candidate.sourceId)) {
+              throw const ContentBlocked();
+            }
+            token.check();
+            requireBook(book, chapter);
+            requireBook(candidate, part);
+            if (!policy.textAllowed(body)) throw const ContentBlocked();
+            await store.saveText(book, chapter, body);
+            token.check();
+          }, tables: {'app_meta'});
         } else {
           final source = await _active(candidate);
           await audioFiles.download(source, book, part, token, () {
@@ -951,10 +1008,7 @@ final class BooksRepository {
     throw last ?? const FormatException('没有可用章节');
   }
 
-  Future<Book> importLocal(
-    File file, {
-    Map<String, String> catalogMetadata = const {},
-  }) async {
+  Future<Book> importLocal(File file) async {
     final name = p.basename(file.path);
     final extension = p.extension(name).toLowerCase();
     if (!{'.txt', '.epub', '.pdf'}.contains(extension)) {
@@ -964,15 +1018,11 @@ final class BooksRepository {
       throw const ContentBlocked();
     }
     final bytes = await readLocalBookBytes(file);
-    final package = extension == '.epub'
-        ? await readEpubPackageOffThread(name, bytes)
-        : (
-            book: extension == '.pdf'
-                ? await parsePdfBook(name, bytes)
-                : await parseTextBookOffThread(name, bytes),
-            metadata: const <String, String>{},
-          );
-    final parsed = package.book;
+    final parsed = switch (extension) {
+      '.epub' => await parseEpubBookOffThread(name, bytes),
+      '.pdf' => await parsePdfBook(name, bytes),
+      _ => await parseTextBookOffThread(name, bytes),
+    };
     if (parsed.sections.isEmpty || parsed.sections.length > 4000) {
       throw const FormatException('电子书正文为空或章节过多');
     }
@@ -1003,11 +1053,6 @@ final class BooksRepository {
     await _saveLocalImport(
       book,
       contents,
-      {
-        ...catalogMetadata,
-        for (final field in package.metadata.entries)
-          if (field.value.trim().isNotEmpty) field.key: field.value,
-      },
       authorize,
       file: extension == '.txt'
           ? null
@@ -1020,7 +1065,6 @@ final class BooksRepository {
   Future<void> _saveLocalImport(
     Book book,
     Map<BookChapter, String> contents,
-    Map<String, String> publication,
     void Function() authorize, {
     required File? file,
     required List<int> bytes,
@@ -1042,15 +1086,6 @@ final class BooksRepository {
           chapters: contents.keys.toList(),
           favorite: true,
         );
-        if (publication.isNotEmpty) {
-          final key = 'publication_${book.id}';
-          final existing = await store.read(key);
-          await store.write(key, {
-            if (existing is Map) ...existing,
-            for (final field in publication.entries)
-              if (field.value.trim().isNotEmpty) field.key: field.value,
-          });
-        }
         if (file != null) {
           await File(p.join(staging!.path, 'document')).rename(file.path);
         }

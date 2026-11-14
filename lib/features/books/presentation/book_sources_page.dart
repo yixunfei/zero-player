@@ -10,6 +10,7 @@ import '../data/book_import.dart';
 import '../data/book_store.dart';
 import '../data/books_repository.dart';
 import '../domain/book.dart';
+import 'book_links.dart';
 
 enum _SourceAction { catalog, file, link, feed }
 
@@ -473,7 +474,7 @@ final class _BookSourcesPageState extends State<BookSourcesPage> {
           });
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.kind == BookKind.audio ? '听书源' : '阅读源'),
+        title: Text(widget.kind == BookKind.audio ? '听书源' : '网络小说渠道'),
         actions: [
           IconButton(
             tooltip: _selecting ? '退出批量选择' : '批量选择',
@@ -589,6 +590,51 @@ final class _BookSourcesPageState extends State<BookSourcesPage> {
     ),
   );
 
+  Widget _sourceActions(BookSourceEntry entry) {
+    final source = entry.source;
+    return PopupMenuButton<String>(
+      tooltip: '来源操作',
+      enabled: !_busy,
+      onSelected: (value) async {
+        switch (value) {
+          case 'copy':
+            await copyBookLink(context, source.endpoint);
+          case 'probe':
+            await _probe(source);
+          case 'group':
+            final group = await _prompt(
+              '分组名称',
+              initial: entry.group,
+              limit: 60,
+            );
+            if (mounted && group != null) {
+              await _run(
+                () => _services.books.saveSource(source, {'group': group}),
+                protected: true,
+              );
+            }
+          case 'remove':
+            await _run(
+              () => _services.books.removeSource(source),
+              protected: true,
+            );
+          case 'block':
+            await _run(
+              () => _services.books.blockSource(source),
+              protected: true,
+            );
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'copy', child: Text('复制渠道链接')),
+        const PopupMenuItem(value: 'probe', child: Text('检测')),
+        const PopupMenuItem(value: 'group', child: Text('修改分组')),
+        const PopupMenuItem(value: 'remove', child: Text('删除书源')),
+        const PopupMenuItem(value: 'block', child: Text('屏蔽并加入黑名单')),
+      ],
+    );
+  }
+
   Widget _tile(BookSourceEntry entry) {
     final source = entry.source;
     if (_selecting) {
@@ -646,45 +692,7 @@ final class _BookSourcesPageState extends State<BookSourcesPage> {
                     protected: true,
                   ),
           ),
-          PopupMenuButton<String>(
-            tooltip: '来源操作',
-            enabled: !_busy,
-            onSelected: (value) async {
-              switch (value) {
-                case 'probe':
-                  await _probe(source);
-                case 'group':
-                  final group = await _prompt(
-                    '分组名称',
-                    initial: entry.group,
-                    limit: 60,
-                  );
-                  if (mounted && group != null) {
-                    await _run(
-                      () =>
-                          _services.books.saveSource(source, {'group': group}),
-                      protected: true,
-                    );
-                  }
-                case 'remove':
-                  await _run(
-                    () => _services.books.removeSource(source),
-                    protected: true,
-                  );
-                case 'block':
-                  await _run(
-                    () => _services.books.blockSource(source),
-                    protected: true,
-                  );
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'probe', child: Text('检测')),
-              const PopupMenuItem(value: 'group', child: Text('修改分组')),
-              const PopupMenuItem(value: 'remove', child: Text('删除书源')),
-              const PopupMenuItem(value: 'block', child: Text('屏蔽并加入黑名单')),
-            ],
-          ),
+          _sourceActions(entry),
         ],
       ),
     );

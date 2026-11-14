@@ -297,9 +297,10 @@ class ReaderViewportState extends State<ReaderViewport> {
 
   bool autoScroll(double pixels) {
     final controller = _scroller;
-    if (controller == null || !controller.hasClients) return false;
+    if (controller == null || !controller.hasClients) return true;
     final position = controller.position;
-    if (position.pixels >= position.maxScrollExtent - .5) return false;
+    if (!position.hasContentDimensions) return true;
+    if (position.pixels >= position.maxScrollExtent - .01) return false;
     controller.jumpTo(
       (position.pixels + pixels).clamp(0.0, position.maxScrollExtent),
     );

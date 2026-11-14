@@ -8,6 +8,7 @@ import '../data/books_repository.dart';
 import '../domain/book.dart';
 import '../domain/book_search.dart';
 import 'book_cover.dart';
+import 'book_links.dart';
 import 'book_source_favorite.dart';
 
 class BookSearchPage extends StatefulWidget {
@@ -22,6 +23,7 @@ class BookSearchPage extends StatefulWidget {
     this.sourceId,
     this.favoritesOnly = false,
     this.excludedSource,
+    this.skipQidian = false,
     this.onSourceFavorite,
   });
 
@@ -33,6 +35,7 @@ class BookSearchPage extends StatefulWidget {
   final String? sourceId;
   final bool favoritesOnly;
   final String? excludedSource;
+  final bool skipQidian;
   final void Function(String id, bool favorite)? onSourceFavorite;
   final Future<void> Function(Book) onOpen;
 
@@ -44,13 +47,16 @@ class _BookSearchPageState extends State<BookSearchPage> {
   final _results = <String, Book>{};
   final _sources = <String, BookSourceEntry>{};
   final _latencies = <String, int>{};
+  final _failedSources = <String>{};
   late final _input = TextEditingController(text: widget.query);
   late String _query = widget.query;
   late BookSearchField _field = widget.field;
   late bool _scoped = widget.sourceId != null || widget.favoritesOnly;
   CancellationToken? _token;
   bool _busy = false;
-  int _done = 0, _total = 0, _failed = 0;
+  int _done = 0, _total = 0;
+  bool _retrying = false;
+  bool _cancelled = false;
   String? _error;
   Book? get _preferred => _query == widget.query && _field == widget.field
       ? widget.preferred
@@ -73,33 +79,47 @@ class _BookSearchPageState extends State<BookSearchPage> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
+  Future<void> _load({Set<String>? retry}) async {
     _token?.cancel();
     final token = _token = CancellationToken();
     final repository = widget.repository;
     final preferred = _preferred;
     setState(() {
-      _results.clear();
-      _sources.clear();
-      _latencies.clear();
+      if (retry == null) {
+        _results.clear();
+        _sources.clear();
+        _latencies.clear();
+        _failedSources.clear();
+        _done = _total = 0;
+      }
       _busy = true;
-      _done = _total = _failed = 0;
+      _retrying = retry != null;
+      _cancelled = false;
       _error = null;
     });
     _updates.value++;
     try {
-      await _loadSources(token, preferred);
+      await _loadSources(token, preferred, retrying: retry != null);
+      final retried = <String>{};
       await repository.find(
         widget.kind,
         _query,
         token,
         field: _field,
         sourceId: _scoped ? widget.sourceId : null,
+        sourceIds: retry,
         favorites: _scoped && widget.favoritesOnly,
         preferredSource: preferred?.sourceId,
         excludedSource: widget.excludedSource,
-        onProgress: (update) => _update(update, token),
+        skipQidian: widget.skipQidian,
+        onProgress: (update) {
+          if (update.sourceId case final String id) retried.add(id);
+          _update(update, token, retrying: retry != null);
+        },
       );
+      if (mounted && !token.isCancelled && retry != null) {
+        setState(() => _failedSources.removeAll(retry.difference(retried)));
+      }
     } on FormatException catch (error) {
       if (mounted && !token.isCancelled) setState(() => _error = error.message);
     } on Exception {
@@ -112,16 +132,25 @@ class _BookSearchPageState extends State<BookSearchPage> {
     }
   }
 
-  Future<void> _loadSources(CancellationToken token, Book? preferred) async {
+  Future<void> _loadSources(
+    CancellationToken token,
+    Book? preferred, {
+    required bool retrying,
+  }) async {
     final repository = widget.repository;
     final sources = await repository.sources(widget.kind, enabledOnly: true);
     token.check();
     if (!mounted) return;
     setState(() {
-      _sources.addEntries(
-        sources.map((entry) => MapEntry(entry.source.id, entry)),
-      );
-      if (preferred != null &&
+      _sources
+        ..clear()
+        ..addEntries(sources.map((entry) => MapEntry(entry.source.id, entry)));
+      if (retrying) {
+        _results.removeWhere((_, book) => !_sources.containsKey(book.sourceId));
+        _latencies.removeWhere((id, _) => !_sources.containsKey(id));
+      }
+      if (!retrying &&
+          preferred != null &&
           _sources.containsKey(preferred.sourceId) &&
           repository.bookAllowed(preferred)) {
         _results[preferred.id] = preferred;
@@ -130,13 +159,25 @@ class _BookSearchPageState extends State<BookSearchPage> {
     _updates.value++;
   }
 
-  void _update(BookSearchUpdate update, CancellationToken token) {
+  void _update(
+    BookSearchUpdate update,
+    CancellationToken token, {
+    required bool retrying,
+  }) {
     if (!mounted || token.isCancelled) return;
     setState(() {
-      _done = update.completed;
-      _total = update.total;
-      if (update.failed) _failed++;
+      if (!retrying) {
+        _done = update.completed;
+        _total = update.total;
+      }
       final id = update.sourceId;
+      if (id != null) {
+        if (update.failed) {
+          _failedSources.add(id);
+        } else {
+          _failedSources.remove(id);
+        }
+      }
       final latency = update.latencyMs;
       if (id != null && latency != null) _latencies[id] = latency;
       for (final book in update.books) {
@@ -144,6 +185,19 @@ class _BookSearchPageState extends State<BookSearchPage> {
       }
     });
     _updates.value++;
+  }
+
+  void _retryFailed() {
+    if (_busy || _failedSources.isEmpty) return;
+    unawaited(_load(retry: Set.of(_failedSources)));
+  }
+
+  void _cancelSearch() {
+    _token?.cancel();
+    setState(() {
+      _busy = false;
+      _cancelled = true;
+    });
   }
 
   int _compareSources(Book a, Book b) {
@@ -244,9 +298,12 @@ class _BookSearchPageState extends State<BookSearchPage> {
                 latency == null ? (_busy ? '等待搜索' : '无搜索耗时') : '$latency ms',
               ].join(' · '),
             ),
-            trailing: entry == null
-                ? null
-                : BookSourceFavorite(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BookLinkButton(label: '复制书籍网页链接', uri: book.uri),
+                if (entry != null)
+                  BookSourceFavorite(
                     key: ValueKey(book.id),
                     repository: widget.repository,
                     entry: entry,
@@ -259,6 +316,8 @@ class _BookSearchPageState extends State<BookSearchPage> {
                       widget.onSourceFavorite?.call(book.sourceId, value);
                     },
                   ),
+              ],
+            ),
             onTap: () => Navigator.pop(context, book),
           );
         },
@@ -290,16 +349,10 @@ class _BookSearchPageState extends State<BookSearchPage> {
         children: [
           _toolbar(),
           if (_busy) const LinearProgressIndicator(minHeight: 2),
-          ListTile(
-            dense: true,
-            title: Text(
-              _error ??
-                  '$_done / $_total 个渠道 · ${groups.length} 部作品${_failed == 0 ? '' : ' · $_failed 个渠道失败'}',
-            ),
-          ),
+          _searchStatus(groups.length),
           Expanded(
             child: groups.isEmpty
-                ? Center(child: Text(_busy ? '正在搜索…' : '没有符合条件的作品'))
+                ? Center(child: Text(_emptyMessage()))
                 : ListView.builder(
                     itemCount: groups.length,
                     itemBuilder: (_, index) => _result(groups[index]),
@@ -308,6 +361,29 @@ class _BookSearchPageState extends State<BookSearchPage> {
         ],
       ),
     );
+  }
+
+  Widget _searchStatus(int count) => ListTile(
+    dense: true,
+    title: Text(
+      _error ??
+          (_busy && _retrying
+              ? '正在重试失败渠道…'
+              : '${_cancelled ? '已取消 · ' : ''}$_done / $_total 个渠道 · $count 部作品'
+                    '${_failedSources.isEmpty ? '' : ' · ${_failedSources.length} 个渠道失败'}'),
+    ),
+    trailing: !_busy && _failedSources.isNotEmpty
+        ? TextButton(onPressed: _retryFailed, child: const Text('重试失败渠道'))
+        : null,
+  );
+
+  String _emptyMessage() {
+    if (_busy) return '正在搜索…';
+    if (_cancelled) return '搜索已取消';
+    if (_error != null) return '搜索未完成';
+    if (_total == 0) return '没有可用于此次搜索的启用渠道';
+    if (_failedSources.length == _total) return '本次搜索的渠道均请求失败';
+    return '没有符合条件的作品';
   }
 
   Widget _result(List<Book> group) {
@@ -362,12 +438,7 @@ class _BookSearchPageState extends State<BookSearchPage> {
             IconButton(
               tooltip: _busy ? '取消搜索' : '搜索',
               icon: Icon(_busy ? Icons.stop : Icons.search),
-              onPressed: _busy
-                  ? () {
-                      _token?.cancel();
-                      setState(() => _busy = false);
-                    }
-                  : _submit,
+              onPressed: _busy ? _cancelSearch : _submit,
             ),
           ],
         ),

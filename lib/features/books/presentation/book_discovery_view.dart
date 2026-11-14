@@ -2,15 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../data/book_store.dart';
 import '../data/books_repository.dart';
+import '../data/qidian_catalog.dart';
 import '../domain/book.dart';
 import '../domain/legado_source.dart';
 import 'book_category_picker.dart';
 import 'book_cover.dart';
+import 'book_links.dart';
+import 'qidian_book_preview.dart';
 import 'book_source_favorite.dart';
 
 final class BookDiscoveryView extends StatefulWidget {
@@ -46,7 +50,9 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   final _failures = <String>{};
   final _resultOrder = <String>[];
   final _recommended = <Book>[];
-  final _recommendedIds = <String>{};
+  final _qidianSections = <String, LegadoCategory>{};
+  String _qidianAddress = '/';
+  DateTime? _qidianCachedAt;
   CancellationToken? _token;
   String? _sourceId, _categorySource, _error;
   bool _favorites = false, _busy = false, _needsLoad = true;
@@ -54,11 +60,19 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   bool _aggregate = false, _preferencesReady = false;
   bool _channelsOnly = false;
   Set<String> _hidden = {};
-  String? _genre;
-  bool get _showChannelPreviews => _aggregate || widget.kind == BookKind.audio;
+  bool get _showQidian =>
+      _sourceId == null &&
+      !_aggregate &&
+      !_channelsOnly &&
+      widget.kind == BookKind.text &&
+      widget.repository.qidian.allowed;
   String get _directKey => 'books_discovery_direct:${widget.kind.name}';
   String get _preferenceKey => 'books_discovery_hidden:${widget.kind.name}';
-  int _page = 1, _completed = 0, _total = 0;
+  static const _aggregateKey = 'books_discovery_aggregate:text';
+  int _page = 1, _completed = 0, _total = 0, _duplicatePages = 0;
+  String? _next, _moreError;
+  final _seenPages = <String>{};
+  final _seenBooks = <String>{};
   List<LegadoCategory> _categories = [];
   LegadoCategory? _category;
 
@@ -69,6 +83,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_nearEnd);
     _updateSources();
     unawaited(_readPreferences());
   }
@@ -77,9 +92,13 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     try {
       final value = await widget.repository.store.read(_preferenceKey);
       final direct = await widget.repository.store.read(_directKey);
+      final aggregate =
+          widget.kind == BookKind.text &&
+          await widget.repository.store.read(_aggregateKey) == true;
       if (!mounted) return;
       if (value is List) _hidden = value.whereType<String>().toSet();
       _direct = direct == true;
+      _aggregate = aggregate;
     } on Exception {
       // Use defaults if the saved display preference cannot be read.
     } finally {
@@ -93,13 +112,16 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     super.didUpdateWidget(oldWidget);
     if (!identical(widget.sources, oldWidget.sources)) {
       final before = _source?.source;
+      final showedQidian = _showQidian;
       final previous = _discoverySources;
       _updateSources();
       final current = _discoverySources;
       if (widget.sources != null &&
           oldWidget.sources != null &&
-          sameBookDiscoverySources(current, previous)) {
+          ((showedQidian && _showQidian) ||
+              sameBookDiscoverySources(current, previous))) {
         _loadIfReady();
+        if (widget.active && !oldWidget.active) _checkAfterLayout();
         return;
       }
       _token?.cancel();
@@ -107,7 +129,6 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
       _results.clear();
       _resultOrder.clear();
       _recommended.clear();
-      _recommendedIds.clear();
       _failures.clear();
       _error = null;
       if (_source?.source.id != before?.id || _source != null) {
@@ -116,6 +137,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
       _needsLoad = true;
     }
     _loadIfReady();
+    if (widget.active && !oldWidget.active) _checkAfterLayout();
   }
 
   List<BookSourceEntry> get _discoverySources {
@@ -126,17 +148,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
           (!_favorites || entry.favorite) &&
           entry.source.hasDiscovery,
     );
-    final prioritized = [
-      ...eligible.where((entry) => entry.favorite),
-      ...eligible.where((entry) => !entry.favorite),
-    ];
-    final included =
-        (!_aggregate && _hidden.isEmpty ? prioritized.take(8) : prioritized)
-            .map((entry) => entry.source.id)
-            .toSet();
-    return eligible
-        .where((entry) => included.contains(entry.source.id))
-        .toList();
+    return eligible.toList();
   }
 
   void _updateSources() {
@@ -151,7 +163,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
         widget.sources != null &&
         widget.active &&
         _needsLoad) {
-      unawaited(_load(page: _page));
+      unawaited(_load());
     }
   }
 
@@ -162,26 +174,32 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     _page = 1;
   }
 
-  Future<void> _load({int? page}) async {
+  Future<void> _load() async {
     _token?.cancel();
     final token = _token = CancellationToken();
     setState(() {
       _busy = true;
       _needsLoad = false;
       _error = null;
-      _page = page ?? 1;
+      _resetPaging();
+      _qidianCachedAt = null;
       _completed = _total = 0;
       _results.clear();
       _resultOrder.clear();
       _recommended.clear();
-      _recommendedIds.clear();
       _failures.clear();
-      _genre = null;
     });
     if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.minScrollExtent);
     final sourceId = _sourceId;
-    final sourceIds = _discoverySources.map((entry) => entry.source.id).toSet();
     try {
+      if (_channelsOnly && sourceId == null) return;
+      if (_showQidian) {
+        final sections = await widget.repository.qidian.sections;
+        if (!mounted || token.isCancelled) return;
+        setState(() => _addQidianSections(sections));
+        await _loadQidianPage(token);
+        return;
+      }
       if (sourceId != null && _categorySource != sourceId) {
         final categories = await widget.repository.categories(
           widget.kind,
@@ -195,14 +213,17 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
           _category = categories.firstOrNull;
         });
       }
+      if (sourceId != null) {
+        if (_source?.source.hasDiscovery == true) {
+          await _loadSourcePage(sourceId, token);
+        }
+        return;
+      }
       await widget.repository.find(
         widget.kind,
         '',
         token,
-        sourceId: sourceId,
-        sourceIds: sourceId == null ? sourceIds : null,
-        category: _category,
-        page: _page,
+        sourceIds: _discoverySources.map((entry) => entry.source.id).toSet(),
         onProgress: (update) {
           if (!mounted || token.isCancelled) return;
           setState(() {
@@ -214,21 +235,228 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
               if (update.books.isNotEmpty) _resultOrder.add(id);
               if (update.failed) _failures.add(id);
             }
-            // Append late responses so the visible rows keep their positions.
-            if (id != null) {
-              _appendRecommendations(update.books.take(12));
-            }
           });
         },
       );
-    } on FormatException catch (error) {
-      if (mounted && !token.isCancelled) setState(() => _error = error.message);
-    } on RemoteFailure catch (error) {
-      if (mounted && !token.isCancelled) setState(() => _error = error.message);
-    } on Exception {
-      if (mounted && !token.isCancelled) setState(() => _error = '无法加载作品，请重试');
+    } on Exception catch (error) {
+      if (mounted && !token.isCancelled) {
+        setState(() => _error = _loadMessage(error));
+      }
     } finally {
-      if (mounted && identical(_token, token)) setState(() => _busy = false);
+      if (mounted && identical(_token, token)) {
+        setState(() => _busy = false);
+        _checkAfterLayout();
+      }
+    }
+  }
+
+  void _addQidianSections(Iterable<LegadoCategory> sections) {
+    for (final section in sections) {
+      if (widget.repository.policy.textAllowed(section.title)) {
+        final address = qidianHome.resolve(section.address).toString();
+        _qidianSections[address] = section;
+      }
+    }
+  }
+
+  Widget _selectedSourceMenu(BookSource source) => PopupMenuButton<String>(
+    tooltip: '渠道操作',
+    onSelected: (action) {
+      if (action == 'copy') {
+        copyBookLink(context, source.endpoint);
+      } else {
+        _openMode();
+      }
+    },
+    itemBuilder: (_) => const [
+      PopupMenuItem(value: 'copy', child: Text('复制渠道链接')),
+      PopupMenuItem(value: 'mode', child: Text('渠道书单点击方式')),
+    ],
+  );
+
+  Future<void> _loadQidianPage(CancellationToken token) async {
+    final address = _next ?? _qidianAddress;
+    final listing = await widget.repository.qidian.load(
+      address,
+      token,
+      firstPage: _next == null,
+    );
+    if (!mounted || token.isCancelled) return;
+    setState(() {
+      _applyQidianPage(address, listing);
+    });
+  }
+
+  void _applyQidianPage(String address, QidianListing listing) {
+    final page = listing.page;
+    _qidianCachedAt = listing.cachedAt;
+    _addQidianSections(page.sections);
+    _seenPages.add(qidianHome.resolve(address).toString());
+    _appendPage(_recommended, page.books, page.next?.toString());
+  }
+
+  void _appendPage(List<Book> books, List<Book> fetched, String? next) {
+    final added = fetched.where((book) => _seenBooks.add(book.id)).toList();
+    books.addAll(added);
+    _duplicatePages = added.isEmpty ? _duplicatePages + 1 : 0;
+    _next = _seenPages.contains(next) || _duplicatePages >= 2 ? null : next;
+    _page++;
+  }
+
+  Future<void> _refreshListing() async {
+    if (_busy) return;
+    final sourceId = _sourceId;
+    if ((_showQidian && _recommended.isEmpty) ||
+        (!_showQidian && (_results[sourceId]?.isNotEmpty != true))) {
+      await _load();
+      return;
+    }
+    _token?.cancel();
+    final token = _token = CancellationToken();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (sourceId == null) {
+        final listing = await widget.repository.qidian.load(
+          _qidianAddress,
+          token,
+        );
+        if (!mounted || token.isCancelled) return;
+        if (listing.cachedAt != null) {
+          setState(() => _error = '起点刷新失败，继续显示已加载书单');
+          return;
+        }
+        setState(() {
+          _resetPaging();
+          _recommended.clear();
+          _applyQidianPage(_qidianAddress, listing);
+        });
+      } else {
+        final page = await widget.repository.discover(
+          widget.kind,
+          sourceId,
+          token,
+          category: _category,
+        );
+        if (!mounted || token.isCancelled) return;
+        setState(() {
+          _resetPaging();
+          final books = _results[sourceId] = [];
+          _appendPage(books, page.books, page.next);
+        });
+      }
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    } on Exception catch (error) {
+      if (!mounted || token.isCancelled) return;
+      setState(() => _error = '刷新失败，已保留书单 · ${_loadMessage(error)}');
+    } finally {
+      if (mounted && identical(_token, token)) {
+        setState(() => _busy = false);
+        _checkAfterLayout();
+      }
+    }
+  }
+
+  void _resetPaging() {
+    _page = 1;
+    _next = _moreError = null;
+    _seenPages.clear();
+    _seenBooks.clear();
+    _duplicatePages = 0;
+  }
+
+  String _loadMessage(Exception error) => switch (error) {
+    FormatException() => error.message,
+    RemoteFailure() => error.message,
+    _ => '无法加载作品，请重试',
+  };
+
+  Future<void> _pickQidianSection() async {
+    final sections = _qidianSections.values.toList();
+    final selected = sections
+        .where((item) => item.address == _qidianAddress)
+        .firstOrNull;
+    final choice = await showBookCategoryPicker(
+      context,
+      sections,
+      selected,
+      title: '起点分类与榜单',
+    );
+    if (!mounted || choice == null || choice.address == _qidianAddress) return;
+    setState(() => _qidianAddress = choice.address);
+    await _load();
+  }
+
+  void _nearEnd() {
+    if (widget.active &&
+        _next != null &&
+        _moreError == null &&
+        _error == null &&
+        !_busy &&
+        !_channelsOnly &&
+        _scroll.hasClients &&
+        _scroll.position.hasContentDimensions &&
+        _scroll.position.extentAfter < 480) {
+      unawaited(_loadMore());
+    }
+  }
+
+  void _checkAfterLayout() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) _nearEnd();
+  });
+
+  Future<void> _loadSourcePage(String sourceId, CancellationToken token) async {
+    final cursor = _next;
+    final result = await widget.repository.discover(
+      widget.kind,
+      sourceId,
+      token,
+      category: _category,
+      page: _page,
+      cursor: cursor,
+    );
+    if (!mounted || token.isCancelled || !identical(_token, token)) return;
+    setState(() {
+      if (cursor != null) _seenPages.add(cursor);
+      _appendPage(
+        _results.putIfAbsent(sourceId, () => []),
+        result.books,
+        result.next,
+      );
+    });
+  }
+
+  Future<void> _loadMore() async {
+    final token = _token;
+    final sourceId = _sourceId;
+    if (_busy ||
+        _next == null ||
+        token == null ||
+        token.isCancelled ||
+        (sourceId == null && !_showQidian)) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _moreError = null;
+      _error = null;
+    });
+    try {
+      if (sourceId == null) {
+        await _loadQidianPage(token);
+      } else {
+        await _loadSourcePage(sourceId, token);
+      }
+    } on Exception catch (error) {
+      if (!mounted || token.isCancelled) return;
+      setState(() => _moreError = _loadMessage(error));
+    } finally {
+      if (mounted && identical(_token, token)) {
+        setState(() => _busy = false);
+        _checkAfterLayout();
+      }
     }
   }
 
@@ -321,7 +549,11 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     final query = _search.text.trim();
     if (query.isEmpty) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    widget.onSearch(query, _sourceId, _sourceId == null && _favorites);
+    widget.onSearch(
+      query,
+      _sourceId,
+      _sourceId == null && !_showQidian && _favorites,
+    );
   }
 
   Future<void> _openMode() async {
@@ -409,6 +641,11 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   void _toggleChannelsOnly() {
     setState(() => _channelsOnly = !_channelsOnly);
     if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.minScrollExtent);
+    if (!_channelsOnly && _showQidian && _recommended.isEmpty && !_busy) {
+      unawaited(_load());
+    } else if (!_channelsOnly) {
+      _checkAfterLayout();
+    }
   }
 
   Widget _toolbar(double gutter) => Padding(
@@ -466,7 +703,11 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   Widget _browseHeader(double gutter) {
     final theme = Theme.of(context);
     final source = _source?.source;
-    final status = _busy
+    final status =
+        _error != null &&
+            (_recommended.isNotEmpty || _results[_sourceId]?.isNotEmpty == true)
+        ? _error
+        : _busy && (source == null || _page == 1)
         ? (_total == 0 ? '正在加载…' : '$_completed / $_total 个渠道')
         : _failures.isEmpty
         ? null
@@ -501,13 +742,13 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
                   ),
                 ),
               ),
-              if (source == null)
+              if (source == null && !_showQidian)
                 IconButton(
                   tooltip: '选择发现渠道',
                   onPressed: _pickVisibleSources,
                   icon: const Icon(Icons.checklist),
                 ),
-              if (source == null)
+              if (source == null && !_showQidian)
                 IconButton(
                   tooltip: _favorites ? '显示全部渠道' : '仅收藏源',
                   isSelected: _favorites,
@@ -520,7 +761,8 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
                 ),
               if (_source case final BookSourceEntry entry)
                 _favoriteButton(entry),
-              if (source != null || _aggregate)
+              if (source != null) _selectedSourceMenu(source),
+              if (source == null && _aggregate)
                 IconButton(
                   tooltip: '渠道书单点击方式',
                   onPressed: _openMode,
@@ -528,7 +770,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
                 ),
               IconButton(
                 tooltip: '刷新当前页面',
-                onPressed: _busy ? null : () => _load(page: _page),
+                onPressed: _busy ? null : _refreshListing,
                 icon: const Icon(Icons.refresh),
               ),
             ],
@@ -579,41 +821,9 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
               ),
               onPressed: _pickCategory,
             ),
-          if (category.paginated)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: '上一页',
-                  onPressed: _busy || _page == 1
-                      ? null
-                      : () => _load(page: _page - 1),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text('第 $_page 页'),
-                IconButton(
-                  tooltip: '下一页',
-                  onPressed: _busy || (_results[_sourceId]?.isEmpty ?? true)
-                      ? null
-                      : () => _load(page: _page + 1),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
         ],
       ),
     );
-  }
-
-  void _appendRecommendations(Iterable<Book> books) {
-    if (_source != null || _showChannelPreviews) return;
-    for (final book in books) {
-      if (_recommendedIds.add(
-        '${bookIdentity(book.title)}:${bookIdentity(book.author)}',
-      )) {
-        _recommended.add(book);
-      }
-    }
   }
 
   Iterable<BookSourceEntry> get _orderedResults sync* {
@@ -623,51 +833,118 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     }
   }
 
-  Widget _recommendationControls() {
-    final genres = _recommended
-        .map((book) => book.category)
-        .where((label) => label.isNotEmpty)
-        .toSet()
-        .take(80)
-        .toList();
-    return Wrap(
-      spacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (final (value, label) in const [(false, '推荐'), (true, '按渠道聚合')])
-          ChoiceChip(
-            label: Text(label),
-            selected: _aggregate == value,
-            onSelected: (_) {
-              if (_aggregate == value) return;
-              setState(() => _aggregate = value);
-              unawaited(_load());
-            },
+  Widget _recommendationControls() => Wrap(
+    spacing: 6,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      if (widget.repository.qidian.allowed)
+        ChoiceChip(
+          label: const Text('起点精选'),
+          selected: !_aggregate,
+          onSelected: (_) => _changeAggregate(false),
+        ),
+      ChoiceChip(
+        label: const Text('按渠道聚合'),
+        selected: !_showQidian,
+        onSelected: (_) => _changeAggregate(true),
+      ),
+      if (_showQidian && _qidianSections.isNotEmpty)
+        ActionChip(
+          avatar: const Icon(Icons.grid_view, size: 16),
+          label: Text(
+            _qidianAddress == '/'
+                ? '分类与榜单'
+                : _qidianSections[qidianHome.resolve(_qidianAddress).toString()]
+                          ?.title ??
+                      '分类与榜单',
           ),
-        if (!_aggregate && genres.isNotEmpty)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 210),
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: genres.contains(_genre) ? _genre : '',
-              items: [
-                const DropdownMenuItem(value: '', child: Text('全部分类')),
-                for (final genre in genres)
-                  DropdownMenuItem(
-                    value: genre,
-                    child: Text(genre, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _genre = value),
+          onPressed: _pickQidianSection,
+        ),
+    ],
+  );
+
+  void _changeAggregate(bool value) {
+    if (_aggregate == value) return;
+    setState(() => _aggregate = value);
+    unawaited(
+      widget.repository.store.write(_aggregateKey, value).onError((_, _) {}),
+    );
+    unawaited(_load());
+  }
+
+  List<Widget> _qidianContent(double gutter, double width) {
+    if (_recommended.isNotEmpty || _next != null) {
+      final cachedAt = _qidianCachedAt;
+      return [
+        if (cachedAt != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: gutter),
+              child: Text(
+                '起点暂不可用，显示 ${MaterialLocalizations.of(context).formatShortDate(cachedAt)} 保存的书单',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ),
-      ],
-    );
+        _grid(_recommended, gutter, width),
+        if (cachedAt == null) _pageFooter(),
+      ];
+    }
+    return [
+      SliverFillRemaining(
+        hasScrollBody: false,
+        child: Padding(
+          padding: EdgeInsets.all(gutter),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _error ?? (_busy ? '正在加载起点官网作品…' : '此栏目没有可显示的作品'),
+                textAlign: TextAlign.center,
+              ),
+              if (!_busy && _error != null)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    TextButton(onPressed: _load, child: const Text('重试')),
+                    TextButton(
+                      onPressed: _openQidianWebsite,
+                      child: const Text('在浏览器打开起点'),
+                    ),
+                    if (_enabled.isNotEmpty)
+                      TextButton(
+                        onPressed: () => _changeAggregate(true),
+                        child: const Text('浏览已启用渠道'),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Future<void> _openQidianWebsite() async {
+    if (!widget.repository.qidian.allowed) return;
+    final uri = qidianHome.resolve(_qidianAddress);
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    } on Exception {
+      // Copying keeps the original URL available when external launch fails.
+    }
+    if (mounted) await copyBookLink(context, uri);
   }
 
   List<Widget> _content(double gutter, double width) {
     final source = _source;
     if (source == null && _channelsOnly) return [_channelDirectory(gutter)];
+    if (_showQidian) return _qidianContent(gutter, width);
+    if (source != null) {
+      final books = _results[source.source.id] ?? const <Book>[];
+      if (books.isEmpty && _next == null) return [_empty(gutter)];
+      return [_grid(books, gutter, width), _pageFooter()];
+    }
     final sections = _orderedResults
         .where(
           (entry) =>
@@ -678,25 +955,6 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
         )
         .toList();
     if (sections.isEmpty) return [_empty(gutter)];
-    if (source == null && !_showChannelPreviews) {
-      return [
-        _grid(
-          _recommended
-              .where(
-                (book) =>
-                    _genre == null ||
-                    _genre!.isEmpty ||
-                    book.category == _genre,
-              )
-              .toList(),
-          gutter,
-          width,
-        ),
-      ];
-    }
-    if (source != null) {
-      return [_grid(_results[source.source.id] ?? const [], gutter, width)];
-    }
     return [
       SliverList.builder(
         findChildIndexCallback: (key) {
@@ -723,6 +981,21 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
       ),
     ];
   }
+
+  Widget _pageFooter() => SliverToBoxAdapter(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: Center(
+        child: _moreError != null
+            ? TextButton(onPressed: _loadMore, child: Text('$_moreError · 重试'))
+            : _busy
+            ? const CircularProgressIndicator()
+            : _next == null
+            ? const Text('没有更多作品')
+            : const SizedBox.shrink(),
+      ),
+    ),
+  );
 
   Widget _channelDirectory(double gutter) {
     final channels = _enabled
@@ -758,7 +1031,10 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   Widget _grid(List<Book> books, double gutter, double width) {
     final count = ((width - 2 * gutter + 14) / 162).floor().clamp(2, 7);
     final cardWidth = (width - 2 * gutter - (count - 1) * 14) / count;
-    final textHeight = MediaQuery.textScalerOf(context).scale(13) * 3 + 18;
+    final textHeight = MediaQuery.textScalerOf(context).scale(13) * 4 + 18;
+    final positions = {
+      for (final (index, book) in books.indexed) ValueKey(book.id): index,
+    };
     return SliverPadding(
       padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 24),
       sliver: SliverGrid.builder(
@@ -769,12 +1045,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
           mainAxisSpacing: 18,
         ),
         itemCount: books.length,
-        findChildIndexCallback: (key) {
-          final index = books.indexWhere(
-            (book) => book.id == (key as ValueKey<String>).value,
-          );
-          return index < 0 ? null : index;
-        },
+        findChildIndexCallback: (key) => positions[key],
         itemBuilder: (context, index) => _card(books[index]),
       ),
     );
@@ -816,10 +1087,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
             if (_enabled.isEmpty)
               TextButton(onPressed: widget.onManage, child: const Text('管理书源'))
             else if (!_busy && (_error != null || _failures.isNotEmpty))
-              TextButton(
-                onPressed: () => _load(page: _page),
-                child: const Text('重试'),
-              ),
+              TextButton(onPressed: _load, child: const Text('重试')),
           ],
         ),
       ),
@@ -834,7 +1102,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     final theme = Theme.of(context);
     final source = entry.source;
     final preview = books.take(10).toList();
-    final height = 190 + MediaQuery.textScalerOf(context).scale(13) * 3 + 18;
+    final height = 190 + MediaQuery.textScalerOf(context).scale(13) * 4 + 18;
     return Padding(
       key: ValueKey(source.id),
       padding: const EdgeInsets.only(top: 12, bottom: 14),
@@ -901,10 +1169,14 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     key: ValueKey(book.id),
     book: book,
     repository: widget.repository,
-    onTap: () => widget.onOpen(
-      book,
-      direct: _direct && (_sourceId != null || _aggregate),
-    ),
+    onTap: () {
+      final recommendation = book.sourceId == qidianRecommendationId;
+      if (recommendation && !widget.repository.qidian.allows(book)) return;
+      widget.onOpen(
+        book,
+        direct: !recommendation && _direct && (_sourceId != null || _aggregate),
+      );
+    },
   );
 }
 
@@ -1010,9 +1282,16 @@ final class _DiscoveryBookCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: ExcludeSemantics(
-                child: BookCover(book: book, repository: repository),
-              ),
+              child: book.sourceId == qidianRecommendationId
+                  ? QidianBookPreview(
+                      book: book,
+                      catalog: repository.qidian,
+                      onOpen: onTap,
+                      child: BookCover(book: book, repository: repository),
+                    )
+                  : ExcludeSemantics(
+                      child: BookCover(book: book, repository: repository),
+                    ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1021,6 +1300,19 @@ final class _DiscoveryBookCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleSmall,
             ),
+            if (book.rankLabel.isNotEmpty ||
+                book.wordCount.isNotEmpty ||
+                book.updatedLabel.isNotEmpty)
+              Text(
+                [
+                  if (book.rankLabel.isNotEmpty) '第 ${book.rankLabel} 名',
+                  book.wordCount,
+                  book.updatedLabel,
+                ].where((part) => part.isNotEmpty).join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
             if (book.author.isNotEmpty)
               Text(
                 book.author,

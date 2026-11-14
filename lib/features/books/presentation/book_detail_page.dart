@@ -1,16 +1,19 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../../app/app_services.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../supervision/domain/supervision_rules.dart';
 import '../data/books_repository.dart';
 import '../domain/book.dart';
 import 'book_reader_page.dart';
 import 'book_page_route.dart';
 import 'rich_reader_page.dart';
 import 'book_cover.dart';
+import 'book_links.dart';
 import 'audiobook_player_page.dart';
 import 'book_download_dialog.dart';
 import 'book_source_favorite.dart';
@@ -40,7 +43,6 @@ final class _BookDetailPageState extends State<BookDetailPage> {
   List<BookChapter> _chapters = [];
   Set<String> _saved = {};
   String? _last, _error;
-  Map? _publication;
   String _chapterQuery = '';
   bool _favorite = false, _busy = false, _offline = false;
   bool _openingReader = false;
@@ -52,6 +54,8 @@ final class _BookDetailPageState extends State<BookDetailPage> {
   bool _sourceUnavailable = false;
   final _catalogScroll = ScrollController();
   final _catalogHeader = GlobalKey();
+  final _directoryHeader = GlobalKey();
+  static const _chapterExtent = 58.0;
   final _filter = TextEditingController();
   int _finished = 0, _total = 0;
   CancellationToken? _token;
@@ -118,30 +122,23 @@ final class _BookDetailPageState extends State<BookDetailPage> {
       _sourceUnavailable = false;
     });
     final existing = await _books.store.entry(_book);
-    final publication = await _books.store.read('publication_${_book.id}');
-    if (mounted && publication is Map) {
-      setState(() => _publication = publication);
-    }
     final plan = BookDownloadPlan.fromJson(
       await _books.store.read('books_download:${_book.id}'),
     );
-    List<BookChapter> chapters;
-    try {
-      chapters = await _books.chapters(_book, token, refresh: refresh);
-    } on Exception {
-      if (mounted && !token.isCancelled && !_local) {
-        setState(() => _sourceUnavailable = true);
-      }
-      rethrow;
-    }
+    final details = _loadDetails(token);
+    Object? catalogError;
+    final chapters = await _books
+        .chapters(_book, token, refresh: refresh)
+        .onError((Exception error, _) {
+          catalogError = error;
+          return <BookChapter>[];
+        });
     final saved = _audio
         ? await _books.audioFiles.saved(_book)
         : await _books.store.savedText(_book);
     if (!mounted || token.isCancelled) return;
     setState(() {
-      _chapters = chapters.isEmpty && refresh
-          ? existing?.chapters ?? []
-          : chapters;
+      _chapters = chapters.isEmpty ? existing?.chapters ?? [] : chapters;
       _saved = saved;
       _last = existing?.last;
       _favorite = existing?.favorite ?? false;
@@ -153,17 +150,24 @@ final class _BookDetailPageState extends State<BookDetailPage> {
           !_local && (chapters.isEmpty || channel?.enabled != true);
     });
     if (refresh && chapters.isNotEmpty && existing != null) {
+      token.check();
       if (existing.following) {
         await _books.store.updateFollowedChapters(_book, chapters);
       } else {
         await _books.store.saveBook(_book, chapters: chapters);
       }
     }
+    await details;
+    if (catalogError case final Object error) throw error;
+  }
+
+  Future<void> _loadDetails(CancellationToken token) async {
+    if (_local) return;
     try {
       final details = await _books.details(_book, token);
       if (mounted && !token.isCancelled) setState(() => _book = details);
     } on Exception {
-      token.check();
+      // Catalog access and saved progress can remain available independently.
     }
   }
 
@@ -280,6 +284,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
         : _books.matchingChapter(chosen.chapters, last);
     if (_favorite || next != null) {
       final previous = await _books.store.entry(_book);
+      token.check();
       await _books.store.saveBook(
         chosen.book,
         chapters: chosen.chapters,
@@ -319,17 +324,17 @@ final class _BookDetailPageState extends State<BookDetailPage> {
     ],
   );
 
+  Iterable<BookChapter> _downloadRange(BookDownloadPlan plan) {
+    final ids = plan.chapterIds?.toSet();
+    if (ids != null) {
+      return _chapters.where((chapter) => ids.contains(chapter.id));
+    }
+    return _chapters.skip(plan.first - 1).take(plan.last - plan.first + 1);
+  }
+
   Future<void> _download(BookDownloadPlan plan, {bool keepPlan = true}) =>
       _run((token) async {
-        final storedIds = plan.chapterIds?.toSet();
-        final range = storedIds != null
-            ? _chapters
-                  .where((chapter) => storedIds.contains(chapter.id))
-                  .toList()
-            : _chapters
-                  .skip(plan.first - 1)
-                  .take(plan.last - plan.first + 1)
-                  .toList();
+        final range = _downloadRange(plan);
         final chapters = range
             .where((chapter) => !_saved.contains(chapter.id))
             .toList();
@@ -363,38 +368,64 @@ final class _BookDetailPageState extends State<BookDetailPage> {
           _total = chapters.length;
           _finished = 0;
         });
-        List<BookEdition>? alternatives;
-        var failures = 0;
-        try {
-          for (final chapter in chapters) {
+        Future<List<BookEdition>>? alternatives;
+        var failures = 0, cursor = 0;
+        Future<void> downloadChapters() async {
+          while (cursor < chapters.length) {
+            final chapter = chapters[cursor++];
             token.check();
             try {
               try {
                 await _books.download(_book, chapter, token);
+              } on ContentBlocked {
+                rethrow;
               } on Exception {
                 token.check();
                 if (!plan.fallback) rethrow;
-                alternatives ??= await _books.alternatives(_book, token);
+                final editions = await (alternatives ??= _books.alternatives(
+                  _book,
+                  token,
+                ));
                 await _books.download(
                   _book,
                   chapter,
                   token,
-                  alternatives: alternatives,
+                  alternatives: editions,
                   tryOriginal: false,
                 );
               }
-              if (mounted) setState(() => _saved.add(chapter.id));
+              if (mounted && !token.isCancelled) {
+                setState(() => _saved.add(chapter.id));
+              }
             } on Exception {
               token.check();
               failures++;
             }
-            if (mounted) setState(() => _finished++);
+            if (mounted && !token.isCancelled) setState(() => _finished++);
           }
+        }
+
+        try {
+          await Future.wait(
+            List.generate(
+              math.min(_audio ? 1 : 3, chapters.length),
+              (_) => downloadChapters(),
+            ),
+          );
+          token.check();
           if (failures == 0 && keepPlan) {
             await _books.store.write(key, null);
             if (mounted) setState(() => _plan = null);
           }
           _toast('已完成 ${chapters.length - failures} 章，失败 $failures 章');
+        } on RequestCancelled {
+          if (mounted && keepPlan) {
+            final saved = _audio
+                ? await _books.audioFiles.saved(_book)
+                : await _books.store.savedText(_book);
+            if (mounted) setState(() => _saved = saved);
+            _toast('下载已暂停');
+          }
         } finally {
           if (mounted) setState(() => _total = 0);
         }
@@ -435,17 +466,80 @@ final class _BookDetailPageState extends State<BookDetailPage> {
       );
       final header = _catalogHeader.currentContext?.size?.height;
       if (index < 0 || header == null) return;
-      final position = _catalogScroll.position;
-      final offset = (header + index * 58).clamp(0.0, position.maxScrollExtent);
+      _scrollCatalogTo(header + index * _chapterExtent);
+    });
+  }
+
+  void _scrollCatalogTo(double offset) {
+    if (!_catalogScroll.hasClients) return;
+    final target = offset.clamp(0.0, _catalogScroll.position.maxScrollExtent);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _catalogScroll.jumpTo(target);
+    } else {
       unawaited(
         _catalogScroll.animateTo(
-          offset,
+          target,
           duration: const Duration(milliseconds: 240),
           curve: Curves.easeOut,
         ),
       );
-    });
+    }
   }
+
+  void _showDirectory() {
+    final header = _catalogHeader.currentContext?.size?.height;
+    final toolbar = _directoryHeader.currentContext?.size?.height;
+    if (header != null && toolbar != null) _scrollCatalogTo(header - toolbar);
+  }
+
+  Widget _directoryMenu(bool hasCurrent) => PopupMenuButton<String>(
+    tooltip: '章节导航',
+    icon: const Icon(Icons.format_list_bulleted),
+    onSelected: (action) {
+      switch (action) {
+        case 'directory':
+          _showDirectory();
+        case 'current':
+          _jumpToCurrent();
+        case 'top':
+          _scrollCatalogTo(0);
+      }
+    },
+    itemBuilder: (_) => [
+      const PopupMenuItem(value: 'directory', child: Text('章节目录')),
+      PopupMenuItem(
+        value: 'current',
+        enabled: hasCurrent,
+        child: const Text('定位当前章节'),
+      ),
+      const PopupMenuItem(value: 'top', child: Text('目录回顶')),
+    ],
+  );
+
+  Widget _workActions() => PopupMenuButton<String>(
+    tooltip: '作品操作',
+    enabled: !_busy,
+    onSelected: (value) {
+      switch (value) {
+        case 'copyBook':
+          copyBookLink(context, _book.uri);
+        case 'copySource':
+          final source = _channel?.source;
+          if (source != null) copyBookLink(context, source.endpoint);
+        case 'source':
+          _changeSource();
+        case 'refresh':
+          _run((token) => _load(token, refresh: true));
+      }
+    },
+    itemBuilder: (_) => [
+      const PopupMenuItem(value: 'copyBook', child: Text('复制书籍网页链接')),
+      if (_channel != null)
+        const PopupMenuItem(value: 'copySource', child: Text('复制渠道链接')),
+      const PopupMenuItem(value: 'source', child: Text('换源')),
+      const PopupMenuItem(value: 'refresh', child: Text('刷新目录')),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -463,10 +557,12 @@ final class _BookDetailPageState extends State<BookDetailPage> {
             ),
           if (_busy)
             IconButton(
-              tooltip: '取消当前操作',
+              tooltip: _total > 0 ? '暂停下载' : '取消当前操作',
               onPressed: () => _token?.cancel(),
               icon: const Icon(Icons.stop_circle_outlined),
             ),
+          if (_books.bookAllowed(_book) && _chapters.isNotEmpty)
+            _directoryMenu(last != null),
           if (_books.bookAllowed(_book) && _channel != null)
             BookSourceFavorite(
               key: ValueKey(_channel!.source.id),
@@ -479,18 +575,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
                 widget.onSourceFavorite?.call(entry.source.id, value);
               },
             ),
-          if (!_local && _books.bookAllowed(_book))
-            PopupMenuButton<String>(
-              tooltip: '作品操作',
-              enabled: !_busy,
-              onSelected: (value) => value == 'source'
-                  ? _changeSource()
-                  : _run((token) => _load(token, refresh: true)),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'source', child: Text('换源')),
-                PopupMenuItem(value: 'refresh', child: Text('刷新目录')),
-              ],
-            ),
+          if (!_local && _books.bookAllowed(_book)) _workActions(),
         ],
       ),
       body: !_books.bookAllowed(_book)
@@ -533,7 +618,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
                   )
                 else
                   SliverFixedExtentList.builder(
-                    itemExtent: 58,
+                    itemExtent: _chapterExtent,
                     itemCount: visible.length,
                     itemBuilder: (_, index) => _chapter(visible[index]),
                   ),
@@ -555,6 +640,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
   );
 
   Widget _directoryToolbar() => Padding(
+    key: _directoryHeader,
     padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
     child: Column(
       children: [
@@ -594,13 +680,6 @@ final class _BookDetailPageState extends State<BookDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _bookHeading(),
-        if (_publication != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              '语种：${_publication!['language'] ?? ''}  版本：${_publication!['version'] ?? ''}\n译者／贡献者：${_publication!['translator'] ?? _publication!['author'] ?? ''}\n许可：${_publication!['license'] ?? '原书声明'}',
-            ),
-          ),
         if (_book.description.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
@@ -621,6 +700,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
           Text(
             '当前进度  ${last.title}${_audio ? '' : ' · ${(_position.clamp(0, 1) * 100).round()}%'}',
           ),
+        if (_book.rankLabel.isNotEmpty) Text('排行榜  第 ${_book.rankLabel} 名'),
         if (_book.updatedLabel.isNotEmpty) Text('更新时间  ${_book.updatedLabel}'),
         if (_book.updatedLabel.isEmpty && _chapterUpdatedAt != null)
           Text(
@@ -707,7 +787,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
                 _book.category,
                 _local ? '本地电子书' : _channel?.source.name ?? _book.uri.host,
                 if (_chapters.isNotEmpty) '${_chapters.length} 章',
-                if (_book.wordCount.isNotEmpty) '${_book.wordCount} 字数',
+                if (_book.wordCount.isNotEmpty) '字数 ${_book.wordCount}',
               ].where((x) => x.isNotEmpty).join(' · '),
             ),
           ],

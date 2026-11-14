@@ -1,12 +1,16 @@
 final class LegadoCategory {
-  const LegadoCategory(this.title, this.address);
+  const LegadoCategory(this.title, this.address, {this.group = ''});
 
-  final String title, address;
+  final String title, address, group;
 
-  bool get paginated =>
-      RegExp(r'\{\{[^}]*\bpage\b|<[^<>]*,[^<>]*>').hasMatch(address);
+  bool get paginated => RegExp(
+    r'\{\{[^}]*\bpage\b|<[^<>]*,[^<>]*>|(?:@js:|<js>)[\s\S]*\bpage\b',
+    caseSensitive: false,
+  ).hasMatch(address);
 
-  Object toJson() => title.isEmpty ? address : {'title': title, 'url': address};
+  Object toJson() => title.isEmpty && group.isEmpty
+      ? address
+      : {'title': title, 'url': address, if (group.isNotEmpty) 'group': group};
 }
 
 /// The subset of the original source that participates in book and feed requests.
@@ -15,7 +19,7 @@ final class LegadoSource {
     : search = _string(data['search'], 64 * 1024),
       library = _string(data['library'], 256 * 1024),
       comment = _string(data['comment'], 64 * 1024),
-      categories = _explore(data['explore']),
+      categories = readCategories(data['explore']),
       enabledExplore = data['enabledExplore'] != false,
       bookUrlPattern = _string(data['bookUrlPattern'], 4096),
       rules = _strings(data['rules'], 48, 64 * 1024),
@@ -49,7 +53,7 @@ final class LegadoSource {
     return value.trim();
   }
 
-  static List<LegadoCategory> _explore(Object? input) {
+  static List<LegadoCategory> readCategories(Object? input) {
     if (input == null) return const [];
     if (input is! List || input.length > 512) {
       throw const FormatException('Legado 发现分类数量无效');
@@ -60,6 +64,7 @@ final class LegadoSource {
           return LegadoCategory(
             _string(item['title'], 160),
             _string(item['url'], 64 * 1024),
+            group: _string(item['group'], 160),
           );
         }
         return LegadoCategory('', _string(item, 64 * 1024));

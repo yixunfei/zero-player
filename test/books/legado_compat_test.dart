@@ -84,7 +84,97 @@ void main() {
 
   _rules();
   _requestIdentity();
+  _discoveryBoundary();
   _refresh();
+}
+
+void _discoveryBoundary() {
+  test('grouped discovery preserves every result and the next request', () async {
+    final source = parseBookSourceRecord({
+      'bookSourceName': '榜单样本',
+      'bookSourceUrl': 'https://example.test',
+      'exploreUrl': [
+        {'title': '榜单', 'url': ''},
+        {
+          'title': '月票',
+          'url':
+              r'/api/rank,{"method":"POST","body":{"offset":"{{(page-1)*20}}"}}',
+        },
+        {'title': '分类', 'url': ''},
+        {'title': '科幻', 'url': '/science'},
+      ],
+      'ruleExplore': {
+        'bookList': r'$.books[*]',
+        'name': r'$.title',
+        'bookUrl': r'$.url',
+        'rank': r'$.rank',
+        'wordCount': r'$.size',
+        'updateTime': r'$.update',
+        'nextPageUrl': r'$.next',
+      },
+      'ruleContent': {'content': '.content@text'},
+    });
+    final categories = source.legado!.categories;
+    expect(categories.map((item) => (item.group, item.title)), [
+      ('榜单', '月票'),
+      ('分类', '科幻'),
+    ]);
+    final request = LegadoRequest.parse(
+      source,
+      source.endpoint,
+      categories.first.address,
+      page: 2,
+    );
+    expect(request.uri.path, '/api/rank');
+    expect(request.json, {'offset': '20'});
+    final books = [
+      for (var i = 0; i < 137; i++)
+        {
+          'title': '书目 $i',
+          'url': '/book/$i',
+          'rank': '$i',
+          if (i == 1) 'size': '80万字',
+          if (i == 1) 'update': '昨天',
+        },
+    ];
+    final result = await runLegadoJob(
+      LegadoJob(
+        source,
+        request.uri,
+        LegadoOperation.books,
+        discovery: true,
+        input: jsonEncode({
+          'books': [...books, books.first],
+          'next': '/api/rank?cursor=4',
+        }),
+      ),
+      CancellationToken(),
+    );
+    expect(result.books, hasLength(137));
+    expect(result.books[1].rankLabel, '1');
+    expect(result.books[1].wordCount, '80万字');
+    expect(result.books[1].updatedLabel, '昨天');
+    expect(result.books.last.wordCount, isEmpty);
+    expect(result.links, ['/api/rank?cursor=4']);
+    await expectLater(
+      runLegadoJob(
+        LegadoJob(
+          source,
+          source.endpoint,
+          LegadoOperation.content,
+          input: '<div class="content"><img src="/page.jpg"></div>',
+        ),
+        CancellationToken(),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('仅提供图片'),
+        ),
+      ),
+    );
+  });
 }
 
 void _requestIdentity() {

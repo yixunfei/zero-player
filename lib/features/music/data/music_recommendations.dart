@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
+import 'music_catalog_api.dart';
+import 'music_chart_catalog.dart';
 import 'music_collections.dart';
 import 'music_discovery_sources.dart';
 export 'music_discovery_sources.dart' show musicHomepages;
@@ -11,6 +13,7 @@ import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../../../core/persistence/app_database.dart';
 import '../../../core/text/display_text.dart';
+import '../../supervision/domain/supervision_rules.dart';
 
 const musicCharts = {
   'hot': '热歌榜',
@@ -61,19 +64,7 @@ List<MusicRecommendation> parseMusicRecommendations(Object? raw) {
   if (list is! Map || list['tracks'] is! List) {
     throw const FormatException('推荐音乐列表格式已变更');
   }
-  return [
-    for (final row in (list['tracks'] as List).take(80).whereType<Map>())
-      MusicRecommendation(
-        displayText('${row['name'] ?? ''}'),
-        _rows(
-          row['artists'] ?? row['ar'],
-        ).map((a) => displayText('${a['name'] ?? ''}')).join(' / '),
-        musicThumbnail(
-          '${(row['album'] ?? row['al'] as Object?) is Map ? ((row['album'] ?? row['al']) as Map)['picUrl'] ?? '' : ''}',
-        ),
-        description: _albumName(row['album'] ?? row['al']),
-      ),
-  ].where((item) => item.title.isNotEmpty).toList();
+  return parseNeteaseChartSongs(list['tracks'] as List);
 }
 
 List<MusicRecommendation> parseWfuRecommendations(String body) {
@@ -103,13 +94,23 @@ final class MusicRecommendations extends ChangeNotifier {
     Uri? endpoint,
     this.requestTimeout = const Duration(seconds: 6),
     this.homeEndpoints = const {},
-  }) : endpoint = endpoint ?? Uri.parse('https://music.163.com');
+    MusicChartCatalog? chartCatalog,
+    this.sourceAllowed,
+    this.textAllowed,
+  }) : endpoint = endpoint ?? Uri.https('music.163.com'),
+       chartCatalog =
+           chartCatalog ??
+           MusicChartCatalog(MusicCatalogApi(network, netease: endpoint));
   final DocumentClient network;
   final AppDatabase db;
   final Uri endpoint;
   final Duration requestTimeout;
   final Map<String, Uri> homeEndpoints;
-  final _memory = <String, ({int time, List<MusicRecommendation> items})>{};
+  final MusicChartCatalog chartCatalog;
+  final bool Function(String provider)? sourceAllowed;
+  final bool Function(String text)? textAllowed;
+  final _memory =
+      <String, ({int time, MusicCatalogPage<MusicRecommendation> page})>{};
   Future<void>? _initial;
   Future<void> _writes = Future.value();
   List<MusicRecommendation> items = [];
@@ -121,6 +122,24 @@ final class MusicRecommendations extends ChangeNotifier {
   bool loading = false;
   bool showingFallback = false;
   String? notice;
+  String? pageError;
+  int? _next;
+  int? total;
+  bool get hasMore => _next != null;
+  bool get visible => showingFallback || _allowed(chart);
+  MusicChartSongs? _readPage;
+  String chartPlatform = 'neteasePlaylist';
+  final _directories = <String, List<MusicCatalogOption>>{};
+  List<MusicCatalogOption> get charts => _sourceAllowed(chartPlatform)
+      ? (_directories[chartPlatform] ?? [])
+            .where(
+              (item) => textAllowed?.call('${item.group} ${item.name}') ?? true,
+            )
+            .toList()
+      : [];
+  bool chartDirectoryLoading = false;
+  String? chartDirectoryError;
+  CancellationToken? _directoryRequest;
   CancellationToken? _request;
   bool _closed = false;
 
@@ -130,50 +149,43 @@ final class MusicRecommendations extends ChangeNotifier {
       final rows = await db.rows(
         "SELECT value FROM app_meta WHERE key='music_discovery_homepage'",
       );
-      if (_closed || _request != null) return;
+      if (_closed || _request != null || _directoryRequest != null) return;
       if (rows.isNotEmpty && musicHomepages.containsKey(rows.first['value'])) {
         homepage = rows.first['value'] as String;
       }
     } catch (_) {
       // Local preference failure must not prevent browsing.
     }
-    if (!_closed && _request == null) await load(homepage);
+    if (!_closed && _request == null && _directoryRequest == null) {
+      await load(homepage);
+    }
   }
 
   Future<void> load(String value, {bool refresh = false}) async {
     if (_closed ||
         !(musicHomepages.containsKey(value) ||
             musicCharts.containsKey(value) ||
-            musicCollections.containsKey(value))) {
+            musicCollections.containsKey(value) ||
+            _chartFor(value) != null)) {
       return;
     }
     if (loading && chart == value && !refresh) return;
+    _directoryRequest?.cancel();
+    chartDirectoryLoading = false;
     _request?.cancel();
     final token = _request = CancellationToken();
     final previous = chart;
     chart = value;
     loading = true;
     notice = null;
+    pageError = null;
     if (previous != value) {
       items = [];
       showingFallback = false;
+      _next = total = null;
+      _readPage = null;
     }
-    if (musicHomepages.containsKey(value)) {
-      homepage = value;
-      _writes = _writes
-          .then(
-            (_) => db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
-              'music_discovery_homepage',
-              value,
-            ]),
-          )
-          .catchError((Object _) {
-            if (!_closed && chart == value) {
-              notice = '发现来源未能保存，本次仍可浏览。';
-              notifyListeners();
-            }
-          });
-    }
+    if (musicHomepages.containsKey(value)) _rememberHomepage(value);
     final collection = musicCollections[value];
     if (collection != null) {
       items = collection.songs;
@@ -185,32 +197,50 @@ final class MusicRecommendations extends ChangeNotifier {
     }
     notifyListeners();
     try {
-      final saved = _memory[value] ?? await _readCache(value);
+      if (!_allowed(value)) throw const ContentBlocked();
+      final selected = _chartFor(value);
+      final saved = selected == null
+          ? _memory[value] ?? await _readCache(value)
+          : null;
       token.check();
-      if (saved != null && saved.items.isNotEmpty) {
-        items = saved.items;
-        showingFallback = false;
+      if (saved != null && saved.page.items.isNotEmpty) {
+        if (previous != value || items.isEmpty || showingFallback) {
+          _setPage(saved.page);
+        }
         final age = DateTime.now().millisecondsSinceEpoch - saved.time;
         if (!refresh && age >= 0 && age < 3600000) return;
       }
-      if (items.isEmpty) {
+      if (items.isEmpty && musicHomepages.containsKey(value)) {
         items = musicCollections['mandarin']!.songs;
         showingFallback = true;
         notice = '推荐加载中，可以先听编辑精选，或切换发现来源。';
       }
       notifyListeners();
-      final result = await _fetch(value, token);
+      final readPage = selected == null
+          ? null
+          : await chartCatalog.open(chartPlatform, selected.id, token);
+      final result = readPage == null
+          ? await _fetch(value, token)
+          : await readPage(0, token);
       token.check();
-      if (result.isEmpty) throw const FormatException('没有可显示的推荐音乐');
-      items = result;
-      showingFallback = false;
-      notice = null;
-      await _saveCache(value, result);
-    } catch (_) {
+      if (!_allowed(value)) throw const ContentBlocked();
+      if (result.items.isEmpty && result.next == null) {
+        throw const FormatException('没有可显示的推荐音乐');
+      }
+      _readPage = readPage;
+      _setPage(result);
+      if (selected == null) await _saveCache(value, result);
+    } catch (failure) {
       if (!_closed && !token.isCancelled) {
-        notice = showingFallback
+        notice = failure is ContentBlocked
+            ? '当前平台已被过滤'
+            : showingFallback
             ? '当前来源暂不可用，先浏览编辑精选；可切换来源或重试。'
-            : '推荐更新失败，正在显示本机缓存。';
+            : items.isEmpty
+            ? '当前栏目暂不可用，请重试。'
+            : _chartFor(value) == null
+            ? '推荐更新失败，正在显示本机缓存。'
+            : '榜单更新失败，已保留当前曲目。';
       }
     } finally {
       if (!_closed && !token.isCancelled) {
@@ -220,7 +250,152 @@ final class MusicRecommendations extends ChangeNotifier {
     }
   }
 
-  Future<({int time, List<MusicRecommendation> items})?> _readCache(
+  void _rememberHomepage(String value) {
+    homepage = value;
+    _writes = _writes
+        .then(
+          (_) => db.write('INSERT OR REPLACE INTO app_meta VALUES(?,?)', [
+            'music_discovery_homepage',
+            value,
+          ]),
+        )
+        .catchError((Object _) {
+          if (!_closed && chart == value) {
+            notice = '发现来源未能保存，本次仍可浏览。';
+            notifyListeners();
+          }
+        });
+  }
+
+  bool _sourceAllowed(String? provider) =>
+      provider == null || (sourceAllowed?.call(provider) ?? true);
+  bool _allowed(String value) =>
+      _sourceAllowed(_providerFor(value)) &&
+      (!value.startsWith('chart:') ||
+          value.endsWith(':') ||
+          _chartFor(value) != null);
+
+  String? _providerFor(String value) => switch (value) {
+    'qqHome' => 'qqPlaylist',
+    'appleHome' => 'appleHome',
+    'wfu' => 'wfu',
+    'home' || 'hot' || 'new' || 'original' || 'rising' => 'neteasePlaylist',
+    _ => value.startsWith('chart:') ? value.split(':')[1] : null,
+  };
+
+  MusicCatalogOption? _chartFor(String value) {
+    for (final option in charts) {
+      if (value == 'chart:$chartPlatform:${option.id}') return option;
+    }
+    return null;
+  }
+
+  MusicCatalogOption? get selectedChart => _chartFor(chart);
+  Uri? get chartUri => selectedChart == null
+      ? null
+      : chartCatalog.uri(chartPlatform, selectedChart!.id);
+
+  Future<void> selectChartPlatform(
+    String provider, {
+    bool refresh = false,
+  }) async {
+    if (_closed || !musicCatalogPlatforms.containsKey(provider)) return;
+    if (chartDirectoryLoading && chartPlatform == provider && !refresh) return;
+    _directoryRequest?.cancel();
+    _request?.cancel();
+    final token = _directoryRequest = CancellationToken();
+    final previous = selectedChart?.id;
+    chartPlatform = provider;
+    chart = 'chart:$provider:';
+    items = [];
+    _next = total = null;
+    _readPage = null;
+    notice = pageError = chartDirectoryError = null;
+    showingFallback = loading = false;
+    chartDirectoryLoading = true;
+    notifyListeners();
+    try {
+      if (!_sourceAllowed(provider)) throw const ContentBlocked();
+      if (refresh || !_directories.containsKey(provider)) {
+        final options = await chartCatalog.charts(provider, token);
+        token.check();
+        _directories[provider] = options;
+      }
+    } catch (failure) {
+      if (!_closed && !token.isCancelled) {
+        chartDirectoryError = failure is ContentBlocked
+            ? '当前平台已被过滤'
+            : '榜单目录暂不可用';
+      }
+    } finally {
+      if (!_closed && !token.isCancelled) {
+        chartDirectoryLoading = false;
+        final options = charts;
+        if (options.isNotEmpty) {
+          await selectChart(
+            options.firstWhere(
+              (item) => item.id == previous,
+              orElse: () => options.first,
+            ),
+          );
+        } else {
+          notifyListeners();
+        }
+      }
+    }
+  }
+
+  Future<void> selectChart(MusicCatalogOption option) =>
+      load('chart:$chartPlatform:${option.id}');
+
+  void _setPage(MusicCatalogPage<MusicRecommendation> page) {
+    items = page.items;
+    _next = page.next;
+    total = page.total;
+    showingFallback = false;
+    notice = null;
+  }
+
+  Future<void> loadMore() async {
+    final cursor = _next;
+    if (_closed || loading || cursor == null || !visible) return;
+    final token = _request = CancellationToken();
+    final readPage = _readPage;
+    loading = true;
+    pageError = null;
+    notifyListeners();
+    try {
+      final page = await (readPage == null
+          ? chartCatalog.qqSongs('26', cursor, token)
+          : readPage(cursor, token));
+      token.check();
+      if (!visible) throw const ContentBlocked();
+      Object key(MusicRecommendation item) =>
+          item.id.isEmpty ? (item.title, item.artist) : item.id;
+      final known = items.map(key).toSet();
+      final added = page.items.where((item) => known.add(key(item))).toList();
+      items = [...items, ...added];
+      final next = page.next;
+      _next =
+          next != null &&
+              next > cursor &&
+              (added.isNotEmpty || page.items.isEmpty)
+          ? next
+          : null;
+      total = page.total ?? total;
+    } catch (failure) {
+      if (!_closed && !token.isCancelled) {
+        pageError = failure is ContentBlocked ? '当前平台已被过滤' : '下一页曲目加载失败';
+      }
+    } finally {
+      if (!_closed && !token.isCancelled) {
+        loading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<({int time, MusicCatalogPage<MusicRecommendation> page})?> _readCache(
     String value,
   ) async {
     try {
@@ -231,18 +406,22 @@ final class MusicRecommendations extends ChangeNotifier {
       final saved = jsonDecode(rows.first['value'] as String) as Map;
       return _memory[value] = (
         time: saved['time'] as int,
-        items: (saved['items'] as List)
-            .take(80)
-            .cast<Map>()
-            .map(MusicRecommendation.fromJson)
-            .toList(),
+        page: (
+          items: (saved['items'] as List)
+              .take(80)
+              .cast<Map>()
+              .map(MusicRecommendation.fromJson)
+              .toList(),
+          next: value == 'qqHome' ? musicCatalogCount(saved['next']) : null,
+          total: musicCatalogCount(saved['total']),
+        ),
       );
     } catch (_) {
       return null;
     }
   }
 
-  Future<List<MusicRecommendation>> _fetch(
+  Future<MusicCatalogPage<MusicRecommendation>> _fetch(
     String value,
     CancellationToken token,
   ) async {
@@ -275,13 +454,14 @@ final class MusicRecommendations extends ChangeNotifier {
             },
           );
       token.check();
-      return switch (value) {
-        'qqHome' => parseQqHomepage(doc.json),
+      if (value == 'qqHome') return parseQqHomepagePage(doc.json);
+      final items = switch (value) {
         'appleHome' => parseAppleHomepage(doc.json),
         'home' => parseHomepageSongs(doc.json),
         'wfu' => parseWfuRecommendations(doc.text),
         _ => parseMusicRecommendations(doc.json),
       };
+      return (items: items, next: null, total: null);
     } finally {
       unlink();
       request.cancel();
@@ -290,9 +470,9 @@ final class MusicRecommendations extends ChangeNotifier {
 
   Future<void> _saveCache(
     String value,
-    List<MusicRecommendation> result,
+    MusicCatalogPage<MusicRecommendation> page,
   ) async {
-    final saved = (time: DateTime.now().millisecondsSinceEpoch, items: result);
+    final saved = (time: DateTime.now().millisecondsSinceEpoch, page: page);
     _memory[value] = saved;
     _writes = _writes
         .then(
@@ -300,7 +480,9 @@ final class MusicRecommendations extends ChangeNotifier {
             'music_recommendation:$value',
             jsonEncode({
               'time': saved.time,
-              'items': result.map((i) => i.toJson()).toList(),
+              'items': page.items.map((i) => i.toJson()).toList(),
+              'next': page.next,
+              'total': page.total,
             }),
           ]),
         )
@@ -314,6 +496,7 @@ final class MusicRecommendations extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     _request?.cancel();
+    _directoryRequest?.cancel();
     super.dispose();
     await _initial;
     await _writes;

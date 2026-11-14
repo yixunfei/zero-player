@@ -14,6 +14,7 @@ import 'package:zero_player/features/books/data/book_import.dart';
 import 'package:zero_player/features/books/data/books_repository.dart';
 import 'package:zero_player/features/books/domain/book.dart';
 import 'package:zero_player/features/books/domain/legado_source.dart';
+import 'package:zero_player/features/books/presentation/book_discovery_view.dart';
 import 'package:zero_player/features/books/presentation/book_category_picker.dart';
 import 'package:zero_player/features/books/presentation/book_detail_page.dart';
 import 'package:zero_player/features/books/presentation/book_search_page.dart';
@@ -40,6 +41,158 @@ void main() {
     skip: !const bool.fromEnvironment('RUN_AOAOSTAR_ONLINE'),
     timeout: const Timeout(Duration(minutes: 2)),
   );
+  testWidgets(
+    'Sudugu category, next page, ranked metadata, directory and text',
+    (tester) => _withServices((services) => _sudugu(services, tester)),
+    skip: !const bool.fromEnvironment('RUN_NOVELS_ONLINE'),
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+  testWidgets(
+    'long directory navigation stays available and restores current chapter',
+    (tester) => _withServices((services) => _longDirectory(services, tester)),
+  );
+}
+
+Future<void> _sudugu(AppServices services, WidgetTester tester) async {
+  final repo = services.books;
+  final entry = (await repo.sources(
+    BookKind.text,
+  )).singleWhere((entry) => entry.source.name == '速读谷');
+  final token = CancellationToken();
+  final categories = await repo.categories(
+    BookKind.text,
+    entry.source.id,
+    token,
+  );
+  final fantasy = categories.singleWhere((category) => category.title == '玄幻');
+  final ranking = categories.singleWhere((category) => category.title == '排行榜');
+  final first = await repo.discover(
+    BookKind.text,
+    entry.source.id,
+    token,
+    category: fantasy,
+  );
+  expect(first.books.length, greaterThan(8));
+  expect(Uri.parse(first.next!).path, '/xuanhuan/2.html');
+  final second = await repo.discover(
+    BookKind.text,
+    entry.source.id,
+    token,
+    category: fantasy,
+    page: 2,
+    cursor: first.next,
+  );
+  expect(
+    second.books.any((book) => !first.books.any((old) => book.id == old.id)),
+    isTrue,
+  );
+  final ranked = await repo.discover(
+    BookKind.text,
+    entry.source.id,
+    token,
+    category: ranking,
+  );
+  expect(ranked.books.first.rankLabel, isNotEmpty);
+  expect(Uri.parse(ranked.next!).path, '/paihang/2.html');
+  final details = await repo.details(ranked.books.first, token);
+  expect(details.wordCount, isNotEmpty);
+  expect(details.updatedLabel, isNotEmpty);
+  final chapters = await repo.chapters(details, token);
+  expect(chapters.length, greaterThan(10));
+  final body = await repo.readText(details, chapters.first, token);
+  expect(body.length, greaterThan(100));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: BookDiscoveryView(
+          repository: repo,
+          kind: BookKind.text,
+          sources: [entry],
+          active: true,
+          onOpen: (_, {direct = false}) {},
+          onSearch: (_, _, _) {},
+          onSourceFavorite: (_, _) {},
+          onManage: () {},
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.widgetWithText(OutlinedButton, '精选推荐'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(entry.source.name).last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('排行榜'));
+  await _waitFor(
+    tester,
+    () => find.text(ranked.books.first.title).evaluate().isNotEmpty,
+  );
+  final feed = find.byType(CustomScrollView);
+  final controller = tester.widget<CustomScrollView>(feed).controller!;
+  final initialExtent = controller.position.maxScrollExtent;
+  controller.jumpTo(initialExtent);
+  await _waitFor(
+    tester,
+    () => controller.position.maxScrollExtent > initialExtent + 100,
+  );
+  expect(controller.offset, closeTo(initialExtent, 4));
+  await tester.pumpWidget(const SizedBox());
+  await repo.store.saveText(details, chapters.first, body);
+  await repo.store.saveBook(
+    details,
+    chapters: chapters,
+    last: chapters[1],
+    position: .3,
+  );
+  await _checkDownload(tester, services, details, chapters);
+}
+
+Future<void> _longDirectory(AppServices services, WidgetTester tester) async {
+  final book = Book(
+    'local',
+    BookKind.text,
+    '长目录样本',
+    '',
+    Uri.parse('book:long'),
+  );
+  final chapters = [
+    for (var i = 1; i <= 900; i++)
+      BookChapter('测试章节 $i', Uri.parse('book:long#$i')),
+  ];
+  await services.books.store.saveBook(
+    book,
+    chapters: chapters,
+    last: chapters[734],
+  );
+  await tester.pumpWidget(
+    MaterialApp(
+      home: BookDetailPage(services: services, initial: book),
+    ),
+  );
+  await _waitFor(tester, () => find.byTooltip('章节导航').evaluate().isNotEmpty);
+  await tester.tap(find.byTooltip('章节导航'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('定位当前章节'));
+  await tester.pumpAndSettle();
+  final current = find.widgetWithText(ListTile, chapters[734].title);
+  expect(current.hitTestable(), findsOneWidget);
+  expect(tester.widget<ListTile>(current).selected, isTrue);
+  await tester.tap(find.byTooltip('章节导航'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('目录回顶'));
+  await tester.pumpAndSettle();
+  final scroll = tester
+      .widget<CustomScrollView>(find.byType(CustomScrollView))
+      .controller!;
+  expect(scroll.offset, 0);
+  await tester.pumpWidget(const SizedBox());
+}
+
+Future<void> _waitFor(WidgetTester tester, bool Function() ready) async {
+  for (var i = 0; i < 240 && !ready(); i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  expect(ready(), isTrue);
 }
 
 Future<void> _readingFlow(WidgetTester tester) => _withServices((
@@ -120,7 +273,6 @@ Future<void> _checkDiscovery(
 ) async {
   await tester.pumpAndSettle();
   expect(find.text('精选推荐'), findsOneWidget);
-  expect(find.text('云中札记'), findsWidgets);
   await tester.tap(find.text('按渠道聚合'));
   await tester.pumpAndSettle();
   expect(find.text(first.name), findsOneWidget);
@@ -177,7 +329,14 @@ Future<void> _checkBookSearch(
   await tester.pageBack();
   await tester.pumpAndSettle();
 
-  await tester.tap(find.byTooltip('渠道书单点击方式'));
+  final sourceMenu = find.byTooltip('渠道操作');
+  if (sourceMenu.evaluate().isNotEmpty) {
+    await tester.tap(sourceMenu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('渠道书单点击方式'));
+  } else {
+    await tester.tap(find.byTooltip('渠道书单点击方式'));
+  }
   await tester.pumpAndSettle();
   await tester.tap(find.text('打开当前渠道'));
   await tester.pumpAndSettle();
@@ -386,21 +545,35 @@ Future<void> _checkDownload(
         home: BookDetailPage(services: services, initial: book),
       ),
     );
-    await tester.pumpAndSettle();
+    final download = find.widgetWithText(OutlinedButton, '离线下载');
+    await _waitFor(
+      tester,
+      () =>
+          download.evaluate().isNotEmpty &&
+          tester.widget<OutlinedButton>(download).onPressed != null,
+    );
     expect(find.textContaining('当前进度'), findsOneWidget);
     await tester.ensureVisible(find.byTooltip('定位当前章节'));
     await tester.tap(find.byTooltip('定位当前章节'));
     await tester.pumpAndSettle();
     expect(find.text(chapters[1].title), findsWidgets);
     await tester.scrollUntilVisible(find.text('离线下载'), -200);
-    await tester.tap(find.text('离线下载'));
+    await tester.ensureVisible(download);
+    await tester.pumpAndSettle();
+    await tester.tap(download);
     await tester.pumpAndSettle();
     expect(find.text('全本'), findsOneWidget);
     await tester.tap(find.text('指定区间'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, '结束章节'), '2');
     await tester.tap(find.text('开始下载'));
-    await tester.pumpAndSettle();
+    await _waitFor(tester, () => find.byTooltip('暂停下载').evaluate().isNotEmpty);
+    await tester.tap(find.byTooltip('暂停下载'));
+    await _waitFor(tester, () => find.text('下载已暂停').evaluate().isNotEmpty);
+    expect(await services.books.store.savedText(book), {chapters.first.id});
+    await tester.ensureVisible(find.text('继续下载'));
+    await tester.tap(find.text('继续下载'));
+    await _waitFor(tester, () => find.text('继续下载').evaluate().isEmpty);
     expect(await services.books.store.savedText(book), {
       chapters[0].id,
       chapters[1].id,

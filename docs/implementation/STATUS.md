@@ -1,13 +1,46 @@
 # 实施状态与需求矩阵
 
-更新：2026-11-13（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
+更新：2026-11-14（Asia/Shanghai）。本文件是项目当前进度的唯一入口；下文日期章节和需求矩阵保留历史验收范围。
 
-## 网络小说模块后续任务（2026-11-13）
+## 网络小说与在线音乐本地重打包（2026-11-14）
 
-- 本节点保留现有阅读实现作为回退基线。下一阶段移除内置出版书目及专用技术书入口、资源和代码，将「阅读」改为「网络小说」。后续单独设计出版模块。
-- 对照影院发现页实现指定渠道滚动加载，补齐渠道分类、栏目、分组、排行榜和书籍信息。用真实文本渠道与混合内容样本排查详情、目录、正文兼容性，区分网络连通和书籍接口可用性。
-- 优化聚合搜索、换源与下载的并发和取消。修复自动翻页与连续滚动，将自动阅读开关直接用于启动及停止。详情页保留可随滚动访问的章节导航、当前章定位和目录回顶。
-- 完成后运行 `flutter test --no-pub`、`dart analyze lib test integration_test`、`dart run tool/check_source_size.dart`、Windows 与 Android 阅读专项回归。按 BUILD.md 串行重新打包 Windows x64 和 Android ARM64 开发测试版。
+- 使用当前 `codex/reading-audiobooks` 工作区构建 `0.7.3+73`，包含下列起点精选、聚合搜索重试和在线音乐分类分页改动。Windows x64 安装器、便携版及 Android ARM64 独立开发测试 APK 位于 [本地测试包](../../artifacts/device-test/0.7.3-20261114-084659/)。全量 Flutter 测试 775 项通过、11 项按配置跳过，静态分析及源码规模检查通过。
+- 校验通过 SHA-256、ZIP/APK CRC、便携包与构建目录逐文件比对、APK 与本次构建 AOT 比对、随包字体与书源、固定 PDFium 和出版资源移除。Android 测试包名为 `dev.zeroplayer.zero_player.devtest`，v2 签名与旧测试证书一致，74.54 MiB，超过 70 MiB 发行预算。Windows 安装器与主程序沿用本地未签名配置。构建与校验日志在 `build/repack-20261114-*.log`，摘要与报告在产物目录。本轮未复验设备安装和起点实时联通。
+- 清理 12 份与保留便携 ZIP 逐文件一致的旧解包目录，以及 Windows／Android Debug 产物、Flutter 测试缓存和原生测试临时文件。清理条目合计 5.83 GiB，K 盘实测新增 5.32 GiB 可用空间。实际清单为 `build/repack-20261114-cleanup.json`。旧分发包、签名材料、验证日志、用户备份与本地工作资料保留。
+
+## 在线音乐分类、榜单与歌单分页（2026-11-14）
+
+- 「发现音乐 → 榜单」读取网易云音乐、QQ 音乐和酷狗的公开曲目榜目录，按源站分组展示。榜单和 QQ 首页热歌可加载后续曲目，显示源站名次，点击封面通过当前音乐渠道搜索。「在线歌单」读取三家当前分类，涵盖语种、流派、场景、情感、主题和年代等源站提供的分组。网易云另提供推荐、精品和关键词搜索，QQ 音乐的登录分类显示访问提示。[网易云歌单](https://music.163.com/discover/playlist/) · [QQ 音乐歌单](https://y.qq.com/n/ryqq_v2/category) · [酷狗榜单](https://www.kugou.com/yy/html/rank.html)
+- 分类歌单和歌单曲目按平台的页码、偏移量或时间游标追加。分页失败保留已加载结果，重试同一页。网易云详情按源站曲目顺序分批补齐，浏览覆盖源站给出的曲目 ID；本地导入沿用 500 首上限。酷狗歌单详情按批展示网页公开的曲目数据。歌单平台、单个歌单与榜单支持复制网页链接。
+- 实网验证分别得到网易云 71 个分类入口和 65 个曲目榜、QQ 音乐 79 个分类入口和 30 个曲目榜、酷狗 83 个分类入口和 33 个曲目榜。三家均验证分类歌单和榜单第二页；Windows 原生用例验证网易云榜单追加至 100 首、QQ 官方歌单翻页及曲目追加至 100 首，并通过 MY FREE MP3 实际解码回归。日志为 `build/music-catalog-online.log` 和 `build/music-catalog-windows.log`。
+- 全量 Flutter 回归 775 项通过、11 项按配置跳过；音乐回归及三家联网分页复测 95 项通过。静态分析、源码规模及差异空白检查通过。Windows x64 普通 Release 构建成功，日志为 `build/music-catalog-release.log`。Android 和 TV 实机尚未验证。
+
+## 网络小说刷新恢复与搜索重试（2026-11-14）
+
+- 起点栏目首次成功加载后，在本机保留最多 24 个栏目、每栏最多 200 本的首页书单，有效期 7 天。直连失败时显示缓存日期，继续应用内容策略；后续分页失败可单独重试。首次打开且无缓存时，可直接浏览已启用渠道。发现页记住「起点精选」或「按渠道聚合」的选择。
+- 刷新起点或单个渠道时保留当前书单，收到新书单后再替换。刷新失败时保留结果和滚动位置。修复分页链接指回当前页时提前停止、重复批次连续拉取及已展开书单的索引开销。起点作品详情跳转按页面类型校验，纯数字名次和完整可读计数才会展示。
+- 聚合搜索可单独重试失败渠道并保留成功结果。取消、全部渠道失败、没有适用渠道及无匹配作品各有独立提示。
+- 本机再次请求起点首页、全部作品、月票榜和作品页，均收到 HTTP 202 验证页。缓存恢复和边界通过可重复样本验证，应用内实时榜单仍待联通验收。[起点首页](https://www.qidian.com/) · [起点月票榜](https://www.qidian.com/rank/yuepiao/)
+- 全量 Flutter 测试 771 项通过，11 项按配置跳过。Windows 原生阅读业务用例通过 4 项，包含速读谷实网与暂停续传。静态分析、源码规模和差异空白检查通过。日志为 `build/novel-polish-all.log`、`build/novel-polish-analyze-final.log`、`build/novel-polish-size.log` 和 `build/novel-polish-windows.log`。本轮交付工作区源码，Android 设备和新安装包尚未验证。
+
+## 起点精选推荐与网页链接复制（2026-11-14）
+
+- 网络小说的精选推荐读取起点官网作品、分类和榜单，滚动时按官网下一页地址追加。初始导航沿用随包 Legado 的男频、女频分类与榜单入口，并补入官网页面发现的栏目。起点封面可悬停或点「起点作品信息」，按需读取状态、作者、类型、最新章节、字数、总推荐和周推荐。字段缺失时留空。点作品进入启用阅读渠道的并发聚合搜索，推荐作品本身不会进入搜索结果或阅读链路。
+- 单渠道发现及渠道管理菜单可复制渠道地址，书籍详情、聚合搜索结果和起点作品信息可复制对应书籍网页。复制内容为 URI，不附带请求头和 POST 请求体。
+- 浏览器能打开官网首页与全部作品页，核对了当前分类路径、作品行和分页结构。应用直连桌面站首页、分类、榜单及作品信息返回 HTTP 202 验证页，移动站样本返回 403；界面提供重试和浏览器入口。实时作品与榜单在应用内仍待联通验收。官网部分类页用自定义字体显示数字，解析器保留可识别数字，缺失字段不填默认值。[起点官网](https://www.qidian.com/) · [起点全部作品](https://www.qidian.com/all/) · [起点作品字段示例](https://www.qidian.com/book/1049311236/)
+- 全量 Flutter 测试 769 项通过，11 项按配置跳过。Windows 原生阅读流程通过 4 项，包括速读谷实网回归。静态分析、源码规模和差异空白检查通过。日志为 `build/qidian-all.log`、`build/qidian-analyze-verified.log`、`build/qidian-size.log` 和 `build/qidian-windows-native.log`。本轮改动在工作区源码，上一轮测试包对应 2026-11-13 的版本。
+
+## 网络小说模块改版（2026-11-13）
+
+- 在 `codex/reading-audiobooks` 移除出版书目、独立详情、书栈网技术书入口、同步脚本和随包书目。模块入口、记录、下载与渠道管理统一使用「网络小说」。沿用书架、离线章节、进度及本地 TXT、EPUB、PDF 的导入与阅读。回退分支 `zn/backup-reading-20261113` 指向 `e056e415bb5e999aeab32ce4cf4b03459974ec66`。
+- 原发现页聚合预览取 10 本，HTML／Legado 解析上限分别为 80／100 条，指定渠道只显示当前批。现在单渠道保留每批通过现有文档与规则安全限制的作品，距末尾 480 像素时自动加载，按作品请求去重，保留位置，失败可重试。切换渠道或分类取消旧请求；到达末页、重复游标或连续重复页时停止。
+- 速读谷的分类和榜单分别从 `/xuanhuan/` 和 `/paihang/` 读取真实下一页链接，均访问各自的 `2.html`。栏目还覆盖最新更新和完结小说。目录、正文、详情字数、更新时间和真实榜单名次已验证，字段缺失时留空。Legado 合成样本保留分组、137 条去重结果及 POST 分页请求，原生用例验证 QuickJS 动态分类。[速读谷分类](https://www.suduguu.com/fenlei/) · [速读谷排行榜](https://www.suduguu.com/paihang/)
+- 「海词精选（优）」原配置使用 `http://dict.cn/{{key}}`，应用将其升级到 HTTPS。对 `hello`、`book` 的 GET 均返回 200 和词典释义，样本可见 `.phonetic`、`.dict-basic-ul`。旧规则把 `body` 当作品及目录，详情复用词条且只取通用 `text`，伪章节「详细」没有章节地址，正文规则也只取该页面的 `html`。现明确提示缺少小说详情、目录和正文；纯图片章节单独提示文本阅读器无法打开，未支持漫画。古龙全集 Windows 应用列表请求与独立首页请求均超时，详情、目录与正文未完成复验。[海词 hello](https://dict.cn/hello) · [海词 book](https://dict.cn/book)
+- 搜索保留 4 路请求并发，HTML 书单移到 isolate 解析；换源以 3 路读取同名同作者目录，文本下载最多 3 章并行，继续下载跳过已保存章节。听书沿用按章节串行写入与容量校验。正文写入前复核内容、黑名单和取消状态。自动阅读开关直接生效，卷页、横滑和纵向分页按设置间隔，连续滚动按帧推进。手动操作、后台、读取失败和末章停止。详情顶部的章节导航支持打开目录、定位当前章节和回顶。
+- Windows 与 Android 17 x86_64 模拟器分别通过 4 项阅读流程及 3 项本地格式业务用例。阅读流程覆盖 900 章定位、QuickJS、速读谷滚动追加及暂停续传。本地格式覆盖 PDF 渲染／搜索／目录、EPUB 图文和进度恢复。Windows 日志在 `.dart_tool/native-fbc57905/reading_flow_test.log` 和 `.dart_tool/native-1d058d58/local_reading_formats_test.log`，Android 日志在 `build/novels-android-reading-retry.log` 和 `build/novels-android-local-formats.log`。Android 手机、平板与 TV 真机及持续长时体验仍待验证。
+- 全量 `flutter test --no-pub` 通过 765 项，11 项按配置跳过。自动阅读组件测试验证四种翻页模式、连续滚动速度、跨章及末章停止。静态分析、源码规模和差异空白检查通过，日志分别为 `build/novels-all-final.log`、`build/novels-analysis-verified.log` 和 `build/novels-source-size.log`。
+- 本地开发测试包为 `artifacts/device-test/0.7.3-20261113-222513/`，含 Windows x64 安装器、便携版及独立 Android ARM64 Release（`dev.zeroplayer.zero_player.devtest`，0.7.3+73）。ZIP CRC、随包书源与字体、固定 PDFium 摘要、出版目录缺席、便携包与构建目录逐文件比对均通过。校验见同目录 `SHA256SUMS.txt` 和 `BUILD-CHECKS.json`。Windows 安装器及主程序无 Authenticode 签名，沿用现有本地打包。APK v2 签名与上个测试包证书一致，74.49 MiB，超过 70 MiB 发行预算。旧包保留，本轮产物仅供本地测试。
+- Windows 日志为 `build/novels-windows-release.log`、`build/novels-package-windows.log`。Android 离线 Gradle 首次完成当前入口的 ARM64 AOT 后遇到已知测试插件注册残留，备份生成文件并移除该测试注册后续打包成功。日志为 `build/novels-android-release.log`、`build/novels-android-release-package.log`、`build/novels-apk-verification.log` 和 `build/novels-apk-signature.log`。
 
 ## 阅读模块交互修复（2026-11-13）
 

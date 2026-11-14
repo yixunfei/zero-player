@@ -32,7 +32,7 @@ final class MobileBottomNavigation extends StatelessWidget {
         ),
         NavigationDestination(
           icon: Icon(Icons.auto_stories_outlined),
-          label: '阅读',
+          label: '网络小说',
         ),
         NavigationDestination(icon: Icon(Icons.menu), label: '更多'),
       ],

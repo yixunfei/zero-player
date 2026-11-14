@@ -18,24 +18,75 @@ final class LegadoBookClient {
   ) async {
     final spec = source.legado!;
     if (!spec.enabledExplore || source.format == BookFormat.feed) return [];
-    final categories = <String, LegadoCategory>{};
+    final categories = <(String, String), LegadoCategory>{};
+    Exception? failure;
     for (final category in spec.categories) {
-      final entries = legadoScriptMarker.matchAsPrefix(category.address) == null
-          ? [category]
-          : (await _run(
-              LegadoJob(
-                source,
-                source.endpoint,
-                LegadoOperation.discovery,
-                address: category.address,
-              ),
-              token,
-            )).categories;
-      for (final item in entries) {
-        categories.putIfAbsent(item.address, () => item);
+      try {
+        final entries =
+            legadoScriptMarker.matchAsPrefix(category.address) == null
+            ? [category]
+            : (await _run(
+                LegadoJob(
+                  source,
+                  source.endpoint,
+                  LegadoOperation.discovery,
+                  address: category.address,
+                ),
+                token,
+              )).categories;
+        for (final item in entries) {
+          final grouped = category.group.isEmpty || item.group.isNotEmpty
+              ? item
+              : LegadoCategory(item.title, item.address, group: category.group);
+          categories.putIfAbsent((
+            grouped.group,
+            grouped.address,
+          ), () => grouped);
+        }
+      } on Exception catch (error) {
+        token.check();
+        failure = error;
       }
     }
+    if (categories.isEmpty && failure != null) throw failure;
     return categories.values.toList();
+  }
+
+  Future<BookDiscoveryPage> discover(
+    BookSource source,
+    CancellationToken token, {
+    LegadoCategory? category,
+    int page = 1,
+    String? cursor,
+  }) async {
+    final options = category != null
+        ? [category.address]
+        : (await categories(source, token)).map((item) => item.address);
+    final request = cursor == null
+        ? await _firstAddress(source, options, token, page: page)
+        : LegadoRequest.parse(source, source.endpoint, cursor, page: page);
+    if (request == null) return (books: <Book>[], next: null);
+    final parsed = await _list(
+      source,
+      request,
+      token,
+      page: page,
+      discovery: true,
+    );
+    String? next;
+    if (parsed.books.isNotEmpty) {
+      final link = parsed.links.firstOrNull;
+      final nextRequest = link != null
+          ? _link(source, parsed.uri, link, page + 1)
+          : (source.legado!.rules['nextExplore'] ?? '').isEmpty &&
+                category?.paginated == true
+          ? await _firstAddress(source, options, token, page: page + 1)
+          : null;
+      if (nextRequest?.targetKey != request.targetKey) {
+        next = nextRequest?.targetKey;
+      }
+    }
+    return (books: parsed.books, next: next);
   }
 
   Future<Document> feedDocument(
@@ -87,6 +138,29 @@ final class LegadoBookClient {
       page: page,
     );
     if (request == null) return [];
+    final parsed = await _list(
+      source,
+      request,
+      token,
+      query: query,
+      page: page,
+      discovery: discovery,
+    );
+    if (discovery && query.trim().isNotEmpty) {
+      final match = BookSearchQuery(query, BookSearchField.all);
+      return parsed.books.where((book) => match.rank(book) != null).toList();
+    }
+    return parsed.books;
+  }
+
+  Future<({Uri uri, List<Book> books, List<String> links})> _list(
+    BookSource source,
+    LegadoRequest request,
+    CancellationToken token, {
+    String query = '',
+    required int page,
+    required bool discovery,
+  }) async {
     final document = await _fetch(source, request, token);
     final parsed = await _run(
       LegadoJob(
@@ -101,11 +175,7 @@ final class LegadoBookClient {
       ),
       token,
     );
-    if (discovery && query.trim().isNotEmpty) {
-      final match = BookSearchQuery(query, BookSearchField.all);
-      return parsed.books.where((book) => match.rank(book) != null).toList();
-    }
-    return parsed.books;
+    return (uri: document.uri, books: parsed.books, links: parsed.links);
   }
 
   Future<List<Book>> _openAddress(
@@ -234,6 +304,9 @@ final class LegadoBookClient {
     var length = 0;
     for (var page = 1; page <= 10 && visited.add(next.targetKey); page++) {
       final document = await _fetch(source, next, token);
+      if (document.contentType?.toLowerCase().startsWith('image/') == true) {
+        throw const FormatException('章节仅提供图片，文本阅读器无法打开');
+      }
       final result = await _run(
         LegadoJob(
           source,
@@ -304,8 +377,8 @@ final class LegadoBookClient {
     int page = 1,
   }) async {
     FormatException? invalid;
-    for (final address
-        in options.where((address) => address.isNotEmpty).take(8)) {
+    for (final address in options.where((address) => address.isNotEmpty)) {
+      token.check();
       try {
         final links = legadoScriptMarker.hasMatch(address)
             ? (await _run(

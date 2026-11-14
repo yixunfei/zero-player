@@ -38,7 +38,7 @@ class _MediaLibraryHubState extends State<MediaLibraryHub> {
           tabs: [
             Tab(text: '影音'),
             Tab(text: '音乐'),
-            Tab(text: '阅读'),
+            Tab(text: '网络小说'),
             Tab(text: '听书'),
           ],
         ),

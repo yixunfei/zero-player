@@ -66,8 +66,6 @@ popocoding/awesome-m3u provides radio/cn.m3u: https://github.com/popocoding/awes
 
 assets/brand/logo.jpg was supplied by the project owner. Platform icons and the Android TV banner are derived from that image using tool/generate_brand.py; it is not an upstream library asset.
 
-## Publication catalog and PDF reader
-
-Public bibliographic snapshots are retrieved from the Project Gutenberg machine-readable catalog (public-domain metadata), DOAB OAI-PMH, and public Haodoo category pages. Only metadata and original-site links are bundled; source-specific book licenses apply. BookStack Docker metadata links to the original publication.
+## EPUB and PDF readers
 
 PDF rendering uses pdfrx 2.2.24 and PDFium chromium/7520 from bblanchon/pdfium-binaries. PDFium and bundled third-party notices are included in assets/licenses/pdfium.txt. Fixed archive and binary SHA-256 values are in tool/pdfium_checksums.json. HTML rendering uses flutter_widget_from_html_core under its upstream license.

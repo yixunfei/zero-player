@@ -11,6 +11,13 @@ import 'package:zero_player/features/books/presentation/reader_style.dart';
 import 'package:zero_player/features/books/presentation/reader_pagination.dart';
 
 void main() {
+  for (final mode in ReaderTurnMode.values) {
+    testWidgets('auto reading advances and stops in ${mode.name}', (
+      tester,
+    ) async {
+      await _checkMode(tester, mode);
+    });
+  }
   testWidgets(
     'immersive lifecycle, toolbar dismissal and automatic reading pause',
     (tester) async {
@@ -86,7 +93,6 @@ void main() {
             as Map)['autoEnabled'],
         isTrue,
       );
-      await tester.tap(find.byTooltip('自动阅读'));
       await tester.pump(const Duration(milliseconds: 2100));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.textContaining('3 /'), findsOneWidget);
@@ -132,5 +138,88 @@ Future<void> _enableAutomation(WidgetTester tester) async {
   expect(find.text('翻页间隔（秒）'), findsOneWidget);
   expect(find.text('滚动速度'), findsOneWidget);
   await tester.binding.handlePopRoute();
+  await tester.pumpAndSettle();
+}
+
+Future<void> _checkMode(WidgetTester tester, ReaderTurnMode mode) async {
+  final root = (await tester.runAsync(
+    () => Directory.systemTemp.createTemp('reader-auto-'),
+  ))!;
+  final services = AppServices.scoped(root, AppDatabase.memory());
+  addTearDown(() async {
+    await tester.runAsync(() async {
+      await services.close();
+      await root.delete(recursive: true);
+    });
+  });
+  await services.settings.load();
+  await services.supervision.load();
+  final repo = services.books;
+  final book = Book(
+    'local',
+    BookKind.text,
+    '自动阅读',
+    '',
+    Uri.parse('book:automatic'),
+  );
+  final chapters = [
+    BookChapter('启程', Uri.parse('book:automatic#1')),
+    BookChapter('抵达', Uri.parse('book:automatic#2')),
+  ];
+  await repo.store.write(
+    'books_reader_preferences',
+    ReaderPreferences(
+      mode: mode,
+      autoEnabled: true,
+      autoSeconds: 2,
+      scrollSpeed: 150,
+    ).toJson(),
+  );
+  await repo.store.saveTexts(book, {
+    chapters.first: List.filled(48, '这是一段用于验证自动阅读的文字。').join('\n'),
+    chapters.last: '抵达以后就结束。',
+  });
+  await tester.pumpWidget(
+    MaterialApp(
+      home: BookReaderPage(
+        repository: repo,
+        book: book,
+        chapters: chapters,
+        initial: chapters.first,
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+  expect(find.byTooltip('停止自动阅读'), findsOneWidget);
+  if (mode == ReaderTurnMode.scroll) {
+    final scroll = tester.widget<ListView>(find.byType(ListView)).controller!;
+    final start = scroll.offset;
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(scroll.offset - start, closeTo(216, 8));
+    for (
+      var i = 0;
+      i < 1200 && find.byTooltip('停止自动阅读').evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+  } else {
+    for (
+      var i = 0;
+      i < 20 && find.byTooltip('停止自动阅读').evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+    }
+  }
+  expect((await repo.store.entry(book))?.last, chapters.last.id);
+  expect(find.byTooltip('停止自动阅读'), findsNothing);
+  await tester.pumpWidget(const SizedBox());
   await tester.pumpAndSettle();
 }
