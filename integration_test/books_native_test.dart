@@ -12,7 +12,11 @@ import 'package:zero_player/features/books/domain/book.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  _curatedTextSources();
+  _audiobooks();
+}
 
+void _curatedTextSources() {
   testWidgets(
     'curated reading sources deliver searchable chapters and offline text',
     (tester) async {
@@ -24,8 +28,12 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         final books = services.books;
         final token = CancellationToken();
-        final textSources = await books.sources(BookKind.text);
-        expect(textSources.length, greaterThanOrEqualTo(12));
+        final textSources = await books.sources(
+          BookKind.text,
+          enabledOnly: true,
+        );
+        expect(textSources.length, greaterThanOrEqualTo(10));
+        expect(textSources.any((e) => e.source.name == '三叠书阁'), isFalse);
         expect(
           textSources.every((entry) => entry.source.format != BookFormat.feed),
           isTrue,
@@ -33,37 +41,42 @@ void main() {
         await Future.wait(
           textSources.map((entry) async {
             final source = entry.source;
-            if (source.hasDiscovery) {
-              final discovery = await books.client.books(source, '', token);
-              expect(discovery, isNotEmpty, reason: source.name);
+            try {
+              if (source.hasDiscovery) {
+                final discovery = await books.client.books(source, '', token);
+                expect(discovery, isNotEmpty, reason: source.name);
+              }
+              final results = await books.client.books(
+                source,
+                source.sample,
+                token,
+              );
+              expect(results, isNotEmpty, reason: source.name);
+              final work = results.firstWhere(
+                (result) =>
+                    bookIdentity(result.title) == bookIdentity(source.sample),
+                orElse: () => results.first,
+              );
+              final chapters = await books.chapters(work, token);
+              expect(chapters, isNotEmpty, reason: source.name);
+              final chapter = chapters
+                  .take(6)
+                  .firstWhere(
+                    (chapter) =>
+                        RegExp(r'第.{1,12}[章节回]').hasMatch(chapter.title),
+                    orElse: () => chapters.first,
+                  );
+              final body = await books.readText(work, chapter, token);
+              expect(body.length, greaterThan(100), reason: source.name);
+              await books.download(work, chapter, token);
+              expect(
+                await books.store.text(work, chapter),
+                body,
+                reason: source.name,
+              );
+            } on Exception catch (error) {
+              throw StateError('${source.name}: $error');
             }
-            final results = await books.client.books(
-              source,
-              source.sample,
-              token,
-            );
-            expect(results, isNotEmpty, reason: source.name);
-            final work = results.firstWhere(
-              (result) =>
-                  bookIdentity(result.title) == bookIdentity(source.sample),
-              orElse: () => results.first,
-            );
-            final chapters = await books.chapters(work, token);
-            expect(chapters, isNotEmpty, reason: source.name);
-            final chapter = chapters
-                .take(6)
-                .firstWhere(
-                  (chapter) => RegExp(r'第.{1,12}[章节回]').hasMatch(chapter.title),
-                  orElse: () => chapters.first,
-                );
-            final body = await books.readText(work, chapter, token);
-            expect(body.length, greaterThan(100), reason: source.name);
-            await books.download(work, chapter, token);
-            expect(
-              await books.store.text(work, chapter),
-              body,
-              reason: source.name,
-            );
           }),
         );
       } finally {
@@ -73,7 +86,9 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 4)),
   );
+}
 
+void _audiobooks() {
   testWidgets(
     'audiobooks and podcast feeds download and play offline',
     (tester) async {

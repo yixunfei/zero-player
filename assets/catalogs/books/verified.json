@@ -1,6 +1,7 @@
 [
   {
     "name": "UU看书",
+    "defaultEnabled": false,
     "group": "网络小说",
     "kind": "text",
     "format": "html",
@@ -324,7 +325,7 @@
     "kind": "text",
     "format": "html",
     "url": "https://www.dushu.com/",
-    "search": "/search.aspx?qd={key}&f=0&r=2&t=0",
+    "search": "/search.aspx?rd={key}&f=0&r=2&t=0",
     "discover": "/guoxue/",
     "sample": "汉书",
     "rules": {
@@ -474,6 +475,7 @@
   },
   {
     "name": "三叠书阁",
+    "defaultEnabled": false,
     "group": "网络小说",
     "kind": "text",
     "format": "html",

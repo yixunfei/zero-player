@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import '../../../core/persistence/app_database.dart';
 import '../domain/book.dart';
+import '../domain/book_download_plan.dart';
 import 'book_source_links.dart';
+import 'book_mixed_content.dart';
 
 final class BookSourceSubscription {
   const BookSourceSubscription(this.url, this.count, this.refreshedAt);
@@ -144,7 +146,9 @@ final class BookStore {
       for (final source in sources.values)
         if (states[source.id]?['removed'] != true &&
             (!enabledOnly ||
-                (states[source.id]?['enabled'] ?? source.builtin) == true))
+                (states[source.id]?['enabled'] ??
+                        (source.builtin && source.defaultEnabled)) ==
+                    true))
           _sourceEntry(source, states[source.id] ?? const {}),
     ];
   }
@@ -169,7 +173,9 @@ final class BookStore {
 
   BookSourceEntry _sourceEntry(BookSource source, Map state) => BookSourceEntry(
     source,
-    state['enabled'] is bool ? state['enabled'] as bool : source.builtin,
+    state['enabled'] is bool
+        ? state['enabled'] as bool
+        : source.builtin && source.defaultEnabled,
     state['favorite'] == true,
     state['group'] is String ? state['group'] as String : source.group,
     state['health'] is String ? state['health'] as String : '',
@@ -304,6 +310,27 @@ final class BookStore {
     return raw is Map ? _entry(raw) : null;
   }
 
+  Future<Map<String, BookDownloadPlan>> downloadPlans() async {
+    final rows = await db.rows(
+      "SELECT key,value FROM app_meta WHERE key GLOB 'books_download:*'",
+    );
+    final plans = <String, BookDownloadPlan>{};
+    for (final row in rows) {
+      try {
+        final plan = BookDownloadPlan.fromJson(
+          jsonDecode(row['value'] as String),
+        );
+        if (plan != null) {
+          plans[(row['key'] as String).substring('books_download:'.length)] =
+              plan;
+        }
+      } on Object {
+        // A damaged plan does not hide other downloads.
+      }
+    }
+    return plans;
+  }
+
   BookShelfEntry _entry(Map raw) => BookShelfEntry(
     Book.fromJson(raw['book'] as Map),
     (raw['chapters'] as List? ?? [])
@@ -377,13 +404,17 @@ final class BookStore {
     await saveBook(book, last: chapter, position: fraction);
   }, tables: {'app_meta'});
 
-  Future<void> updateFollowedChapters(
+  Future<void> updateFollowedChapters(Book book, List<BookChapter> fresh) =>
+      updateShelfChapters(book, fresh, followedOnly: true);
+
+  Future<void> updateShelfChapters(
     Book book,
-    List<BookChapter> fresh,
-  ) => db.atomic(() async {
+    List<BookChapter> fresh, {
+    bool followedOnly = false,
+  }) => db.atomic(() async {
     final key = 'books_shelf:${book.id}';
     final raw = await read(key);
-    if (raw is! Map || raw['following'] != true) return;
+    if (raw is! Map || (followedOnly && raw['following'] != true)) return;
     final previous = _entry(raw);
     final tail = previous.chapters.lastOrNull;
     final boundary = fresh.indexWhere((chapter) => chapter.id == tail?.id);
@@ -431,6 +462,267 @@ final class BookStore {
 
   Future<String?> text(Book book, BookChapter chapter) async =>
       await read(_textKey(book, chapter)) as String?;
+
+  String _readingCacheKey(Book book, BookChapter chapter) =>
+      'books_read_cache:${book.id}:${chapter.id}';
+
+  Future<String?> readingCache(Book book, BookChapter chapter) async =>
+      await read(_readingCacheKey(book, chapter)) as String?;
+
+  Future<void> cacheReading(Book book, BookChapter chapter, String text) async {
+    final value = jsonEncode(text);
+    final size = utf8.encode(value).length;
+    if (size > 2 * 1024 * 1024) return;
+    await db.atomic(() async {
+      final key = _readingCacheKey(book, chapter);
+      await db.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [key, value],
+      );
+      final rows = await db.rows(
+        "SELECT key,length(CAST(value AS BLOB)) AS bytes FROM app_meta "
+        "WHERE key GLOB 'books_read_cache:*' ORDER BY rowid DESC",
+      );
+      var used = 0;
+      for (final row in rows) {
+        used += row['bytes'] as int;
+        if (used > 24 * 1024 * 1024) {
+          await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+            row['key'],
+          ]);
+        }
+      }
+    }, tables: {'app_meta'});
+  }
+
+  Future<void> clearReadingCache([Book? book]) => db.atomic(() async {
+    await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+      book == null ? 'books_read_cache:*' : 'books_read_cache:${book.id}:*',
+    ]);
+    await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+      book == null ? 'books_image_cache:*' : 'books_image_cache:${book.id}:*',
+    ]);
+    await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+      book == null ? 'books_mixed_cache:*' : 'books_mixed_cache:${book.id}:*',
+    ]);
+  }, tables: {'app_meta'});
+
+  String _mixedKey(Book book, BookChapter chapter) =>
+      'books_mixed_cache:${book.id}:${chapter.id}';
+
+  Future<List<BookChapterSegment>> mixedReading(
+    Book book,
+    BookChapter chapter,
+  ) async {
+    final raw = await read(_mixedKey(book, chapter));
+    if (raw is! List) return const [];
+    try {
+      return [
+        for (final part in raw.cast<Map>())
+          if (part['text'] is String)
+            BookTextSegment(part['text'] as String)
+          else if (part['image'] is String)
+            BookImageSegment(Uri.parse(part['image'] as String)),
+      ];
+    } on FormatException {
+      return const [];
+    } on TypeError {
+      return const [];
+    }
+  }
+
+  Future<void> cacheMixedReading(
+    Book book,
+    BookChapter chapter,
+    List<BookChapterSegment> parts,
+  ) async {
+    final value = jsonEncode([
+      for (final part in parts)
+        switch (part) {
+          BookTextSegment text => {'text': text.text},
+          BookImageSegment image => {'image': image.address.toString()},
+        },
+    ]);
+    if (value.length > 512 * 1024) return;
+    await db.atomic(() async {
+      await db.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [_mixedKey(book, chapter), value],
+      );
+      final rows = await db.rows(
+        "SELECT key,length(CAST(value AS BLOB)) AS bytes FROM app_meta "
+        "WHERE key GLOB 'books_mixed_cache:*' ORDER BY rowid DESC",
+      );
+      var used = 0;
+      for (final row in rows) {
+        used += row['bytes'] as int;
+        if (used > 24 * 1024 * 1024) {
+          await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+            row['key'],
+          ]);
+        }
+      }
+    }, tables: {'app_meta'});
+  }
+
+  String _imageCacheKey(Book book, Uri image) =>
+      'books_image_cache:${book.id}:${base64UrlEncode(utf8.encode(image.toString()))}';
+
+  Future<List<int>?> readingImage(Book book, Uri image) async {
+    final encoded = await read(_imageCacheKey(book, image));
+    if (encoded is! String) return null;
+    try {
+      return base64Decode(encoded);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> cacheReadingImage(Book book, Uri image, List<int> bytes) async {
+    if (bytes.length > 4 * 1024 * 1024) return;
+    await db.atomic(() async {
+      await db.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [_imageCacheKey(book, image), jsonEncode(base64Encode(bytes))],
+      );
+      final rows = await db.rows(
+        "SELECT key,length(CAST(value AS BLOB)) AS bytes FROM app_meta "
+        "WHERE key GLOB 'books_image_cache:*' ORDER BY rowid DESC",
+      );
+      var used = 0;
+      for (final row in rows) {
+        used += row['bytes'] as int;
+        if (used > 24 * 1024 * 1024) {
+          await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+            row['key'],
+          ]);
+        }
+      }
+    }, tables: {'app_meta'});
+  }
+
+  String _offlineImageKey(Book book, BookChapter chapter) =>
+      'books_image_offline:${book.id}:${chapter.id}';
+
+  String _offlineImagePartPrefix(Book book, BookChapter chapter) =>
+      'books_image_data:${book.id}:${chapter.id}:';
+
+  Future<List<Uri>?> offlineImageAddresses(
+    Book book,
+    BookChapter chapter,
+  ) async {
+    final raw = await read(_offlineImageKey(book, chapter));
+    if (raw is! List) return null;
+    try {
+      return raw.cast<String>().map(Uri.parse).toList();
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
+  Future<List<int>?> offlineImageBytes(
+    Book book,
+    BookChapter chapter,
+    Uri image,
+  ) async {
+    final addresses = await offlineImageAddresses(book, chapter);
+    final index = addresses?.indexOf(image) ?? -1;
+    if (index < 0) return null;
+    final raw = await read('${_offlineImagePartPrefix(book, chapter)}$index');
+    if (raw is! String) return null;
+    try {
+      return base64Decode(raw);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<Map<Uri, List<int>>?> offlineImages(
+    Book book,
+    BookChapter chapter,
+  ) async {
+    final addresses = await offlineImageAddresses(book, chapter);
+    if (addresses == null) return null;
+    final images = <Uri, List<int>>{};
+    for (var index = 0; index < addresses.length; index++) {
+      final raw = await read('${_offlineImagePartPrefix(book, chapter)}$index');
+      if (raw is! String) return null;
+      try {
+        images[addresses[index]] = base64Decode(raw);
+      } on FormatException {
+        return null;
+      }
+    }
+    return images;
+  }
+
+  Future<void> saveOfflineImages(
+    Book book,
+    BookChapter chapter,
+    Map<Uri, List<int>> images,
+    Future<void> Function() validate,
+  ) async {
+    if (images.isEmpty || images.length > 100) {
+      throw const FormatException('章节图片数量无效');
+    }
+    final values = [
+      for (final bytes in images.values) jsonEncode(base64Encode(bytes)),
+    ];
+    final bytes = values.fold<int>(0, (total, value) => total + value.length);
+    if (bytes > 48 * 1024 * 1024) {
+      throw const FormatException('单章图片超过离线空间限制');
+    }
+    await db.atomic(() async {
+      final key = _offlineImageKey(book, chapter);
+      final prefix = _offlineImagePartPrefix(book, chapter);
+      final used =
+          (await db.rows(
+                "SELECT COALESCE(SUM(length(CAST(value AS BLOB))),0) AS bytes "
+                "FROM app_meta WHERE key GLOB 'books_image_data:*' AND key NOT GLOB ?",
+                ['$prefix*'],
+              )).single['bytes']
+              as int;
+      if (used + bytes > 192 * 1024 * 1024) {
+        throw const FormatException('离线图片空间已满');
+      }
+      await validate();
+      await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+        '$prefix*',
+      ]);
+      for (var index = 0; index < values.length; index++) {
+        await db.customStatement(
+          'INSERT INTO app_meta(key,value) VALUES(?,?)',
+          ['$prefix$index', values[index]],
+        );
+      }
+      await db.customStatement(
+        'INSERT OR REPLACE INTO app_meta(key,value) VALUES(?,?)',
+        [key, jsonEncode(images.keys.map((uri) => uri.toString()).toList())],
+      );
+    }, tables: {'app_meta'});
+  }
+
+  Future<Set<String>> savedImages(Book book) async {
+    final prefix = 'books_image_offline:${book.id}:';
+    final rows = await db.rows('SELECT key FROM app_meta WHERE key GLOB ?', [
+      '$prefix*',
+    ]);
+    return {
+      for (final row in rows) (row['key'] as String).substring(prefix.length),
+    };
+  }
+
+  Future<void> deleteImages(Book book, BookChapter chapter) =>
+      db.atomic(() async {
+        await db.customStatement('DELETE FROM app_meta WHERE key=?', [
+          _offlineImageKey(book, chapter),
+        ]);
+        await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+          '${_offlineImagePartPrefix(book, chapter)}*',
+        ]);
+      }, tables: {'app_meta'});
 
   Future<void> saveText(Book book, BookChapter chapter, String text) async {
     await saveTexts(book, {chapter: text});
@@ -495,13 +787,18 @@ final class BookStore {
 
   Future<void> removeLocal(Book book) => db.atomic(() async {
     await db.customStatement(
-      'DELETE FROM app_meta WHERE key IN (?, ?, ?, ?) OR key GLOB ?',
+      'DELETE FROM app_meta WHERE key IN (?, ?, ?, ?) OR key GLOB ? OR key GLOB ? OR key GLOB ? OR key GLOB ? OR key GLOB ? OR key GLOB ?',
       [
         'books_shelf:${book.id}',
         'books_notes:${book.id}',
         'rich_position_${book.id}',
         'publication_${book.id}',
         'books_text:${book.id}:*',
+        'books_read_cache:${book.id}:*',
+        'books_image_cache:${book.id}:*',
+        'books_image_offline:${book.id}:*',
+        'books_image_data:${book.id}:*',
+        'books_mixed_cache:${book.id}:*',
       ],
     );
   }, tables: {'app_meta'});
@@ -518,4 +815,15 @@ final class BookStore {
 
   Future<void> deleteText(Book book, BookChapter chapter) =>
       db.write('DELETE FROM app_meta WHERE key=?', [_textKey(book, chapter)]);
+
+  Future<void> clearOffline(Book book) => db.atomic(() async {
+    final patterns = book.kind == BookKind.comic
+        ? ['books_image_offline:${book.id}:*', 'books_image_data:${book.id}:*']
+        : ['books_text:${book.id}:*'];
+    for (final pattern in patterns) {
+      await db.customStatement('DELETE FROM app_meta WHERE key GLOB ?', [
+        pattern,
+      ]);
+    }
+  }, tables: {'app_meta'});
 }

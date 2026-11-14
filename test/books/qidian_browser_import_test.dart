@@ -245,6 +245,8 @@ void _discovery() {
       final work = find.text('恢复的作品');
       await waitFor(work);
       expect(find.textContaining('导入的起点书单'), findsOneWidget);
+      await tester.ensureVisible(work.last);
+      await tester.pumpAndSettle();
       await tester.tap(work.last);
       expect(opened, ('恢复的作品', false));
 

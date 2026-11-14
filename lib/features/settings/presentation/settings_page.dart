@@ -15,6 +15,7 @@ import 'adult_filter_setting.dart';
 import 'content_filter_setting.dart';
 import 'lan_access_dialog.dart';
 import '../../music/domain/music_match.dart';
+import 'book_cover_cache_setting.dart';
 
 final class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.services});
@@ -85,6 +86,7 @@ final class SettingsPage extends StatelessWidget {
             for (final value in {128, 256, 512, 1024, 2048, settings.cacheMiB})
               '$value': '$value MiB',
           }, numeric: true),
+          ..._bookCoverCacheOptions(context),
           _downloadLimit(context, settings.downloadMiB),
           _toggle(
             context,
@@ -95,7 +97,9 @@ final class SettingsPage extends StatelessWidget {
           ),
           ListTile(
             title: const Text('清理可淘汰缓存'),
-            subtitle: const Text('保留下载任务和正在使用的媒体；清理 Android 本地视频副本后需重新选择'),
+            subtitle: const Text(
+              '包含书籍封面；保留下载任务和正在使用的媒体。清理 Android 本地视频副本后需重新选择',
+            ),
             trailing: const Icon(Icons.cleaning_services_outlined),
             onTap: () => perform(context, _clearCache, success: '缓存已清理'),
           ),
@@ -113,6 +117,17 @@ final class SettingsPage extends StatelessWidget {
         for (final value in {1024, 4096, 8192, 16384, limit})
           '$value': '$value MiB',
       }, numeric: true);
+
+  List<Widget> _bookCoverCacheOptions(BuildContext context) {
+    final limit = services.settings.value.bookCoverCacheMiB;
+    return [
+      _choice(context, '书籍封面缓存容量', 'bookCoverCacheMiB', '$limit', {
+        for (final value in {0, 16, 32, 64, 128, limit})
+          '$value': value == 0 ? '关闭' : '$value MiB',
+      }, numeric: true),
+      BookCoverCacheSetting(services: services, limitMiB: limit),
+    ];
+  }
 
   List<Widget> _musicOptions(BuildContext context) {
     final settings = services.settings.value;
@@ -209,6 +224,7 @@ final class SettingsPage extends StatelessWidget {
     await services.store.clearUnused();
     await services.offline.clearLocalCopies();
     services.posters.clear();
+    await services.books.coverCache.clear();
     PaintingBinding.instance.imageCache.clear();
   }
 

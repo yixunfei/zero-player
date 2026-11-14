@@ -339,6 +339,48 @@ final class LegadoBookClient {
     return parts.join('\n\n');
   }
 
+  Future<List<Uri>> images(
+    BookSource source,
+    BookChapter chapter,
+    CancellationToken token, {
+    Book? book,
+  }) async {
+    if (RegExp(
+      r'\.(?:png|jpe?g|webp|gif)$',
+      caseSensitive: false,
+    ).hasMatch(chapter.uri.path)) {
+      return [source.requestTarget(chapter.uri, media: true)];
+    }
+    final document = await _fetch(
+      source,
+      _stored(source, chapter.uri, chapter.request),
+      token,
+    );
+    if (document.contentType?.toLowerCase().startsWith('image/') == true) {
+      return [source.requestTarget(document.uri, media: true)];
+    }
+    final result = await _run(
+      LegadoJob(
+        source,
+        document.uri,
+        LegadoOperation.images,
+        input: document.text,
+        book: book,
+        chapter: chapter,
+      ),
+      token,
+    );
+    final images = <Uri>{};
+    for (final address in result.links.take(100)) {
+      try {
+        images.add(source.resolve(document.uri, address, media: true));
+      } on FormatException {
+        // A rule cannot authorize an undeclared media host.
+      }
+    }
+    return images.toList();
+  }
+
   Future<Uri> audio(
     BookSource source,
     BookChapter chapter,

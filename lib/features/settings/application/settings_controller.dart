@@ -16,6 +16,7 @@ final class UserSettings {
     this.autoplay = true,
     this.cache = true,
     this.cacheMiB = 512,
+    this.bookCoverCacheMiB = 32,
     this.episodeCacheMiB = 256,
     this.prefetchSegments = 3,
     this.cacheWhilePaused = false,
@@ -55,6 +56,7 @@ final class UserSettings {
   final bool autoplay;
   final bool cache;
   final int cacheMiB;
+  final int bookCoverCacheMiB;
   final int episodeCacheMiB;
   final int prefetchSegments;
   final bool cacheWhilePaused;
@@ -93,6 +95,7 @@ final class UserSettings {
     'autoplay': autoplay,
     'cache': cache,
     'cacheMiB': cacheMiB,
+    'bookCoverCacheMiB': bookCoverCacheMiB,
     'episodeCacheMiB': episodeCacheMiB,
     'prefetchSegments': prefetchSegments,
     'cacheWhilePaused': cacheWhilePaused,
@@ -143,6 +146,8 @@ final class UserSettings {
     autoplay: map['autoplay'] != false,
     cache: map['cache'] != false,
     cacheMiB: ((map['cacheMiB'] as num?)?.toInt() ?? 512).clamp(64, 16384),
+    bookCoverCacheMiB: ((map['bookCoverCacheMiB'] as num?)?.toInt() ?? 32)
+        .clamp(0, 128),
     episodeCacheMiB: ((map['episodeCacheMiB'] as num?)?.toInt() ?? 256).clamp(
       64,
       2048,

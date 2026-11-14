@@ -11,9 +11,7 @@ extension _ReaderTools on _BookReaderPageState {
           animation: _books.policy,
           builder: (context, _) {
             final allowed = _books.bookAllowed(widget.book);
-            final ordered = _reverse
-                ? widget.chapters.reversed
-                : widget.chapters;
+            final ordered = _reverse ? _chapters.reversed : _chapters;
             final visible = allowed
                 ? ordered
                       .where(
@@ -34,20 +32,14 @@ extension _ReaderTools on _BookReaderPageState {
                       tooltip: '上一章',
                       icon: const Icon(Icons.skip_previous),
                       onPressed: _canCross(-1)
-                          ? () => Navigator.pop(
-                              context,
-                              widget.chapters[_index - 1],
-                            )
+                          ? () => Navigator.pop(context, _chapters[_index - 1])
                           : null,
                     ),
                     IconButton(
                       tooltip: '下一章',
                       icon: const Icon(Icons.skip_next),
                       onPressed: _canCross(1)
-                          ? () => Navigator.pop(
-                              context,
-                              widget.chapters[_index + 1],
-                            )
+                          ? () => Navigator.pop(context, _chapters[_index + 1])
                           : null,
                     ),
                     IconButton(
@@ -99,7 +91,7 @@ extension _ReaderTools on _BookReaderPageState {
   }
 
   Future<void> _showFind() async {
-    if (!_ready) return;
+    if (!_ready || _images.isNotEmpty) return;
     _stopAutomation();
     final text = _text;
     final chapter = _chapter;
@@ -349,7 +341,7 @@ extension _ReaderTools on _BookReaderPageState {
         ),
       );
       if (!mounted || selected == null) return;
-      final chapter = widget.chapters
+      final chapter = _chapters
           .where((c) => c.id == selected['chapter'])
           .firstOrNull;
       if (chapter != null) {

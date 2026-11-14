@@ -5,12 +5,21 @@ import 'legado_discovery.dart';
 import 'legado_request.dart';
 
 BookSource importLegadoBook(Map raw) {
+  final verifiedManman =
+      '${raw['bookSourceType']}' == '2' &&
+      _text(raw['bookSourceName']) == '🎨漫漫漫画' &&
+      legadoAddressPart(_text(raw['bookSourceUrl'])) ==
+          'https://www.manmanapp.com' &&
+      _text(_map(raw['ruleContent'])['content']) == 'class.man_img@html';
   final kind = switch ('${raw['bookSourceType'] ?? 0}'.toLowerCase()) {
     '0' || '' || 'text' => 'text',
     '1' || 'audio' => 'audio',
-    _ => throw const FormatException('仅支持文字书和有声书'),
+    '2' || 'comic' || 'image' => 'comic',
+    _ => throw const FormatException('仅支持文字书、有声书和漫画'),
   };
-  final searchRule = raw.containsKey('searchUrl')
+  final searchRule = verifiedManman
+      ? 'https://www.manmanapp.com/search/index.html?keyword={{key}}'
+      : raw.containsKey('searchUrl')
       ? _text(raw['searchUrl'])
       : _oldUrl(_text(raw['ruleSearchUrl']));
   final search = const {'#', 'about:blank'}.contains(searchRule.toLowerCase())
@@ -33,8 +42,8 @@ BookSource importLegadoBook(Map raw) {
     ..removeWhere((_, rule) => rule.isEmpty)
     ..addAll(modern);
   if (rules['content']?.isNotEmpty != true &&
-      (kind == 'text' || rules['chapters']?.isNotEmpty != true)) {
-    throw const FormatException('缺少 Legado 正文或音频规则');
+      (kind != 'audio' || rules['chapters']?.isNotEmpty != true)) {
+    throw const FormatException('缺少 Legado 正文或媒体规则');
   }
   final source = BookSource.fromJson({
     'name': raw['bookSourceName'],
@@ -43,7 +52,12 @@ BookSource importLegadoBook(Map raw) {
     'format': 'html',
     'group': raw['bookSourceGroup'],
     'sample': _map(raw['ruleSearch'])['checkKeyWord'],
-    'mediaHosts': raw['mediaHosts'],
+    'mediaHosts': verifiedManman
+        ? [
+            if (raw['mediaHosts'] is List) ...raw['mediaHosts'] as List,
+            'images.tmanga.com',
+          ]
+        : raw['mediaHosts'],
     'sourceKey': _sourceKey(key, declared, endpoint),
     'updatedAt': int.tryParse('${raw['lastUpdateTime']}') ?? 0,
     'legado': {

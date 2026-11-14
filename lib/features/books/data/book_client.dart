@@ -12,7 +12,73 @@ import '../domain/book.dart';
 import '../domain/book_search.dart';
 import '../domain/legado_source.dart';
 import 'book_html.dart';
+import 'book_mixed_content.dart';
 import 'legado/legado_client.dart';
+
+List<Uri> parseBookImageAddresses(BookSource source, Uri base, String body) {
+  if (!body.trimLeft().startsWith('[')) return const [];
+  final Object? parsed;
+  try {
+    parsed = jsonDecode(body);
+  } on FormatException {
+    return const [];
+  }
+  if (parsed is! List ||
+      parsed.isEmpty ||
+      parsed.length > 100 ||
+      parsed.any(
+        (item) =>
+            item is! String ||
+            !(item.startsWith('https://') ||
+                item.startsWith('http://') ||
+                item.startsWith('//') ||
+                item.startsWith('/')),
+      )) {
+    return const [];
+  }
+  final images = <Uri>[];
+  for (final item in parsed.cast<String>()) {
+    try {
+      images.add(source.resolve(base, item, media: true));
+    } on FormatException {
+      return const [];
+    }
+  }
+  return images;
+}
+
+List<Uri> extractBookChapterImages(
+  BookSource source,
+  Uri base,
+  String html,
+  String rule,
+) {
+  final selector = rule
+      .replaceFirst(RegExp(r'^@css:'), '')
+      .replaceFirst(RegExp(r'@(text|ownText|html)$'), '');
+  final document = parseBookHtml(html);
+  final images = <Uri>{};
+  for (final element in bookElements(document, selector)) {
+    final nodes = element.localName == 'img'
+        ? [element]
+        : element.querySelectorAll('img');
+    for (final node in nodes) {
+      final address =
+          node.attributes['data-src'] ??
+          node.attributes['data-original'] ??
+          node.attributes['src'];
+      if (address == null || address.isEmpty) continue;
+      try {
+        images.add(source.resolve(base, address, media: true));
+      } on FormatException {
+        // Ignore an undeclared image host without expanding network access.
+      }
+      if (images.length >= 100) break;
+    }
+    if (images.length >= 100) break;
+  }
+  return images.toList();
+}
 
 final class BookClient {
   const BookClient(this.network);
@@ -319,6 +385,7 @@ final class BookClient {
     BookChapter chapter,
     CancellationToken token, {
     Book? book,
+    void Function(List<BookChapterSegment>)? onSegments,
   }) async {
     if (_hasLegadoRules(source)) {
       return _legado.text(source, chapter, token, book: book);
@@ -333,6 +400,7 @@ final class BookClient {
       return body;
     }
     final parts = <String>[];
+    final mixed = <BookChapterSegment>[];
     final visited = <Uri>{};
     var next = chapter.uri;
     for (var page = 0; page < 10 && visited.add(next); page++) {
@@ -354,6 +422,20 @@ final class BookClient {
         throw FormatException(imageOnly ? '章节仅提供图片，文本阅读器无法打开' : '来源未返回章节正文');
       }
       if (!parts.contains(body)) parts.add(body);
+      if (onSegments != null) {
+        try {
+          mixed.addAll(
+            extractBookChapterSegments(
+              source,
+              response.uri,
+              response.text,
+              source.rules['content']!,
+            ),
+          );
+        } on FormatException {
+          // Unsupported mixed layout must not hide valid text.
+        }
+      }
       if (parts.fold<int>(0, (sum, part) => sum + part.length) > 500000) {
         throw const FormatException('章节正文超过大小限制');
       }
@@ -366,7 +448,43 @@ final class BookClient {
     }
     final result = parts.join('\n\n');
     if (result.length > 500000) throw const FormatException('章节正文超过大小限制');
+    if (mixed.any((part) => part is BookImageSegment)) onSegments?.call(mixed);
     return result;
+  }
+
+  /// Static image chapters. Every media address is resolved through the
+  /// source's declared host policy before it reaches the reader.
+  Future<List<Uri>> chapterImages(
+    BookSource source,
+    BookChapter chapter,
+    CancellationToken token, {
+    Book? book,
+  }) async {
+    if (source.kind == BookKind.audio || source.format != BookFormat.html) {
+      return const [];
+    }
+    if (RegExp(
+      r'\.(?:png|jpe?g|webp|gif)$',
+      caseSensitive: false,
+    ).hasMatch(chapter.uri.path)) {
+      return [source.requestTarget(chapter.uri, media: true)];
+    }
+    if (source.legado != null) {
+      return _legado.images(source, chapter, token, book: book);
+    }
+    final response = await fetch(
+      source,
+      chapter.uri,
+      token,
+      maxBytes: 4 * 1024 * 1024,
+    );
+    token.check();
+    if (response.contentType?.toLowerCase().startsWith('image/') == true) {
+      return [source.requestTarget(response.uri, media: true)];
+    }
+    final rule = source.legado?.rules['content'] ?? source.rules['content'];
+    if (rule == null || rule.isEmpty) return const [];
+    return extractBookChapterImages(source, response.uri, response.text, rule);
   }
 
   Future<Uri> audio(

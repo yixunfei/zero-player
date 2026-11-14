@@ -11,6 +11,7 @@ import '../domain/book.dart';
 import '../domain/book_search.dart';
 import 'book_shelf_view.dart';
 import 'book_detail_page.dart';
+import 'book_download_management_page.dart';
 import 'book_discovery_view.dart';
 import '../data/qidian_catalog.dart';
 import 'book_page_route.dart';
@@ -44,6 +45,7 @@ final class _BooksPageState extends State<BooksPage> {
   bool _checking = false;
   bool _active = true;
   bool _openingBook = false;
+  Set<String> _downloadIds = {};
   late var _policy = _policyState;
 
   bool get _audio => widget.kind == BookKind.audio;
@@ -60,7 +62,23 @@ final class _BooksPageState extends State<BooksPage> {
     super.initState();
     _policy = _policyState;
     _services.contentPolicy.addListener(_policyChanged);
+    _downloadIds = _services.bookDownloads.activeTasks
+        .map((task) => task.book.id)
+        .toSet();
+    _services.bookDownloads.addListener(_downloadsChanged);
     unawaited(_reload());
+  }
+
+  void _downloadsChanged() {
+    if (!mounted) return;
+    final ids = _services.bookDownloads.activeTasks
+        .map((task) => task.book.id)
+        .toSet();
+    if (ids.length == _downloadIds.length && _downloadIds.containsAll(ids)) {
+      return;
+    }
+    _downloadIds = ids;
+    unawaited(_reloadShelf());
   }
 
   @override
@@ -163,8 +181,35 @@ final class _BooksPageState extends State<BooksPage> {
     } on Exception {
       // A temporary failure leaves the cached catalog and update badges intact.
     } finally {
-      if (mounted) setState(() => _checking = false);
+      if (mounted && identical(_followToken, token)) {
+        setState(() => _checking = false);
+      }
     }
+  }
+
+  Future<void> _checkShelfUpdates(List<BookShelfEntry> entries) async {
+    _followToken?.cancel();
+    final token = _followToken = CancellationToken();
+    setState(() => _checking = true);
+    try {
+      await _services.books.checkShelfUpdates(entries, token);
+      if (mounted && !token.isCancelled) await _reloadShelf();
+    } on Exception {
+      // Leave cached entries visible if one or more sources fail.
+    } finally {
+      if (mounted && identical(_followToken, token)) {
+        setState(() => _checking = false);
+      }
+    }
+  }
+
+  Future<void> _openDownloads() async {
+    await Navigator.of(context).push(
+      BookPageRoute<void>(
+        builder: (_) => BookDownloadManagementPage(services: _services),
+      ),
+    );
+    if (mounted) await _reloadShelf();
   }
 
   void _followChanged() {
@@ -177,12 +222,14 @@ final class _BooksPageState extends State<BooksPage> {
 
   Future<void> _searchBook(Book book, {bool direct = false}) {
     if (book.sourceId == qidianRecommendationId) {
+      if (!_services.books.qidian.allows(book)) return Future.value();
       return _search(
         book.title,
         field: BookSearchField.title,
         skipQidian: true,
       );
     }
+    if (!_services.books.bookAllowed(book)) return Future.value();
     return direct
         ? _open(book)
         : _search(book.title, preferred: book, field: BookSearchField.title);
@@ -217,7 +264,7 @@ final class _BooksPageState extends State<BooksPage> {
   }
 
   Future<void> _open(Book book) async {
-    if (!mounted) return;
+    if (!mounted || !_services.books.bookAllowed(book)) return;
     await Navigator.of(context).push(_detailRoute(book));
     if (!mounted) return;
     await _reloadShelf();
@@ -293,6 +340,7 @@ final class _BooksPageState extends State<BooksPage> {
   @override
   void dispose() {
     _followToken?.cancel();
+    _services.bookDownloads.removeListener(_downloadsChanged);
     _services.contentPolicy.removeListener(_policyChanged);
     super.dispose();
   }
@@ -343,6 +391,7 @@ final class _BooksPageState extends State<BooksPage> {
                           onOpen: _open,
                           checking: _checking,
                           onRefresh: _checkFollowing,
+                          onCheckUpdates: _checkShelfUpdates,
                           onFollowChanged: _followChanged,
                         ),
                       ],
@@ -360,23 +409,38 @@ final class _BooksPageState extends State<BooksPage> {
       spacing: 8,
       runSpacing: 4,
       children: [
-        OutlinedButton.icon(
-          onPressed: _import,
-          icon: const Icon(Icons.upload_file),
-          label: const Text('导入 EPUB / PDF'),
-        ),
-        IconButton(
-          tooltip: '听书',
-          onPressed: () => Navigator.of(context).push(
-            BookPageRoute<void>(
-              builder: (_) => Scaffold(
-                appBar: AppBar(title: const Text('听书')),
-                body: BooksPage(services: _services, kind: BookKind.audio),
+        if (widget.kind == BookKind.text)
+          OutlinedButton.icon(
+            onPressed: _import,
+            icon: const Icon(Icons.upload_file),
+            label: const Text('导入 EPUB / PDF'),
+          ),
+        if (widget.kind == BookKind.text)
+          IconButton(
+            tooltip: '网络漫画',
+            onPressed: () => Navigator.of(context).push(
+              BookPageRoute<void>(
+                builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('网络漫画')),
+                  body: BooksPage(services: _services, kind: BookKind.comic),
+                ),
               ),
             ),
+            icon: const Icon(Icons.auto_stories_outlined),
           ),
-          icon: const Icon(Icons.headphones_outlined),
-        ),
+        if (widget.kind == BookKind.text)
+          IconButton(
+            tooltip: '听书',
+            onPressed: () => Navigator.of(context).push(
+              BookPageRoute<void>(
+                builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('听书')),
+                  body: BooksPage(services: _services, kind: BookKind.audio),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.headphones_outlined),
+          ),
       ],
     ),
   );
@@ -386,7 +450,11 @@ final class _BooksPageState extends State<BooksPage> {
       final theme = Theme.of(context);
       final compact = constraints.maxWidth < 620;
       final title = Text(
-        _audio ? '听书' : '网络小说',
+        _audio
+            ? '听书'
+            : widget.kind == BookKind.comic
+            ? '网络漫画'
+            : '网络小说',
         style: theme.textTheme.headlineMedium?.copyWith(
           fontFamily: 'NotoSerifSC',
           fontWeight: FontWeight.w700,
@@ -414,6 +482,16 @@ final class _BooksPageState extends State<BooksPage> {
           if (_tab == 1) unawaited(_checkFollowing());
         },
       );
+      final sourceButton = IconButton(
+        tooltip: '源管理',
+        onPressed: _manageSources,
+        icon: const Icon(Icons.tune),
+      );
+      final downloadButton = IconButton(
+        tooltip: '书籍下载管理',
+        onPressed: _openDownloads,
+        icon: const Icon(Icons.download_outlined),
+      );
       return Padding(
         padding: EdgeInsets.fromLTRB(
           compact ? 16 : 26,
@@ -421,28 +499,35 @@ final class _BooksPageState extends State<BooksPage> {
           compact ? 16 : 26,
           8,
         ),
-        child: Row(
-          children: [
-            if (!compact) title,
-            if (!compact) const SizedBox(width: 24),
-            if (!compact) tabs,
-            const Spacer(),
-            if (compact) tabs,
-            const Spacer(),
-            if (!compact && !_audio) const SizedBox(width: 8),
-            compact
-                ? IconButton(
-                    tooltip: '源管理',
-                    onPressed: _manageSources,
-                    icon: const Icon(Icons.tune),
-                  )
-                : OutlinedButton.icon(
+        child: compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: title),
+                      downloadButton,
+                      sourceButton,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerLeft, child: tabs),
+                ],
+              )
+            : Row(
+                children: [
+                  title,
+                  const SizedBox(width: 24),
+                  tabs,
+                  const Spacer(),
+                  downloadButton,
+                  OutlinedButton.icon(
                     onPressed: _manageSources,
                     icon: const Icon(Icons.tune),
                     label: const Text('源管理'),
                   ),
-          ],
-        ),
+                ],
+              ),
       );
     },
   );

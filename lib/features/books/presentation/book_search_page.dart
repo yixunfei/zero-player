@@ -11,6 +11,32 @@ import 'book_cover.dart';
 import 'book_links.dart';
 import 'book_source_favorite.dart';
 
+final _bookUpdateDate = RegExp(
+  r'(20\d{2})[-/年.](\d{1,2})[-/月.](\d{1,2})(?:日)?(?:\s+(\d{1,2}):(\d{2}))?',
+);
+final _bookChapterNumber = RegExp(r'第\s*(\d+)\s*[章节回话]');
+
+int compareBookChapterFreshness(Book a, Book b) {
+  int date(String value) {
+    final match = _bookUpdateDate.firstMatch(value);
+    if (match == null) return 0;
+    return int.parse(match[1]!) * 100000000 +
+        int.parse(match[2]!) * 1000000 +
+        int.parse(match[3]!) * 10000 +
+        (int.tryParse(match[4] ?? '') ?? 0) * 100 +
+        (int.tryParse(match[5] ?? '') ?? 0);
+  }
+
+  final dates = date(b.updatedLabel).compareTo(date(a.updatedLabel));
+  if (dates != 0) return dates;
+  int chapter(String value) {
+    final match = _bookChapterNumber.firstMatch(value);
+    return match == null ? 0 : int.parse(match[1]!);
+  }
+
+  return chapter(b.latestChapter).compareTo(chapter(a.latestChapter));
+}
+
 class BookSearchPage extends StatefulWidget {
   const BookSearchPage({
     super.key,
@@ -99,7 +125,11 @@ class _BookSearchPageState extends State<BookSearchPage> {
     });
     _updates.value++;
     try {
-      await _loadSources(token, preferred, retrying: retry != null);
+      final availableSources = await _loadSources(
+        token,
+        preferred,
+        retrying: retry != null,
+      );
       final retried = <String>{};
       await repository.find(
         widget.kind,
@@ -112,6 +142,7 @@ class _BookSearchPageState extends State<BookSearchPage> {
         preferredSource: preferred?.sourceId,
         excludedSource: widget.excludedSource,
         skipQidian: widget.skipQidian,
+        availableSources: availableSources,
         onProgress: (update) {
           if (update.sourceId case final String id) retried.add(id);
           _update(update, token, retrying: retry != null);
@@ -132,7 +163,7 @@ class _BookSearchPageState extends State<BookSearchPage> {
     }
   }
 
-  Future<void> _loadSources(
+  Future<List<BookSourceEntry>> _loadSources(
     CancellationToken token,
     Book? preferred, {
     required bool retrying,
@@ -140,7 +171,7 @@ class _BookSearchPageState extends State<BookSearchPage> {
     final repository = widget.repository;
     final sources = await repository.sources(widget.kind, enabledOnly: true);
     token.check();
-    if (!mounted) return;
+    if (!mounted) return sources;
     setState(() {
       _sources
         ..clear()
@@ -157,6 +188,7 @@ class _BookSearchPageState extends State<BookSearchPage> {
       }
     });
     _updates.value++;
+    return sources;
   }
 
   void _update(
@@ -201,13 +233,17 @@ class _BookSearchPageState extends State<BookSearchPage> {
   }
 
   int _compareSources(Book a, Book b) {
-    final preferred = _preferred?.id;
-    if (a.id == preferred) return b.id == preferred ? 0 : -1;
-    if (b.id == preferred) return 1;
+    final preferred = _preferred?.sourceId;
+    if (preferred != null && a.sourceId == preferred) {
+      return b.sourceId == preferred ? 0 : -1;
+    }
+    if (preferred != null && b.sourceId == preferred) return 1;
     final favorite = (_sources[b.sourceId]?.favorite == true ? 1 : 0).compareTo(
       _sources[a.sourceId]?.favorite == true ? 1 : 0,
     );
     if (favorite != 0) return favorite;
+    final freshness = compareBookChapterFreshness(a, b);
+    if (freshness != 0) return freshness;
     const unknownLatency = 1 << 30;
     final time = (_latencies[a.sourceId] ?? unknownLatency).compareTo(
       _latencies[b.sourceId] ?? unknownLatency,

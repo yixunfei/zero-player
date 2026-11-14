@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:html/dom.dart' as dom;
@@ -6,6 +7,7 @@ import 'package:html/dom.dart' as dom;
 import '../../../../core/network/cancellation_token.dart';
 import '../../domain/book.dart';
 import '../../domain/legado_source.dart';
+import '../book_html.dart';
 import 'legado_discovery.dart';
 import 'legado_request.dart';
 import 'legado_rule_tokens.dart';
@@ -22,6 +24,7 @@ enum LegadoOperation {
   content,
   articles,
   audio,
+  images,
 }
 
 final class LegadoJob {
@@ -160,6 +163,7 @@ final class _LegadoEvaluation {
     LegadoOperation.content => _content(),
     LegadoOperation.articles => _articles(),
     LegadoOperation.audio => _audio(),
+    LegadoOperation.images => _images(),
   };
 
   LegadoPage _matchBookUrl() {
@@ -392,6 +396,66 @@ final class _LegadoEvaluation {
     );
     final request = _request(link, media: true);
     return LegadoPage(links: [if (request != null) request.uri.toString()]);
+  }
+
+  LegadoPage _images() {
+    final rule = rules['content'] ?? '';
+    if (rule.isEmpty) return const LegadoPage();
+    final addresses = <String>{};
+    void add(String? value) {
+      final address = value?.trim() ?? '';
+      if (address.isNotEmpty && addresses.length < 100) addresses.add(address);
+    }
+
+    void addElement(dom.Element element) {
+      final images = element.localName == 'img'
+          ? [element]
+          : element.querySelectorAll('img');
+      for (final image in images) {
+        add(
+          image.attributes['data-src'] ??
+              image.attributes['data-lazy-src'] ??
+              image.attributes['data-echo'] ??
+              image.attributes['data-original'] ??
+              image.attributes['src'],
+        );
+      }
+    }
+
+    void addValue(Object? value) {
+      if (value is dom.Element) {
+        addElement(value);
+      } else if (value is String) {
+        final trimmed = value.trim();
+        if (trimmed.startsWith('[')) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is List) {
+              for (final item in decoded.take(100)) {
+                if (item is String) add(item);
+              }
+              return;
+            }
+          } on FormatException {
+            // Continue with HTML or a direct media address.
+          }
+        }
+        if (trimmed.contains('<img')) {
+          for (final image in parseBookHtml(trimmed).querySelectorAll('img')) {
+            addElement(image);
+          }
+        } else {
+          for (final line in trimmed.split(RegExp(r'[\r\n]+'))) {
+            add(line);
+          }
+        }
+      }
+    }
+
+    for (final value in evaluator.rawValues(rule, evaluator.root).take(100)) {
+      addValue(value);
+    }
+    return LegadoPage(links: addresses.toList());
   }
 
   Object? _details(Object? root) =>

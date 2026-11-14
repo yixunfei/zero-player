@@ -12,6 +12,10 @@ EPUB 排版截图可用 `./tool/run_windows_native.ps1 -TestFiles @('integration
 
 2026-11-13 本地 Android 包为 78.97 MiB，超过历史 70 MiB 包体预算；本轮不作为满足该预算的正式发行。版本／ABI／字体／签名／资源摘要检查已通过，详情见 STATUS.md。离线 Gradle 构建遇到生成的 integration_test 注册残留时，先保留文件备份并核实本轮 Dart Release 编译已成功，再只移除该测试注册，以相同参数加 `-x :app:compileFlutterBuildRelease` 续打包；不得复用其他源码或入口的旧 AOT。
 
+## v0.7.4 构建
+
+版本为 `0.7.4+74`。Windows x64 Release 与 Android ARM64 开发测试 Release 串行构建；Android 沿用独立测试包名与测试签名，超过历史 70 MiB 正式包体预算时只作为开发测试附件。打包与验收范围见[版本说明](RELEASE-0.7.4.md)。
+
 ## v0.7.3 构建
 
 版本为 `0.7.3+73`。Windows x64 Release 与 Android ARM64 开发测试 Release 串行构建。Android 沿用独立包名和 v0.7.2 的测试签名。附件及验证范围见[版本说明](RELEASE-0.7.3.md)。

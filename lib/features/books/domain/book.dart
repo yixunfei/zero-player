@@ -4,7 +4,7 @@ import '../../../core/network/network_target_policy.dart';
 import '../../sources/domain/video_source.dart';
 import 'legado_source.dart';
 
-enum BookKind { text, audio }
+enum BookKind { text, audio, comic }
 
 enum BookFormat { html, feed, featured }
 
@@ -74,6 +74,7 @@ final class BookSource {
       originNote = bookLabel(data['originNote'], 240),
       sourceKey = _rule(data['sourceKey'], 2048),
       updatedAt = data['updatedAt'] as int? ?? 0,
+      defaultEnabled = data['defaultEnabled'] != false,
       directAudio = data['directAudio'] == true {
     final rawFeatured = data['featured'];
     if (rawFeatured != null &&
@@ -132,6 +133,7 @@ final class BookSource {
   final BookFormat format;
   final Uri endpoint;
   final bool builtin;
+  final bool defaultEnabled;
   final bool directAudio;
   final LegadoSource? legado;
   final List<LegadoCategory> discoveryCategories;
@@ -213,6 +215,7 @@ final class BookSource {
     if (sourceKey.isNotEmpty) 'sourceKey': sourceKey,
     if (updatedAt != 0) 'updatedAt': updatedAt,
     if (directAudio) 'directAudio': true,
+    if (!defaultEnabled) 'defaultEnabled': false,
     if (featured.isNotEmpty)
       'featured': featured.map((b) => b.toJson()).toList(),
   };

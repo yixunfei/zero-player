@@ -33,6 +33,13 @@ final class _QidianBookPreviewState extends State<QidianBookPreview> {
   CancellationToken? _token;
   QidianInfo? _info;
   bool _hovering = false;
+  bool _fetching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadHover());
+  }
 
   @override
   void didUpdateWidget(QidianBookPreview oldWidget) {
@@ -45,6 +52,7 @@ final class _QidianBookPreviewState extends State<QidianBookPreview> {
     _token?.cancel();
     _info = null;
     _hovering = false;
+    unawaited(_loadHover());
   }
 
   @override
@@ -55,13 +63,18 @@ final class _QidianBookPreviewState extends State<QidianBookPreview> {
   }
 
   Future<void> _loadHover() async {
-    if (!_hovering || _info != null) return;
+    if (_info != null || _fetching || !widget.catalog.allows(widget.book)) {
+      return;
+    }
+    _fetching = true;
     final token = _token = CancellationToken();
     try {
       final info = await widget.catalog.details(widget.book, token);
       if (mounted && !token.isCancelled) setState(() => _info = info);
     } on Exception {
       // The explicit information dialog can show the error and retry.
+    } finally {
+      _fetching = false;
     }
   }
 
@@ -69,7 +82,6 @@ final class _QidianBookPreviewState extends State<QidianBookPreview> {
 
   void _leave() {
     _hover?.cancel();
-    _token?.cancel();
     setState(() => _hovering = false);
   }
 
@@ -334,16 +346,20 @@ final class _WorkCoverState extends State<_WorkCover> {
     _bytes = null;
     final book = widget.book;
     final target = book.withDetails(
-      Book(book.sourceId, book.kind, book.title, book.author, book.uri,
-          cover: widget.cover),
+      Book(
+        book.sourceId,
+        book.kind,
+        book.title,
+        book.author,
+        book.uri,
+        cover: widget.cover,
+      ),
     );
     try {
       final bytes = await widget.catalog.cover(target, token);
       if (mounted && !token.isCancelled) {
         setState(
-          () => _bytes = bytes is Uint8List
-              ? bytes
-              : Uint8List.fromList(bytes),
+          () => _bytes = bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
         );
       }
     } on Exception {

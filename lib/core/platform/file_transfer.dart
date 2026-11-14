@@ -13,21 +13,36 @@ final class FileTransfer {
     return selected.readAsString();
   }
 
-  static Future<void> saveText(String name, String text) async {
+  static Future<void> saveText(
+    String name,
+    String text, {
+    void Function()? beforeWrite,
+  }) async {
     final directory = await (await getTemporaryDirectory()).createTemp(
       'zero-save-',
     );
     final file = File('${directory.path}/$name');
     try {
       await file.writeAsString(text, flush: true);
-      await saveFile(file, name, 'application/octet-stream');
+      await saveFile(
+        file,
+        name,
+        'application/octet-stream',
+        beforeWrite: beforeWrite,
+      );
     } finally {
       await directory.delete(recursive: true);
     }
   }
 
-  static Future<void> saveFile(File file, String name, String mime) async {
+  static Future<void> saveFile(
+    File file,
+    String name,
+    String mime, {
+    void Function()? beforeWrite,
+  }) async {
     if (Platform.isAndroid) {
+      beforeWrite?.call();
       final saved = await const MethodChannel('zero_player/platform')
           .invokeMethod<bool>('saveFile', {
             'path': file.path,
@@ -38,6 +53,7 @@ final class FileTransfer {
     } else {
       final destination = await getSaveLocation(suggestedName: name);
       if (destination == null) throw StateError('已取消保存');
+      beforeWrite?.call();
       await file.copy(destination.path);
     }
   }

@@ -48,6 +48,7 @@ import '../features/music/data/music_style_catalog.dart';
 import '../features/music/application/music_open_api.dart';
 import '../features/playback/domain/player_engine.dart';
 import '../features/books/data/books_repository.dart';
+import '../features/books/data/book_download_coordinator.dart';
 import '../media/engine/media_kit_engine.dart';
 import '../features/live/data/live_health_repository.dart';
 import '../features/live/application/live_probe.dart';
@@ -163,7 +164,11 @@ final class AppServices {
     offline,
     contentPolicy,
     exporter.validateAudiobook,
+    coverCacheMiB: settings.value.bookCoverCacheMiB,
   );
+  BookDownloadCoordinator? _bookDownloads;
+  BookDownloadCoordinator get bookDownloads =>
+      _bookDownloads ??= BookDownloadCoordinator(books);
   Future<void> Function()? _pauseAudiobook;
   Future<void> Function()? _closeAudiobook;
   void setAudiobookControls({
@@ -429,8 +434,20 @@ final class AppServices {
     services._applySettings();
   }
 
-  void _applySettings() =>
-      store.maxBytes = settings.value.cacheMiB * 1024 * 1024;
+  void _applySettings() {
+    store.maxBytes = settings.value.cacheMiB * 1024 * 1024;
+    final cache = _books?.coverCache;
+    if (cache != null) {
+      unawaited(
+        cache
+            .setMaxMiB(settings.value.bookCoverCacheMiB)
+            .onError(
+              (Object error, StackTrace stack) =>
+                  debugPrint('书籍封面缓存设置失败: $error'),
+            ),
+      );
+    }
+  }
 
   Future<CatalogItem> detail(
     String sourceId,
@@ -501,6 +518,7 @@ final class AppServices {
         },
         () => _musicRecommendations?.close(),
         () => _closeAudiobook?.call(),
+        () => _bookDownloads?.close(),
         () => _books?.close(),
         () async {
           await _musicOpenApi?.close();

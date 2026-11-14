@@ -208,6 +208,26 @@ final class AudiobookFiles {
     return operation;
   }
 
+  Future<void> removeSaved(Book book) async {
+    final ids = await saved(book);
+    final operation = _writeQueue.then((_) async {
+      for (final id in ids) {
+        if (offline.isPlaying('books:${book.id}:$id')) {
+          throw const FormatException('请先关闭正在播放的章节');
+        }
+      }
+      for (final id in ids) {
+        final dir = Directory(p.join(root.path, '${book.id}-$id'));
+        if (await dir.exists()) await dir.delete(recursive: true);
+      }
+    });
+    _writeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    await operation;
+  }
+
   Future<void> close() async {
     _closed = true;
     for (final token in _running.toList()) {

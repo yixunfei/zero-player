@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/book_shelf_lists.dart';
@@ -12,6 +14,8 @@ const _labels = {
   ShelfListKind.list: '书单',
 };
 
+enum _ShelfFilter { all, offline, online, updated }
+
 class BookShelfView extends StatefulWidget {
   const BookShelfView({
     super.key,
@@ -21,6 +25,7 @@ class BookShelfView extends StatefulWidget {
     required this.onOpen,
     required this.onFollowChanged,
     required this.onRefresh,
+    required this.onCheckUpdates,
     required this.checking,
   });
   final BooksRepository repository;
@@ -29,6 +34,7 @@ class BookShelfView extends StatefulWidget {
   final ValueChanged<Book> onOpen;
   final VoidCallback onFollowChanged;
   final Future<void> Function() onRefresh;
+  final Future<void> Function(List<BookShelfEntry>) onCheckUpdates;
   final bool checking;
 
   @override
@@ -39,6 +45,10 @@ class _BookShelfViewState extends State<BookShelfView> {
   List<ShelfList> _lists = [];
   String _selected = '';
   bool _following = false;
+  _ShelfFilter _filter = _ShelfFilter.all;
+  String _type = '';
+  Set<String> _offlineIds = {};
+  int _offlineSequence = 0;
   BookShelfLists get _store =>
       BookShelfLists(widget.repository.store, widget.kind);
 
@@ -46,6 +56,50 @@ class _BookShelfViewState extends State<BookShelfView> {
   void initState() {
     super.initState();
     _reload();
+    unawaited(_refreshOffline());
+  }
+
+  @override
+  void didUpdateWidget(covariant BookShelfView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.entries, oldWidget.entries)) {
+      if (_type.isNotEmpty &&
+          !widget.entries.any((entry) => _bookType(entry.book) == _type)) {
+        _type = '';
+      }
+      unawaited(_refreshOffline());
+    }
+  }
+
+  Future<void> _refreshOffline() async {
+    final sequence = ++_offlineSequence;
+    final ids = <String>{};
+    for (final entry in widget.entries) {
+      final book = entry.book;
+      if (book.sourceId == 'local') {
+        ids.add(book.id);
+        continue;
+      }
+      final saved = switch (book.kind) {
+        BookKind.text => await widget.repository.store.savedText(book),
+        BookKind.comic => await widget.repository.store.savedImages(book),
+        BookKind.audio => await widget.repository.audioFiles.saved(book),
+      };
+      if (saved.isNotEmpty) ids.add(book.id);
+    }
+    if (mounted && sequence == _offlineSequence) {
+      setState(() => _offlineIds = ids);
+    }
+  }
+
+  String _bookType(Book book) {
+    if (book.sourceId == 'local') {
+      final path = book.uri.path.toLowerCase();
+      if (path.endsWith('.epub')) return 'EPUB';
+      if (path.endsWith('.pdf')) return 'PDF';
+      return 'TXT';
+    }
+    return book.category.trim().isEmpty ? '网络作品' : book.category.trim();
   }
 
   Future<void> _reload() async {
@@ -176,13 +230,22 @@ class _BookShelfViewState extends State<BookShelfView> {
   @override
   Widget build(BuildContext context) {
     final list = _lists.where((item) => item.id == _selected).firstOrNull;
-    final entries = widget.entries
+    final base = widget.entries
         .where(
           (entry) =>
               (!_following || entry.following) &&
               (list == null || list.books.contains(entry.book.id)),
         )
         .toList();
+    final entries = base.where((entry) {
+      if (_type.isNotEmpty && _bookType(entry.book) != _type) return false;
+      return switch (_filter) {
+        _ShelfFilter.all => true,
+        _ShelfFilter.offline => _offlineIds.contains(entry.book.id),
+        _ShelfFilter.online => entry.book.sourceId != 'local',
+        _ShelfFilter.updated => entry.newChapters > 0,
+      };
+    }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -231,6 +294,8 @@ class _BookShelfViewState extends State<BookShelfView> {
         selected: _following,
         onSelected: (value) => setState(() => _following = value),
       ),
+      _statusFilter(),
+      _typeFilter(),
       IconButton(
         tooltip: '检查追更',
         onPressed: widget.checking ? null : widget.onRefresh,
@@ -262,6 +327,52 @@ class _BookShelfViewState extends State<BookShelfView> {
           ],
         ),
     ],
+  );
+
+  Widget _statusFilter() => DropdownButton<_ShelfFilter>(
+    value: _filter,
+    items: const [
+      DropdownMenuItem(value: _ShelfFilter.all, child: Text('全部状态')),
+      DropdownMenuItem(value: _ShelfFilter.offline, child: Text('本地离线')),
+      DropdownMenuItem(value: _ShelfFilter.online, child: Text('在线阅读')),
+      DropdownMenuItem(value: _ShelfFilter.updated, child: Text('有更新')),
+    ],
+    onChanged: (value) {
+      if (value == null) return;
+      setState(() => _filter = value);
+      if (value == _ShelfFilter.updated) {
+        final list = _lists.where((item) => item.id == _selected).firstOrNull;
+        final entries = widget.entries.where(
+          (entry) =>
+              (!_following || entry.following) &&
+              (list == null || list.books.contains(entry.book.id)) &&
+              (_type.isEmpty || _bookType(entry.book) == _type),
+        );
+        unawaited(widget.onCheckUpdates(entries.toList()));
+      }
+    },
+  );
+
+  Widget _typeFilter() => ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 150),
+    child: DropdownButton<String>(
+      isExpanded: true,
+      value: _type,
+      items: [
+        const DropdownMenuItem(value: '', child: Text('全部类型')),
+        for (final type
+            in widget.entries
+                .map((entry) => _bookType(entry.book))
+                .toSet()
+                .toList()
+              ..sort())
+          DropdownMenuItem(
+            value: type,
+            child: Text(type, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (value) => setState(() => _type = value ?? ''),
+    ),
   );
 
   Widget _tile(BookShelfEntry entry) {

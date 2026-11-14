@@ -39,6 +39,12 @@ final class LegadoRules {
     ).where((item) => item != null).take(5000).toList();
   }
 
+  List<Object?> rawValues(String rule, Object? value) => _evaluate(
+    rule,
+    value,
+    list: false,
+  ).where((item) => item != null).take(5000).toList();
+
   String field(
     String rule,
     Object? value, {

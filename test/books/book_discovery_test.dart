@@ -44,7 +44,9 @@ void main() {
       );
       expect(restored.where((e) => e.source.builtin), isNotEmpty);
       expect(
-        restored.where((e) => e.source.builtin).every((e) => e.enabled),
+        restored
+            .where((e) => e.source.builtin)
+            .every((e) => e.enabled == e.source.defaultEnabled),
         isTrue,
       );
       expect(restored.any((e) => e.source.id == builtin.id), isFalse);
@@ -235,6 +237,7 @@ void _bundledPacks() {
     final entries = [
       ...await repository.sources(BookKind.text),
       ...await repository.sources(BookKind.audio),
+      ...await repository.sources(BookKind.comic),
     ].where((entry) => entry.fromCatalog).toList();
     expect(entries.length, result.changes.added);
     expect(

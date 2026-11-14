@@ -1,13 +1,17 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../app/app_services.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
+import '../../../core/platform/file_transfer.dart';
 import '../../supervision/domain/supervision_rules.dart';
+import '../data/book_comic_export.dart';
 import '../data/books_repository.dart';
+import '../data/book_download_coordinator.dart';
 import '../domain/book.dart';
 import 'book_reader_page.dart';
 import 'book_page_route.dart';
@@ -57,22 +61,27 @@ final class _BookDetailPageState extends State<BookDetailPage> {
   final _directoryHeader = GlobalKey();
   static const _chapterExtent = 58.0;
   final _filter = TextEditingController();
-  int _finished = 0, _total = 0;
+  BookDownloadTask? _downloadTask;
   CancellationToken? _token;
   BooksRepository get _books => widget.services.books;
   bool get _audio => _book.kind == BookKind.audio;
+  bool get _comic => _book.kind == BookKind.comic;
   bool get _local => _book.sourceId == 'local';
 
   @override
   void initState() {
     super.initState();
     _books.policy.addListener(_policyChanged);
+    _downloadTask = widget.services.bookDownloads.active(_book);
+    _downloadTask?.addListener(_downloadChanged);
+    _saved.addAll(_downloadTask?.savedChapterIds ?? const {});
     _run(_load);
   }
 
   @override
   void dispose() {
     _token?.cancel();
+    _downloadTask?.removeListener(_downloadChanged);
     _books.policy.removeListener(_policyChanged);
     _catalogScroll.dispose();
     _filter.dispose();
@@ -82,6 +91,59 @@ final class _BookDetailPageState extends State<BookDetailPage> {
   void _policyChanged() {
     _token?.cancel();
     if (mounted) setState(() {});
+  }
+
+  void _attachDownloadTask(BookDownloadTask? task) {
+    if (identical(_downloadTask, task)) return;
+    _downloadTask?.removeListener(_downloadChanged);
+    _downloadTask = task;
+    task?.addListener(_downloadChanged);
+    if (task != null) _saved.addAll(task.savedChapterIds);
+    if (mounted) setState(() {});
+  }
+
+  void _downloadChanged() {
+    final task = _downloadTask;
+    if (task == null || !mounted) return;
+    if (task.status == BookDownloadStatus.running) {
+      setState(() => _saved.addAll(task.savedChapterIds));
+      return;
+    }
+    _attachDownloadTask(null);
+    unawaited(_finishDownload(task));
+  }
+
+  Future<void> _finishDownload(BookDownloadTask task) async {
+    try {
+      final saved = task.book.kind == BookKind.audio
+          ? await _books.audioFiles.saved(task.book)
+          : task.book.kind == BookKind.comic
+          ? await _books.store.savedImages(task.book)
+          : await _books.store.savedText(task.book);
+      final plan = BookDownloadPlan.fromJson(
+        await _books.store.read('books_download:${task.book.id}'),
+      );
+      if (!mounted || _book.id != task.book.id) return;
+      setState(() {
+        _saved = saved;
+        _plan = plan;
+      });
+    } on Exception {
+      if (mounted && _book.id == task.book.id) {
+        _toast('下载状态读取失败，请刷新目录');
+      }
+      return;
+    }
+    switch (task.status) {
+      case BookDownloadStatus.completed:
+        _toast('已完成 ${task.total - task.failures} 章，失败 ${task.failures} 章');
+      case BookDownloadStatus.paused:
+        _toast(task.error ?? '下载已暂停');
+      case BookDownloadStatus.failed:
+        _toast(task.error ?? '下载未完成');
+      case BookDownloadStatus.running:
+        break;
+    }
   }
 
   void _toast(String text) {
@@ -135,11 +197,13 @@ final class _BookDetailPageState extends State<BookDetailPage> {
         });
     final saved = _audio
         ? await _books.audioFiles.saved(_book)
+        : _comic
+        ? await _books.store.savedImages(_book)
         : await _books.store.savedText(_book);
     if (!mounted || token.isCancelled) return;
     setState(() {
       _chapters = chapters.isEmpty ? existing?.chapters ?? [] : chapters;
-      _saved = saved;
+      _saved = saved..addAll(_downloadTask?.savedChapterIds ?? const {});
       _last = existing?.last;
       _favorite = existing?.favorite ?? false;
       _following = existing?.following ?? false;
@@ -149,6 +213,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
       _sourceUnavailable =
           !_local && (chapters.isEmpty || channel?.enabled != true);
     });
+    _attachDownloadTask(widget.services.bookDownloads.active(_book));
     if (refresh && chapters.isNotEmpty && existing != null) {
       token.check();
       if (existing.following) {
@@ -252,6 +317,104 @@ final class _BookDetailPageState extends State<BookDetailPage> {
     });
   }
 
+  Future<void> _exportOfflineText() => _run((token) async {
+    final buffer = StringBuffer('${_book.title}\n${_book.author}\n\n');
+    final included = <(BookChapter, String)>[];
+    var exported = 0;
+    for (final chapter in _chapters) {
+      token.check();
+      if (!_saved.contains(chapter.id)) continue;
+      _books.requireBook(_book, chapter);
+      final body = await _books.store.text(_book, chapter);
+      if (body == null || !_books.policy.textAllowed(body)) continue;
+      buffer.write('${chapter.title}\n\n$body\n\n');
+      included.add((chapter, body));
+      exported++;
+    }
+    if (exported == 0) throw const FormatException('没有可导出的离线章节');
+    final name = _book.title.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '_');
+    void validate() {
+      token.check();
+      if (!_books.bookAllowed(_book)) throw const ContentBlocked();
+      for (final (chapter, body) in included) {
+        _books.requireBook(_book, chapter);
+        if (!_books.policy.textAllowed(body)) throw const ContentBlocked();
+      }
+    }
+
+    validate();
+    await FileTransfer.saveText(
+      '$name.txt',
+      buffer.toString(),
+      beforeWrite: validate,
+    );
+    if (mounted) _toast('已导出 $exported 章');
+  });
+
+  Future<void> _exportOfflineImages() => _run((token) async {
+    final files = <ComicExportImage>[];
+    final contents = <String>['${_book.title} · ${_book.author}'];
+    var chapters = 0;
+    for (final chapter in _chapters) {
+      token.check();
+      if (!_saved.contains(chapter.id)) continue;
+      _books.requireBook(_book, chapter);
+      final images = await _books.store.offlineImages(_book, chapter);
+      if (images == null || images.isEmpty) continue;
+      chapters++;
+      final folder = chapters.toString().padLeft(4, '0');
+      contents.add('$folder  ${chapter.title}');
+      var index = 0;
+      for (final image in images.entries) {
+        token.check();
+        final extension =
+            image.key.pathSegments.lastOrNull
+                ?.toLowerCase()
+                .split('.')
+                .lastOrNull ??
+            '';
+        final suffix =
+            const {'png', 'jpg', 'jpeg', 'webp', 'gif'}.contains(extension)
+            ? extension
+            : 'img';
+        files.add((
+          path: '$folder/${(++index).toString().padLeft(4, '0')}.$suffix',
+          bytes: image.value,
+        ));
+      }
+    }
+    if (chapters == 0) throw const FormatException('没有可导出的离线漫画');
+    void validate() {
+      token.check();
+      if (!_books.bookAllowed(_book)) throw const ContentBlocked();
+      for (final chapter in _chapters.where((c) => _saved.contains(c.id))) {
+        _books.requireBook(_book, chapter);
+      }
+    }
+
+    validate();
+    final indexText = contents.join('\n');
+    final zipBytes = await encodeComicArchive(files, indexText);
+    validate();
+    final name = _book.title.replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '_');
+    final directory = await (await getTemporaryDirectory()).createTemp(
+      'zero-comic-',
+    );
+    try {
+      final file = File('${directory.path}/$name.zip');
+      await file.writeAsBytes(zipBytes, flush: true);
+      await FileTransfer.saveFile(
+        file,
+        '$name.zip',
+        'application/zip',
+        beforeWrite: validate,
+      );
+      if (mounted) _toast('已导出 $chapters 章');
+    } finally {
+      await directory.delete(recursive: true);
+    }
+  });
+
   Future<void> _changeSource() => _run((token) async {
     final editions = await _books.alternatives(_book, token);
     if (!mounted || token.isCancelled) return;
@@ -301,6 +464,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
       _chapterQuery = '';
       _filter.clear();
     });
+    _attachDownloadTask(widget.services.bookDownloads.active(_book));
     await _load(token);
   });
 
@@ -314,122 +478,29 @@ final class _BookDetailPageState extends State<BookDetailPage> {
     children: [
       if (_plan case final BookDownloadPlan plan)
         FilledButton.tonal(
-          onPressed: _busy ? null : () => _download(plan),
+          onPressed: _busy || _downloadTask != null
+              ? null
+              : () => _download(plan),
           child: const Text('继续下载'),
         ),
       OutlinedButton(
-        onPressed: _busy ? null : _chooseDownload,
+        onPressed: _busy || _downloadTask != null ? null : _chooseDownload,
         child: const Text('离线下载'),
       ),
     ],
   );
 
-  Iterable<BookChapter> _downloadRange(BookDownloadPlan plan) {
-    final ids = plan.chapterIds?.toSet();
-    if (ids != null) {
-      return _chapters.where((chapter) => ids.contains(chapter.id));
-    }
-    return _chapters.skip(plan.first - 1).take(plan.last - plan.first + 1);
+  Future<void> _download(BookDownloadPlan plan, {bool keepPlan = true}) async {
+    if (_busy || _downloadTask != null) return;
+    final task = widget.services.bookDownloads.start(
+      _book,
+      _chapters,
+      plan,
+      keepPlan: keepPlan,
+    );
+    _attachDownloadTask(task);
+    if (keepPlan) setState(() => _plan = plan);
   }
-
-  Future<void> _download(BookDownloadPlan plan, {bool keepPlan = true}) =>
-      _run((token) async {
-        final range = _downloadRange(plan);
-        final chapters = range
-            .where((chapter) => !_saved.contains(chapter.id))
-            .toList();
-        final key = 'books_download:${_book.id}';
-        if (chapters.isEmpty) {
-          if (range.isEmpty) {
-            _toast('目录中已找不到所选章节');
-            return;
-          }
-          if (keepPlan) {
-            await _books.store.write(key, null);
-            if (mounted) setState(() => _plan = null);
-          }
-          _toast('当前可用章节已全部下载');
-          return;
-        }
-        if (keepPlan) {
-          final savedPlan = BookDownloadPlan(
-            plan.first,
-            plan.last,
-            plan.fallback,
-            chapterIds:
-                plan.chapterIds ?? range.map((chapter) => chapter.id).toList(),
-          );
-          await _books.store.write(key, savedPlan.toJson());
-          if (mounted) setState(() => _plan = savedPlan);
-        }
-        await _books.store.saveBook(_book, chapters: _chapters);
-        if (!mounted || token.isCancelled) return;
-        setState(() {
-          _total = chapters.length;
-          _finished = 0;
-        });
-        Future<List<BookEdition>>? alternatives;
-        var failures = 0, cursor = 0;
-        Future<void> downloadChapters() async {
-          while (cursor < chapters.length) {
-            final chapter = chapters[cursor++];
-            token.check();
-            try {
-              try {
-                await _books.download(_book, chapter, token);
-              } on ContentBlocked {
-                rethrow;
-              } on Exception {
-                token.check();
-                if (!plan.fallback) rethrow;
-                final editions = await (alternatives ??= _books.alternatives(
-                  _book,
-                  token,
-                ));
-                await _books.download(
-                  _book,
-                  chapter,
-                  token,
-                  alternatives: editions,
-                  tryOriginal: false,
-                );
-              }
-              if (mounted && !token.isCancelled) {
-                setState(() => _saved.add(chapter.id));
-              }
-            } on Exception {
-              token.check();
-              failures++;
-            }
-            if (mounted && !token.isCancelled) setState(() => _finished++);
-          }
-        }
-
-        try {
-          await Future.wait(
-            List.generate(
-              math.min(_audio ? 1 : 3, chapters.length),
-              (_) => downloadChapters(),
-            ),
-          );
-          token.check();
-          if (failures == 0 && keepPlan) {
-            await _books.store.write(key, null);
-            if (mounted) setState(() => _plan = null);
-          }
-          _toast('已完成 ${chapters.length - failures} 章，失败 $failures 章');
-        } on RequestCancelled {
-          if (mounted && keepPlan) {
-            final saved = _audio
-                ? await _books.audioFiles.saved(_book)
-                : await _books.store.savedText(_book);
-            if (mounted) setState(() => _saved = saved);
-            _toast('下载已暂停');
-          }
-        } finally {
-          if (mounted) setState(() => _total = 0);
-        }
-      });
 
   Future<void> _toggleFollowing() => _run((_) async {
     await _books.store.saveBook(
@@ -546,38 +617,7 @@ final class _BookDetailPageState extends State<BookDetailPage> {
     final last = _chapters.where((chapter) => chapter.id == _last).firstOrNull;
     final visible = _visibleChapters;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          if (_local && _books.bookAllowed(_book))
-            IconButton(
-              tooltip: '移除本地电子书',
-              onPressed: _busy ? null : _removeLocal,
-              icon: const Icon(Icons.delete_outline),
-            ),
-          if (_busy)
-            IconButton(
-              tooltip: _total > 0 ? '暂停下载' : '取消当前操作',
-              onPressed: () => _token?.cancel(),
-              icon: const Icon(Icons.stop_circle_outlined),
-            ),
-          if (_books.bookAllowed(_book) && _chapters.isNotEmpty)
-            _directoryMenu(last != null),
-          if (_books.bookAllowed(_book) && _channel != null)
-            BookSourceFavorite(
-              key: ValueKey(_channel!.source.id),
-              repository: _books,
-              entry: _channel!,
-              onChanged: (value) {
-                final entry = _channel;
-                if (entry == null) return;
-                setState(() => _channel = entry.withFavorite(value));
-                widget.onSourceFavorite?.call(entry.source.id, value);
-              },
-            ),
-          if (!_local && _books.bookAllowed(_book)) _workActions(),
-        ],
-      ),
+      appBar: _appBar(last != null),
       body: !_books.bookAllowed(_book)
           ? const Center(child: Text('当前内容策略限制访问此作品'))
           : CustomScrollView(
@@ -588,15 +628,31 @@ final class _BookDetailPageState extends State<BookDetailPage> {
                   child: Column(
                     key: _catalogHeader,
                     children: [
-                      if (_busy)
+                      if (_busy || _downloadTask != null)
                         LinearProgressIndicator(
-                          value: _total > 0 ? _finished / _total : null,
+                          value:
+                              _downloadTask != null && _downloadTask!.total > 0
+                              ? _downloadTask!.finished / _downloadTask!.total
+                              : null,
                         ),
                       _summary(last),
                       if (_error != null)
                         Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Text(_error!),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(_error!)),
+                              TextButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _run(
+                                        (token) => _load(token, refresh: true),
+                                      ),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('重试加载'),
+                              ),
+                            ],
+                          ),
                         ),
                       if (_sourceUnavailable && !_busy) _sourceHelp(),
                       _directoryToolbar(),
@@ -626,6 +682,45 @@ final class _BookDetailPageState extends State<BookDetailPage> {
             ),
     );
   }
+
+  AppBar _appBar(bool hasLast) => AppBar(
+    title: Text(_book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+    actions: [
+      if (_local && _books.bookAllowed(_book))
+        IconButton(
+          tooltip: '移除本地电子书',
+          onPressed: _busy ? null : _removeLocal,
+          icon: const Icon(Icons.delete_outline),
+        ),
+      if (_busy || _downloadTask != null)
+        IconButton(
+          tooltip: _downloadTask != null ? '暂停下载' : '取消当前操作',
+          onPressed: () {
+            if (_downloadTask case final task?) {
+              task.pause();
+            } else {
+              _token?.cancel();
+            }
+          },
+          icon: const Icon(Icons.stop_circle_outlined),
+        ),
+      if (_books.bookAllowed(_book) && _chapters.isNotEmpty)
+        _directoryMenu(hasLast),
+      if (_books.bookAllowed(_book) && _channel != null)
+        BookSourceFavorite(
+          key: ValueKey(_channel!.source.id),
+          repository: _books,
+          entry: _channel!,
+          onChanged: (value) {
+            final entry = _channel;
+            if (entry == null) return;
+            setState(() => _channel = entry.withFavorite(value));
+            widget.onSourceFavorite?.call(entry.source.id, value);
+          },
+        ),
+      if (!_local && _books.bookAllowed(_book)) _workActions(),
+    ],
+  );
 
   Widget _sourceHelp() => ListTile(
     leading: const Icon(Icons.link_off),
@@ -754,11 +849,36 @@ final class _BookDetailPageState extends State<BookDetailPage> {
                     : (_) => _toggleFollowing(),
               ),
             if (!_local && _chapters.isNotEmpty) _downloadActions(),
+            ..._storageActions(),
           ],
         ),
       ],
     ),
   );
+
+  List<Widget> _storageActions() => [
+    if (!_local && !_audio && _saved.isNotEmpty)
+      OutlinedButton.icon(
+        onPressed: _busy
+            ? null
+            : _comic
+            ? _exportOfflineImages
+            : _exportOfflineText,
+        icon: const Icon(Icons.file_download_outlined),
+        label: Text(_comic ? '导出离线漫画' : '导出离线章节'),
+      ),
+    if (!_local && !_audio)
+      TextButton.icon(
+        onPressed: _busy
+            ? null
+            : () => _run((_) async {
+                await _books.store.clearReadingCache(_book);
+                _toast('已清理本书阅读缓存；离线下载保留');
+              }),
+        icon: const Icon(Icons.cleaning_services_outlined),
+        label: const Text('清理阅读缓存'),
+      ),
+  ];
 
   Widget _bookHeading() => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -807,12 +927,14 @@ final class _BookDetailPageState extends State<BookDetailPage> {
           : IconButton(
               tooltip: saved ? '删除离线章节' : '下载章节',
               icon: Icon(saved ? Icons.download_done : Icons.download_outlined),
-              onPressed: _busy
+              onPressed: _busy || _downloadTask != null
                   ? null
                   : saved
                   ? () => _run((_) async {
                       if (_audio) {
                         await _books.audioFiles.remove(_book, chapter);
+                      } else if (_comic) {
+                        await _books.store.deleteImages(_book, chapter);
                       } else {
                         await _books.store.deleteText(_book, chapter);
                       }

@@ -40,12 +40,23 @@ void validateSetting(String key, Object? value) {
     if (value is! int || value < 0 || value > 10) {
       throw const FormatException('预取设置无效');
     }
-  } else if ({'cacheMiB', 'episodeCacheMiB', 'downloadMiB'}.contains(key)) {
-    final minimum = key == 'downloadMiB' ? 128 : 64;
+  } else if ({
+    'cacheMiB',
+    'episodeCacheMiB',
+    'downloadMiB',
+    'bookCoverCacheMiB',
+  }.contains(key)) {
+    final minimum = key == 'bookCoverCacheMiB'
+        ? 0
+        : key == 'downloadMiB'
+        ? 128
+        : 64;
     final maximum = key == 'downloadMiB'
         ? 1048576
         : key == 'cacheMiB'
         ? 16384
+        : key == 'bookCoverCacheMiB'
+        ? 128
         : 2048;
     if (value is! int || value < minimum || value > maximum) {
       throw const FormatException('容量设置无效');

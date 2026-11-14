@@ -8,11 +8,13 @@ import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
 import '../../../core/platform/platform_services.dart';
 import '../data/books_repository.dart';
+import '../data/book_mixed_content.dart';
 import '../domain/book.dart';
 import 'reader_pagination.dart';
 import 'reader_automation.dart';
 import 'reader_style.dart';
 import 'reader_system_ui.dart';
+import 'book_image_chapter.dart';
 
 part 'reader_tools.dart';
 part 'reader_session.dart';
@@ -39,12 +41,15 @@ final class BookReaderPage extends StatefulWidget {
 final class _BookReaderPageState extends State<BookReaderPage>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   late BookChapter _chapter = widget.initial;
+  late List<BookChapter> _chapters = widget.chapters;
   late final _systemUi = ReaderSystemUi(widget.platform);
   GlobalKey<ReaderViewportState> _viewport = GlobalKey();
+  GlobalKey<BookImageChapterState> _imageViewport = GlobalKey();
   final _paperFocus = FocusNode(debugLabel: '阅读正文');
   final _contentsFocus = FocusNode(debugLabel: '章节目录');
   final _progress = ValueNotifier<ReaderProgress>(readerProgress(0));
   CancellationToken? _token;
+  CancellationToken? _endToken;
   Timer? _saveTimer, _clock;
   late final _automation = ReaderAutomation(this, _advanceAutomatically);
   bool _autoRunning = false;
@@ -54,14 +59,20 @@ final class _BookReaderPageState extends State<BookReaderPage>
   ReaderProgress? _retryPosition;
   TextRange? _highlight;
   String _sourceStatus = '', _selection = '', _text = '';
+  List<Uri> _images = const [];
+  List<BookChapterSegment>? _mixedSegments;
+  Book? _imageBook;
+  BookChapter? _imageSourceChapter;
   String _chapterQuery = '', _findQuery = '';
   bool _reverse = false, _controls = false, _loading = true;
+  bool _checkingEnd = false;
   String? _error;
   double? _seeking;
 
   BooksRepository get _books => widget.repository;
-  int get _index => widget.chapters.indexOf(_chapter);
-  bool get _ready => !_loading && _error == null && _text.isNotEmpty;
+  int get _index => _chapters.indexOf(_chapter);
+  bool get _ready =>
+      !_loading && _error == null && (_text.isNotEmpty || _images.isNotEmpty);
 
   void _changeAutomation(bool running) => setState(() {
     _autoRunning = running;
@@ -113,6 +124,7 @@ final class _BookReaderPageState extends State<BookReaderPage>
   void _policyChanged() {
     _stopAutomation();
     _token?.cancel();
+    _endToken?.cancel();
     if (mounted) {
       unawaited(
         _open(
@@ -162,9 +174,14 @@ final class _BookReaderPageState extends State<BookReaderPage>
     setState(() {
       _chapter = chapter;
       _viewport = GlobalKey();
+      _imageViewport = GlobalKey();
       _loading = true;
       _error = null;
       _text = _selection = _sourceStatus = '';
+      _images = const [];
+      _mixedSegments = null;
+      _imageBook = null;
+      _imageSourceChapter = null;
       _controls = false;
       _highlight = null;
       _seeking = null;
@@ -175,13 +192,6 @@ final class _BookReaderPageState extends State<BookReaderPage>
           ? await _books.store.entry(widget.book)
           : null;
       token.check();
-      final result = await _books.readWithFallback(
-        widget.book,
-        chapter,
-        token,
-        automatic: _style.automatic,
-      );
-      if (!mounted || token.isCancelled) return;
       final restored =
           location ??
           (saved?.last == chapter.id
@@ -191,33 +201,136 @@ final class _BookReaderPageState extends State<BookReaderPage>
                 )
               : readerProgress(0));
       _progress.value = restored;
-      setState(() {
-        _text = _chapterText(chapter.title, result.text);
-        _sourceStatus = result.sourceBook.id == widget.book.id
-            ? ''
-            : '已换源 · ${result.sourceBook.uri.host}';
-        _loading = false;
-      });
-      unawaited(
-        _books.store
-            .saveBook(
-              widget.book,
-              chapters: widget.book.sourceId == 'local'
-                  ? null
-                  : widget.chapters,
-              last: chapter,
-              position: restored.fraction,
-              textOffset: restored.offset,
-            )
-            .onError((_, _) {}),
-      );
+      if (widget.book.kind == BookKind.comic) {
+        if (!await _loadImageChapter(chapter, token)) {
+          _fail(token, '章节没有可阅读的图片');
+        }
+        return;
+      }
+      await _loadTextChapter(chapter, token, restored);
     } on FormatException catch (error) {
-      _fail(token, error.message);
+      if (widget.book.kind == BookKind.comic) {
+        _fail(token, error.message);
+        return;
+      }
+      try {
+        if (!await _loadImageChapter(chapter, token)) {
+          _fail(token, error.message);
+        }
+      } on Exception {
+        _fail(token, error.message);
+      }
     } on RemoteFailure catch (error) {
-      _fail(token, error.message);
+      if (widget.book.kind != BookKind.comic &&
+          error.kind == FailureKind.invalid &&
+          error.message.contains('大小限制')) {
+        try {
+          if (!await _loadImageChapter(chapter, token)) {
+            _fail(token, error.message);
+          }
+        } on Exception {
+          _fail(token, error.message);
+        }
+      } else {
+        _fail(token, error.message);
+      }
     } on Exception {
       _fail(token, '无法打开正文或内容受限');
     }
+  }
+
+  Future<void> _loadTextChapter(
+    BookChapter chapter,
+    CancellationToken token,
+    ReaderProgress restored,
+  ) async {
+    final result = await _books.readWithFallback(
+      widget.book,
+      chapter,
+      token,
+      automatic: _style.automatic,
+    );
+    if (!mounted || token.isCancelled) return;
+    final images = result.text.trimLeft().startsWith('[')
+        ? await _books.imageAddressesInText(
+            result.sourceBook,
+            result.sourceChapter,
+            result.text,
+            token,
+          )
+        : const <Uri>[];
+    var mixed = <BookChapterSegment>[];
+    if (images.isEmpty) {
+      try {
+        mixed = await _books.mixedReading(
+          result.sourceBook,
+          result.sourceChapter,
+          token,
+        );
+      } on Exception {
+        token.check();
+        // Reviewed text remains readable when optional media is unavailable.
+      }
+    }
+    if (!mounted || token.isCancelled) return;
+    setState(() {
+      if (mixed.isNotEmpty) {
+        _mixedSegments = mixed;
+        _images = mixed
+            .whereType<BookImageSegment>()
+            .map((part) => part.address)
+            .toList();
+        _imageBook = result.sourceBook;
+        _imageSourceChapter = result.sourceChapter;
+      } else if (images.isEmpty) {
+        _text = _chapterText(chapter.title, result.text);
+      } else {
+        _images = images;
+        _imageBook = result.sourceBook;
+        _imageSourceChapter = result.sourceChapter;
+      }
+      _sourceStatus = result.sourceBook.id == widget.book.id
+          ? ''
+          : '已换源 · ${result.sourceBook.uri.host}';
+      _loading = false;
+    });
+    unawaited(
+      _books.store
+          .saveBook(
+            widget.book,
+            chapters: widget.book.sourceId == 'local' ? null : _chapters,
+            last: chapter,
+            position: restored.fraction,
+            textOffset: restored.offset,
+          )
+          .onError((_, _) {}),
+    );
+  }
+
+  Future<bool> _loadImageChapter(
+    BookChapter chapter,
+    CancellationToken token,
+  ) async {
+    final images = await _books.chapterImages(widget.book, chapter, token);
+    if (!mounted || token.isCancelled) return true;
+    if (images.isEmpty) return false;
+    setState(() {
+      _images = images;
+      _imageBook = widget.book;
+      _imageSourceChapter = chapter;
+      _loading = false;
+    });
+    unawaited(
+      _books.store
+          .saveBook(
+            widget.book,
+            chapters: _chapters,
+            last: chapter,
+            position: _progress.value.fraction,
+          )
+          .onError((_, _) {}),
+    );
+    return true;
   }
 
   void _fail(CancellationToken token, String message) {
@@ -234,18 +347,93 @@ final class _BookReaderPageState extends State<BookReaderPage>
     final index = _index + direction;
     return _ready &&
         index >= 0 &&
-        index < widget.chapters.length &&
-        _books.policy.textAllowed(widget.chapters[index].title);
+        index < _chapters.length &&
+        _books.policy.textAllowed(_chapters[index].title);
   }
 
   void _cross(int direction, {bool lastPage = true}) {
     if (_canCross(direction)) {
       unawaited(
         _open(
-          widget.chapters[_index + direction],
+          _chapters[_index + direction],
           location: readerProgress(direction < 0 && lastPage ? 1 : 0),
         ),
       );
+    } else if (direction > 0 &&
+        _ready &&
+        !_checkingEnd &&
+        _index == _chapters.length - 1 &&
+        widget.book.sourceId != 'local') {
+      unawaited(_checkEnd());
+    }
+  }
+
+  Future<void> _checkEnd() async {
+    _checkingEnd = true;
+    try {
+      final check = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('已读到当前最后一章'),
+          content: const Text('检测当前渠道更新及其他渠道的最新章节？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('稍后'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('检测更新'),
+            ),
+          ],
+        ),
+      );
+      if (check != true || !mounted) return;
+      final token = _endToken = CancellationToken();
+      final current = _chapters.length;
+      List<BookChapter>? fresh;
+      List<BookEdition> editions = [];
+      try {
+        fresh = await _books.chapters(widget.book, token, refresh: true);
+        if (fresh.length > current && mounted) {
+          final currentChapter = fresh
+              .where((item) => item.id == _chapter.id)
+              .firstOrNull;
+          if (currentChapter != null) {
+            setState(() {
+              _chapters = fresh!;
+              _chapter = currentChapter;
+            });
+            await _books.store.saveBook(widget.book, chapters: fresh);
+          }
+        }
+      } on Exception {
+        // Other channels may still be available.
+      }
+      try {
+        editions = await _books.alternatives(widget.book, token);
+      } on Exception {
+        // The current channel's result is still useful.
+      }
+      if (!mounted || !_books.bookAllowed(widget.book)) return;
+      final newer = editions.where((edition) {
+        final match = _books.matchingChapter(edition.chapters, _chapter);
+        return match != null &&
+            edition.chapters.indexOf(match) < edition.chapters.length - 1;
+      }).toList();
+      final message = _chapters.length > current
+          ? '当前渠道新增 ${_chapters.length - current} 章，可继续翻页。'
+          : newer.isNotEmpty
+          ? '其他渠道发现 ${newer.length} 个可能有更新的版本，请在详情页换源查看。'
+          : fresh == null && editions.isEmpty
+          ? '检测失败，请稍后重试。'
+          : '暂未发现新章节。';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      _endToken = null;
+      _checkingEnd = false;
     }
   }
 
@@ -255,7 +443,11 @@ final class _BookReaderPageState extends State<BookReaderPage>
       setState(() => _controls = false);
       _paperFocus.requestFocus();
     }
-    if (_ready) _viewport.currentState?.turn(direction);
+    if (_images.isNotEmpty) {
+      _imageViewport.currentState?.turn(direction);
+    } else if (_ready) {
+      _viewport.currentState?.turn(direction);
+    }
   }
 
   void _toggleControls() {
@@ -350,6 +542,7 @@ final class _BookReaderPageState extends State<BookReaderPage>
     _clock?.cancel();
     _savePosition();
     _token?.cancel();
+    _endToken?.cancel();
     _books.policy.removeListener(_policyChanged);
     _paperFocus.dispose();
     _contentsFocus.dispose();
@@ -451,6 +644,28 @@ final class _BookReaderPageState extends State<BookReaderPage>
               ),
             ],
           ),
+        ),
+      );
+    }
+    if (_images.isNotEmpty) {
+      return Focus(
+        focusNode: _paperFocus,
+        autofocus: !_controls,
+        onKeyEvent: _readingKey,
+        child: BookImageChapter(
+          key: _imageViewport,
+          loadImage: (address, token) => _books.chapterImageBytes(
+            _imageBook ?? widget.book,
+            address,
+            token,
+            chapter: _imageSourceChapter,
+          ),
+          images: _images,
+          segments: _mixedSegments,
+          initialFraction: _progress.value.fraction,
+          onProgress: (fraction) => _moved(readerProgress(fraction)),
+          onPrevious: () => _cross(-1),
+          onNext: () => _cross(1),
         ),
       );
     }
@@ -557,6 +772,8 @@ final class _BookReaderPageState extends State<BookReaderPage>
           builder: (context, progress, _) {
             final label = !_style.status || !_ready
                 ? ''
+                : _images.isNotEmpty
+                ? '${_images.length} 张图片'
                 : _style.mode == ReaderTurnMode.scroll
                 ? '${(progress.fraction * 100).round()}%'
                 : '${progress.page} / ${progress.pages} 页';
@@ -629,7 +846,7 @@ final class _BookReaderPageState extends State<BookReaderPage>
                   children: [
                     const SizedBox(width: 16),
                     Text(
-                      '${_index + 1}/${widget.chapters.length} 章',
+                      '${_index + 1}/${_chapters.length} 章',
                       style: TextStyle(color: palette.ink, fontSize: 12),
                     ),
                     Expanded(
@@ -637,11 +854,15 @@ final class _BookReaderPageState extends State<BookReaderPage>
                         value: value,
                         label: '${(value * 100).round()}%',
                         activeColor: palette.accent,
-                        onChanged: (value) => setState(() => _seeking = value),
-                        onChangeEnd: (value) {
-                          setState(() => _seeking = null);
-                          _viewport.currentState?.jump(value);
-                        },
+                        onChanged: _images.isNotEmpty
+                            ? null
+                            : (value) => setState(() => _seeking = value),
+                        onChangeEnd: _images.isNotEmpty
+                            ? null
+                            : (value) {
+                                setState(() => _seeking = null);
+                                _viewport.currentState?.jump(value);
+                              },
                       ),
                     ),
                     Text(

@@ -363,13 +363,7 @@ final class QidianCatalog {
   }
 
   Future<List<int>> cover(Book book, CancellationToken token) async {
-    if (!allows(book)) throw const ContentBlocked();
-    final uri = Uri.tryParse(book.cover);
-    if (uri == null ||
-        _safeUri(uri) == null ||
-        !_imageHosts.contains(uri.host)) {
-      throw const FormatException('起点封面域名无效');
-    }
+    final uri = coverUri(book);
     final document = await network.get(
       uri,
       cancellation: token,
@@ -384,6 +378,17 @@ final class QidianCatalog {
     token.check();
     if (!allows(book)) throw const ContentBlocked();
     return document.bytes;
+  }
+
+  Uri coverUri(Book book) {
+    if (!allows(book)) throw const ContentBlocked();
+    final uri = Uri.tryParse(book.cover);
+    if (uri == null ||
+        _safeUri(uri) == null ||
+        !_imageHosts.contains(uri.host)) {
+      throw const FormatException('起点封面域名无效');
+    }
+    return uri;
   }
 
   Future<Document> _getMobile(
