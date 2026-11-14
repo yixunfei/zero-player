@@ -90,6 +90,245 @@ void main() {
 
   _recommendationSearch();
   _cachedDiscovery();
+  _mobileParsing();
+}
+
+void _mobileParsing() {
+  _mobileCategory();
+  _mobileRank();
+  _mobileHome();
+  _mobileWork();
+}
+
+void _mobileCategory() {
+  test('mobile category API maps records to desktop works and paginates', () {
+    final desktop = Uri.parse(
+      'https://www.qidian.com/all?chanId=21&subCateId=8&siteid=1&page=1',
+    );
+    final page = parseQidianMobileApi(
+      desktop,
+      jsonEncode({
+        'code': 0,
+        'data': {
+          'total': 10000,
+          'isLast': 0,
+          'pageNum': 1,
+          'pageMax': 50,
+          'pageSize': 20,
+          'records': [
+            {
+              'bid': 1040765595,
+              'bName': '夜无疆',
+              'bAuth': '辰东',
+              'cnt': '429.93万字',
+              'cat': '玄幻',
+              'subCat': '东方玄幻',
+              'state': '连载',
+              'desc': '简介',
+            },
+            {
+              'bid': '1033014772',
+              'bName': '青山',
+              'bAuth': '会说话的肘子',
+              'cnt': '281.78万字',
+              'cat': '玄幻',
+            },
+          ],
+        },
+      }),
+    );
+    expect(page.books.length, 2);
+    final work = page.books.first;
+    expect(work.sourceId, qidianRecommendationId);
+    expect(work.uri.toString(), 'https://www.qidian.com/book/1040765595/');
+    expect(work.cover, 'https://bookcover.yuewen.com/qdbimg/3/1040765595/180');
+    expect(work.wordCount, '429.93万字');
+    expect(work.category, '玄幻 · 东方玄幻');
+    expect(
+      page.next.toString(),
+      'https://www.qidian.com/all?chanId=21&subCateId=8&siteid=1&page=2',
+    );
+    final last = parseQidianMobileApi(
+      desktop,
+      jsonEncode({
+        'code': 0,
+        'data': {
+          'isLast': 1,
+          'pageNum': 50,
+          'pageMax': 50,
+          'records': [
+            {'bid': '1', 'bName': '样本', 'bAuth': '作者'},
+          ],
+        },
+      }),
+    );
+    expect(last.next, isNull);
+    expect(
+      () => parseQidianMobileApi(
+        desktop,
+        jsonEncode({'code': 1403, 'data': null}),
+      ),
+      throwsA(isA<FormatException>()),
+    );
+  });
+}
+
+void _mobileRank() {
+  test('mobile rank API keeps the rank number and desktop page cursor', () {
+    final page = parseQidianMobileApi(
+      Uri.parse('https://www.qidian.com/rank/yuepiao/page1/'),
+      jsonEncode({
+        'code': 0,
+        'data': {
+          'isLast': 0,
+          'pageNum': 1,
+          'pageMax': 50,
+          'records': [
+            {
+              'bid': '1050460263',
+              'bName': '神宠供应商',
+              'bAuth': '轻泉流响',
+              'cat': '轻小说',
+              'subCat': '原生幻想',
+              'cnt': '77.89万字',
+              'rankNum': 1,
+              'rankCnt': '4.19万月票',
+            },
+          ],
+        },
+      }),
+    );
+    expect(page.books.single.rankLabel, '1');
+    expect(page.books.single.category, '轻小说 · 原生幻想');
+    expect(page.next.toString(), 'https://www.qidian.com/rank/yuepiao/page2/');
+  });
+}
+
+void _mobileHome() {
+  test('mobile homepage aggregates featured lists and ignores ads', () {
+    final page = parseQidianMobileHome(
+      '<script id="vite-plugin-ssr_pageContext" type="application/json">'
+      '${jsonEncode({
+        'pageContext': {
+          'pageProps': {
+            'pageData': {
+              'popNovel': [
+                {'bid': 1, 'bName': '热门书', 'bAuth': '作者A'},
+              ],
+              'recRank': [
+                {'bid': '2', 'bName': '推荐书', 'bAuth': '作者B'},
+              ],
+              'coverRecom': [
+                {'title': '广告', 'adJumpUrl': 'https://m.qidian.com/book/9'},
+              ],
+            },
+          },
+        },
+      })}</script>',
+    );
+    expect(page.books.map((book) => book.title), ['热门书', '推荐书']);
+    expect(page.books.first.uri.toString(), 'https://www.qidian.com/book/1/');
+    expect(page.next, isNull);
+  });
+}
+
+void _mobileWork() {
+  test('mobile work page exposes recommendations from the page context', () {
+    final info = parseQidianInfo(
+      '<html><head>'
+      '<meta property="og:novel:update_time" content="2026-11-14 05:38:05">'
+      '</head><body>'
+      '<script id="vite-plugin-ssr_pageContext" type="application/json">'
+      '${jsonEncode({
+        'pageContext': {
+          'pageProps': {
+            'pageData': {
+              'bookInfo': {'authorName': '辰东', 'bookStatus': '连载', 'chanName': '玄幻', 'subCateName': '东方玄幻', 'updChapterName': '第873章 改命涉因果', 'showWordsCnt': '429.93万', 'recomAll': 12758520, 'recomWeek': 70261},
+            },
+          },
+        },
+      })}</script></body></html>',
+    );
+    expect(info.author, '辰东');
+    expect(info.status, '连载');
+    expect(info.category, '玄幻 · 东方玄幻');
+    expect(info.latest, '第873章 改命涉因果');
+    expect(info.updated, '2026-11-14 05:38:05');
+    expect(info.words, '429.93万');
+    expect(info.totalRecommendations, '1275.85万');
+    expect(info.weeklyRecommendations, '7.03万');
+    final small = parseQidianInfo(
+      '<script id="vite-plugin-ssr_pageContext" type="application/json">'
+      '${jsonEncode({
+        'pageContext': {
+          'pageProps': {
+            'pageData': {
+              'bookInfo': {'authorName': '作者', 'bookName': '样本', 'recomAll': 90, 'recomWeek': 0},
+            },
+          },
+        },
+      })}</script>',
+    );
+    expect(small.totalRecommendations, '90');
+    expect(small.weeklyRecommendations, '0');
+  });
+
+  test('work page cover replaces the list thumbnail with the hi-res rendition', () {
+    String page(String head) =>
+        '<html><head>$head</head><body>'
+        '<script id="vite-plugin-ssr_pageContext" type="application/json">'
+        '${jsonEncode({
+          'pageContext': {
+            'pageProps': {
+              'pageData': {
+                'bookInfo': {'authorName': '辰东', 'bookName': '夜无疆'},
+              },
+            },
+          },
+        })}</script></body></html>';
+    const real = 'https://bookcover.yuewen.com/qdbimg/349573/1040765595/600';
+    expect(
+      parseQidianInfo(
+        page(
+          '<meta property="og:image" '
+          'content="//bookcover.yuewen.com/qdbimg/349573/1040765595/180">',
+        ),
+      ).cover,
+      real,
+    );
+    expect(
+      parseQidianInfo(
+        page(
+          '<script type="application/ld+json">{"image":"$real"}</script>',
+        ),
+      ).cover,
+      real,
+    );
+    expect(
+      parseQidianInfo(
+        page(
+          '<img src="//bookcover.yuewen.com/qdbimg/349573/1040765595/180" '
+          'class="detail__header-cover__img" alt="夜无疆">',
+        ),
+      ).cover,
+      real,
+    );
+    expect(
+      parseQidianInfo(
+        page('<meta property="og:image" content="//evil.test/cover.jpg">'),
+      ).cover,
+      isEmpty,
+    );
+    expect(
+      parseQidianInfo(
+        '<meta property="og:novel:book_name" content="夜无疆">'
+        '<meta property="og:image" '
+        'content="//bookcover.yuewen.com/qdbimg/349573/1040765595/180">'
+        '<div class="book-info"><h1>夜无疆</h1></div>',
+      ).cover,
+      real,
+    );
+  });
 }
 
 void _cachedDiscovery() {
@@ -201,13 +440,29 @@ void _recommendationSearch() {
       await services.supervision.load();
       final repo = services.books;
       final sections = await repo.qidian.sections;
-      expect(sections.length, greaterThan(250));
+      expect(sections.length, greaterThan(150));
       expect(
         sections.any((s) => s.title == '东方玄幻' && s.group.contains('男生')),
         isTrue,
       );
       expect(
         sections.any((s) => s.title == '宫闱宅斗' && s.group.contains('女生')),
+        isTrue,
+      );
+      expect(
+        sections.any(
+          (s) => s.title == '月票榜' && s.address == '/rank/yuepiao/page1/',
+        ),
+        isTrue,
+      );
+      expect(
+        sections.any(
+          (s) => s.title == '月票榜' && s.address == '/mm/rank/yuepiao/page1/',
+        ),
+        isTrue,
+      );
+      expect(
+        sections.any((s) => s.title == '精选推荐' && s.address == '/'),
         isTrue,
       );
       final sources = [

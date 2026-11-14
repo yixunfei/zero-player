@@ -40,7 +40,8 @@ class _BookCoverState extends State<BookCover> {
   @override
   void didUpdateWidget(BookCover oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.book.id != widget.book.id ||
+    if (!identical(oldWidget.repository, widget.repository) ||
+        oldWidget.book.id != widget.book.id ||
         oldWidget.book.cover != widget.book.cover) {
       _load();
     }

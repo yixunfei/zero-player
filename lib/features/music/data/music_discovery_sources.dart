@@ -77,11 +77,11 @@ MusicCatalogPage<MusicRecommendation> parseQqHomepagePage(Object? raw) {
 
 List<MusicRecommendation> parseQqChartSongs(List rows, {Object? chart}) {
   final ranks = chart is Map ? chart['song'] : null;
-  final byId = <String, int>{
+  final byId = <String, Map>{
     if (ranks is List)
       for (final row in ranks.whereType<Map>())
         if (musicCatalogCount(row['rank']) case final rank? when rank > 0)
-          '${row['songId']}': rank,
+          '${row['songId']}': row,
   };
   return [
     for (final row in rows.whereType<Map>())
@@ -102,7 +102,13 @@ List<MusicRecommendation> parseQqChartSongs(List rows, {Object? chart}) {
               ? musicCatalogLabel((row['album'] as Map)['name'])
               : '',
           id: musicCatalogId.hasMatch('${row['id']}') ? '${row['id']}' : '',
-          rank: byId['${row['id']}'],
+          rank: musicCatalogCount(byId['${row['id']}']?['rank']),
+          duration: _qqDuration(row['interval']),
+          vip: row['pay'] is Map && (row['pay'] as Map)['pay_play'] == 1,
+          mv: row['mv'] is Map &&
+              musicCatalogLabel((row['mv'] as Map)['vid']).isNotEmpty,
+          trendType: musicCatalogCount(byId['${row['id']}']?['rankType']),
+          trendValue: musicCatalogLabel(byId['${row['id']}']?['rankValue']),
         ),
   ];
 }
@@ -143,6 +149,11 @@ String _qqCover(Object? album) {
   return mid is String && RegExp(r'^[A-Za-z0-9]+$').hasMatch(mid)
       ? 'https://y.gtimg.cn/music/photo_new/T002R300x300M000$mid.jpg'
       : '';
+}
+
+Duration? _qqDuration(Object? value) {
+  final seconds = musicCatalogCount(value);
+  return seconds == null ? null : Duration(seconds: seconds.clamp(0, 86400));
 }
 
 List<MusicRecommendation> parseAppleHomepage(Object? raw) {

@@ -8,6 +8,7 @@ import '../application/music_controller.dart';
 import '../domain/music_track.dart';
 import '../domain/music_match.dart';
 import '../data/public_music_sources.dart';
+import '../data/music_style_catalog.dart';
 import 'music_player.dart';
 import 'music_actions.dart';
 import 'music_library_panel.dart';
@@ -28,8 +29,12 @@ final class _MusicPageState extends State<MusicPage> {
   late final MusicController player = widget.services.musicPlayer;
   late final _query = TextEditingController(text: browser.query);
   final _scroll = ScrollController();
+  ScrollPosition? _activeScroll;
+  bool _showBackToTop = false;
+  String? _scrollView;
   late String _view;
   (String, String?) _playlistEntry = ('neteasePlaylist', null);
+  MusicStylePlaylist? _pendingPlaylist;
   String _searchKind = '综合';
   (String?, bool) _selection = (null, false);
 
@@ -87,6 +92,40 @@ final class _MusicPageState extends State<MusicPage> {
     );
   }
 
+  bool _trackScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical || notification.depth != 0) {
+      return false;
+    }
+    final scrollContext = notification.context;
+    final position = scrollContext == null
+        ? null
+        : Scrollable.maybeOf(scrollContext)?.position;
+    if (position == null) return false;
+    final show = notification.metrics.pixels > 320;
+    if (_activeScroll != position || _showBackToTop != show) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !position.hasPixels) return;
+        setState(() {
+          _activeScroll = position;
+          _showBackToTop = show;
+        });
+      });
+    }
+    return false;
+  }
+
+  void _backToTop() {
+    final position = _activeScroll;
+    if (position == null || !position.hasPixels) return;
+    unawaited(
+      position.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
   List<List<MusicTrack>> _groups(Iterable<MusicTrack> tracks) =>
       groupMusicTracks(
         tracks.where(
@@ -118,6 +157,11 @@ final class _MusicPageState extends State<MusicPage> {
       widget.services.settings,
     ]),
     builder: (context, _) {
+      if (_scrollView != _view) {
+        _scrollView = _view;
+        _activeScroll = null;
+        _showBackToTop = false;
+      }
       final downloads = widget.services.musicDownloads;
       final local = downloads.searchLocal(browser.query);
       final merged = {for (final track in local) track.key: track};
@@ -130,7 +174,12 @@ final class _MusicPageState extends State<MusicPage> {
       return PopScope(
         canPop: _view == 'discover',
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) setState(() => _view = 'discover');
+          if (!didPop) {
+            setState(() {
+              _pendingPlaylist = null;
+              _view = 'discover';
+            });
+          }
         },
         child: Column(
           children: [
@@ -138,48 +187,85 @@ final class _MusicPageState extends State<MusicPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => setState(() => _view = 'discover'),
+                  onPressed: () => setState(() {
+                    _pendingPlaylist = null;
+                    _view = 'discover';
+                  }),
                   icon: const Icon(Icons.arrow_back),
                   label: const Text('音乐首页'),
                 ),
               ),
             _tabs(),
             Expanded(
-              child: _view == 'discover'
-                  ? MusicDiscovery(
-                      services: widget.services,
-                      onSearch: _search,
-                      controls: _searchControls(),
-                      onPlaylists: (provider, section) => setState(() {
-                        _playlistEntry = (provider, section);
-                        _view = 'styles';
-                      }),
-                    )
-                  : _view == 'styles'
-                  ? MusicStylePlaylists(
-                      services: widget.services,
-                      initialProvider: _playlistEntry.$1,
-                      initialSection: _playlistEntry.$2,
-                    )
-                  : _view != 'search'
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: MusicLibraryPanel(
-                        services: widget.services,
-                        view: _view,
-                      ),
-                    )
-                  : ListView.builder(
-                      key: const PageStorageKey('music-results'),
-                      controller: _scroll,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                      itemCount: groups.length + 2,
-                      itemBuilder: (context, index) {
-                        if (index == 0) return _header(context);
-                        if (index == groups.length + 1) return _footer();
-                        return _track(groups, index - 1);
-                      },
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _trackScroll,
+                      child: _view == 'discover'
+                          ? MusicDiscovery(
+                              services: widget.services,
+                              onSearch: _search,
+                              controls: _searchControls(),
+                              onPlaylists: (provider, section) => setState(() {
+                                _playlistEntry = (provider, section);
+                                _pendingPlaylist = null;
+                                _view = 'styles';
+                              }),
+                              onOpenPlaylist: (list) => setState(() {
+                                _playlistEntry = (list.provider, null);
+                                _pendingPlaylist = list;
+                                _view = 'styles';
+                              }),
+                            )
+                          : _view == 'styles'
+                          ? MusicStylePlaylists(
+                              services: widget.services,
+                              initialProvider: _playlistEntry.$1,
+                              initialSection: _playlistEntry.$2,
+                              initialPlaylist: _pendingPlaylist,
+                            )
+                          : _view != 'search'
+                          ? SingleChildScrollView(
+                              padding: const EdgeInsets.all(16),
+                              child: MusicLibraryPanel(
+                                services: widget.services,
+                                view: _view,
+                              ),
+                            )
+                          : ListView.builder(
+                              key: const PageStorageKey('music-results'),
+                              controller: _scroll,
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                12,
+                                16,
+                                24,
+                              ),
+                              itemCount: groups.length + 2,
+                              itemBuilder: (context, index) {
+                                if (index == 0) return _header(context);
+                                if (index == groups.length + 1) {
+                                  return _footer();
+                                }
+                                return _track(groups, index - 1);
+                              },
+                            ),
                     ),
+                  ),
+                  if (_showBackToTop)
+                    Positioned(
+                      right: 16,
+                      bottom: 16,
+                      child: FloatingActionButton.small(
+                        heroTag: 'music-back-to-top',
+                        tooltip: '返回页首',
+                        onPressed: _backToTop,
+                        child: const Icon(Icons.vertical_align_top),
+                      ),
+                    ),
+                ],
+              ),
             ),
             MusicPlayer(controller: player),
           ],
@@ -209,6 +295,7 @@ final class _MusicPageState extends State<MusicPage> {
               onSelected: (_) {
                 setState(() {
                   _playlistEntry = ('neteasePlaylist', null);
+                  _pendingPlaylist = null;
                   _view = item.$1;
                 });
                 if (item.$1 == 'discover' &&

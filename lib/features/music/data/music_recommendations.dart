@@ -5,6 +5,7 @@ import 'music_chart_catalog.dart';
 import 'music_collections.dart';
 import 'music_discovery_sources.dart';
 export 'music_discovery_sources.dart' show musicHomepages;
+import 'music_style_catalog.dart';
 import '../domain/music_recommendation.dart';
 export '../domain/music_recommendation.dart';
 import 'package:flutter/foundation.dart';
@@ -87,6 +88,12 @@ List<MusicRecommendation> parseWfuRecommendations(String body) {
   ].where((item) => item.title.isNotEmpty).toList();
 }
 
+typedef _CachedPage = ({
+  int time,
+  MusicCatalogPage<MusicRecommendation> page,
+  MusicChartInfo? info,
+});
+
 final class MusicRecommendations extends ChangeNotifier {
   MusicRecommendations(
     this.network,
@@ -95,6 +102,7 @@ final class MusicRecommendations extends ChangeNotifier {
     this.requestTimeout = const Duration(seconds: 6),
     this.homeEndpoints = const {},
     MusicChartCatalog? chartCatalog,
+    this.styleCatalog,
     this.sourceAllowed,
     this.textAllowed,
   }) : endpoint = endpoint ?? Uri.https('music.163.com'),
@@ -107,10 +115,10 @@ final class MusicRecommendations extends ChangeNotifier {
   final Duration requestTimeout;
   final Map<String, Uri> homeEndpoints;
   final MusicChartCatalog chartCatalog;
+  final MusicStyleCatalog? styleCatalog;
   final bool Function(String provider)? sourceAllowed;
   final bool Function(String text)? textAllowed;
-  final _memory =
-      <String, ({int time, MusicCatalogPage<MusicRecommendation> page})>{};
+  final _memory = <String, _CachedPage>{};
   Future<void>? _initial;
   Future<void> _writes = Future.value();
   List<MusicRecommendation> items = [];
@@ -128,7 +136,11 @@ final class MusicRecommendations extends ChangeNotifier {
   bool get hasMore => _next != null;
   bool get visible => showingFallback || _allowed(chart);
   MusicChartSongs? _readPage;
-  String chartPlatform = 'neteasePlaylist';
+  QqChartReader? _qqReader;
+  MusicChartInfo? chartInfo;
+  List<MusicStylePlaylist> recommendPlaylists = [];
+  bool playlistsLoading = false;
+  String chartPlatform = 'qqPlaylist';
   final _directories = <String, List<MusicCatalogOption>>{};
   List<MusicCatalogOption> get charts => _sourceAllowed(chartPlatform)
       ? (_directories[chartPlatform] ?? [])
@@ -161,7 +173,11 @@ final class MusicRecommendations extends ChangeNotifier {
     }
   }
 
-  Future<void> load(String value, {bool refresh = false}) async {
+  Future<void> load(
+    String value, {
+    bool refresh = false,
+    QqChartReader? prefetched,
+  }) async {
     if (_closed ||
         !(musicHomepages.containsKey(value) ||
             musicCharts.containsKey(value) ||
@@ -184,6 +200,9 @@ final class MusicRecommendations extends ChangeNotifier {
       showingFallback = false;
       _next = total = null;
       _readPage = null;
+      _qqReader = null;
+      chartInfo = null;
+      if (!musicHomepages.containsKey(value)) recommendPlaylists = [];
     }
     if (musicHomepages.containsKey(value)) _rememberHomepage(value);
     final collection = musicCollections[value];
@@ -196,19 +215,22 @@ final class MusicRecommendations extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    if (musicHomepages.containsKey(value)) {
+      unawaited(_loadRecommendPlaylists(value, token));
+    }
     try {
       if (!_allowed(value)) throw const ContentBlocked();
       final selected = _chartFor(value);
-      final saved = selected == null
-          ? _memory[value] ?? await _readCache(value)
-          : null;
+      final saved = _memory[value] ?? await _readCache(value);
       token.check();
       if (saved != null && saved.page.items.isNotEmpty) {
         if (previous != value || items.isEmpty || showingFallback) {
           _setPage(saved.page);
+          chartInfo = saved.info;
         }
         final age = DateTime.now().millisecondsSinceEpoch - saved.time;
-        if (!refresh && age >= 0 && age < 3600000) return;
+        final ttl = selected == null ? 3600000 : 600000;
+        if (!refresh && age >= 0 && age < ttl) return;
       }
       if (items.isEmpty && musicHomepages.containsKey(value)) {
         items = musicCollections['mandarin']!.songs;
@@ -216,20 +238,9 @@ final class MusicRecommendations extends ChangeNotifier {
         notice = '推荐加载中，可以先听编辑精选，或切换发现来源。';
       }
       notifyListeners();
-      final readPage = selected == null
-          ? null
-          : await chartCatalog.open(chartPlatform, selected.id, token);
-      final result = readPage == null
-          ? await _fetch(value, token)
-          : await readPage(0, token);
-      token.check();
-      if (!_allowed(value)) throw const ContentBlocked();
-      if (result.items.isEmpty && result.next == null) {
-        throw const FormatException('没有可显示的推荐音乐');
-      }
-      _readPage = readPage;
+      final result = await _readFirstPage(value, selected, prefetched, token);
       _setPage(result);
-      if (selected == null) await _saveCache(value, result);
+      await _saveCache(value, result, chartInfo);
     } catch (failure) {
       if (!_closed && !token.isCancelled) {
         notice = failure is ContentBlocked
@@ -245,6 +256,38 @@ final class MusicRecommendations extends ChangeNotifier {
     } finally {
       if (!_closed && !token.isCancelled) {
         loading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> _loadRecommendPlaylists(
+    String value,
+    CancellationToken token,
+  ) async {
+    final catalog = styleCatalog;
+    final provider = switch (value) {
+      'qqHome' => 'qqPlaylist',
+      'home' => 'neteasePlaylist',
+      _ => null,
+    };
+    if (catalog == null || provider == null || !_sourceAllowed(provider)) {
+      return;
+    }
+    playlistsLoading = true;
+    notifyListeners();
+    try {
+      final category = provider == 'neteasePlaylist'
+          ? neteaseRecommendedPlaylists
+          : musicAllCategories[provider]!;
+      final page = await catalog.playlists(provider, category, token);
+      token.check();
+      recommendPlaylists = page.items.take(10).toList();
+    } catch (_) {
+      if (!token.isCancelled) recommendPlaylists = [];
+    } finally {
+      if (!_closed && !token.isCancelled) {
+        playlistsLoading = false;
         notifyListeners();
       }
     }
@@ -310,13 +353,24 @@ final class MusicRecommendations extends ChangeNotifier {
     items = [];
     _next = total = null;
     _readPage = null;
+    _qqReader = null;
+    chartInfo = null;
     notice = pageError = chartDirectoryError = null;
     showingFallback = loading = false;
     chartDirectoryLoading = true;
     notifyListeners();
+    QqChartReader? prefetched;
+    MusicCatalogOption? batchSelected;
     try {
       if (!_sourceAllowed(provider)) throw const ContentBlocked();
-      if (refresh || !_directories.containsKey(provider)) {
+      if (provider == 'qqPlaylist' &&
+          (refresh || !_directories.containsKey(provider))) {
+        final directory = await chartCatalog.qqDirectory(previous, token);
+        token.check();
+        _directories[provider] = directory.options;
+        prefetched = directory.reader;
+        batchSelected = directory.selected;
+      } else if (refresh || !_directories.containsKey(provider)) {
         final options = await chartCatalog.charts(provider, token);
         token.check();
         _directories[provider] = options;
@@ -332,11 +386,16 @@ final class MusicRecommendations extends ChangeNotifier {
         chartDirectoryLoading = false;
         final options = charts;
         if (options.isNotEmpty) {
-          await selectChart(
-            options.firstWhere(
-              (item) => item.id == previous,
-              orElse: () => options.first,
-            ),
+          final target = options.contains(batchSelected)
+              ? batchSelected!
+              : options.firstWhere(
+                  (item) => item.id == previous,
+                  orElse: () => options.first,
+                );
+          await load(
+            'chart:$provider:${target.id}',
+            refresh: refresh,
+            prefetched: prefetched,
           );
         } else {
           notifyListeners();
@@ -356,18 +415,56 @@ final class MusicRecommendations extends ChangeNotifier {
     notice = null;
   }
 
+  Future<MusicCatalogPage<MusicRecommendation>> _readFirstPage(
+    String value,
+    MusicCatalogOption? selected,
+    QqChartReader? prefetched,
+    CancellationToken token,
+  ) async {
+    MusicChartSongs? reader;
+    if (selected != null) {
+      if (chartPlatform == 'qqPlaylist') {
+        _qqReader = prefetched ?? QqChartReader(chartCatalog, selected.id);
+        reader = _qqReader!.call;
+      } else {
+        reader = await chartCatalog.open(chartPlatform, selected.id, token);
+      }
+    }
+    final page = reader == null
+        ? await _fetch(value, token)
+        : await reader(0, token);
+    token.check();
+    if (!_allowed(value)) throw const ContentBlocked();
+    if (page.items.isEmpty && page.next == null) {
+      throw const FormatException('没有可显示的推荐音乐');
+    }
+    _readPage = reader;
+    if (_qqReader?.info case final info?) chartInfo = info;
+    return page;
+  }
+
   Future<void> loadMore() async {
     final cursor = _next;
     if (_closed || loading || cursor == null || !visible) return;
     final token = _request = CancellationToken();
-    final readPage = _readPage;
+    var readPage = _readPage;
     loading = true;
     pageError = null;
     notifyListeners();
     try {
-      final page = await (readPage == null
-          ? chartCatalog.qqSongs('26', cursor, token)
-          : readPage(cursor, token));
+      if (readPage == null) {
+        final selected = selectedChart;
+        if (selected == null) return;
+        if (chartPlatform == 'qqPlaylist') {
+          final reader = QqChartReader(chartCatalog, selected.id);
+          _qqReader = reader;
+          readPage = reader.call;
+        } else {
+          readPage = await chartCatalog.open(chartPlatform, selected.id, token);
+        }
+        _readPage = readPage;
+      }
+      final page = await readPage(cursor, token);
       token.check();
       if (!visible) throw const ContentBlocked();
       Object key(MusicRecommendation item) =>
@@ -383,6 +480,7 @@ final class MusicRecommendations extends ChangeNotifier {
           ? next
           : null;
       total = page.total ?? total;
+      if (_qqReader?.info case final info?) chartInfo = info;
     } catch (failure) {
       if (!_closed && !token.isCancelled) {
         pageError = failure is ContentBlocked ? '当前平台已被过滤' : '下一页曲目加载失败';
@@ -395,9 +493,7 @@ final class MusicRecommendations extends ChangeNotifier {
     }
   }
 
-  Future<({int time, MusicCatalogPage<MusicRecommendation> page})?> _readCache(
-    String value,
-  ) async {
+  Future<_CachedPage?> _readCache(String value) async {
     try {
       final rows = await db.rows('SELECT value FROM app_meta WHERE key=?', [
         'music_recommendation:$value',
@@ -412,9 +508,12 @@ final class MusicRecommendations extends ChangeNotifier {
               .cast<Map>()
               .map(MusicRecommendation.fromJson)
               .toList(),
-          next: value == 'qqHome' ? musicCatalogCount(saved['next']) : null,
+          next: musicCatalogCount(saved['next']),
           total: musicCatalogCount(saved['total']),
         ),
+        info: saved['info'] is Map
+            ? MusicChartInfo.fromJson(saved['info'] as Map)
+            : null,
       );
     } catch (_) {
       return null;
@@ -454,7 +553,13 @@ final class MusicRecommendations extends ChangeNotifier {
             },
           );
       token.check();
-      if (value == 'qqHome') return parseQqHomepagePage(doc.json);
+      if (value == 'qqHome') {
+        final raw = doc.json;
+        final req = raw is Map ? raw['req'] : null;
+        final data = req is Map ? req['data'] : null;
+        chartInfo = MusicChartInfo.parse(data is Map ? data['data'] : null);
+        return parseQqHomepagePage(raw);
+      }
       final items = switch (value) {
         'appleHome' => parseAppleHomepage(doc.json),
         'home' => parseHomepageSongs(doc.json),
@@ -471,8 +576,13 @@ final class MusicRecommendations extends ChangeNotifier {
   Future<void> _saveCache(
     String value,
     MusicCatalogPage<MusicRecommendation> page,
+    MusicChartInfo? info,
   ) async {
-    final saved = (time: DateTime.now().millisecondsSinceEpoch, page: page);
+    final saved = (
+      time: DateTime.now().millisecondsSinceEpoch,
+      page: page,
+      info: info,
+    );
     _memory[value] = saved;
     _writes = _writes
         .then(
@@ -483,6 +593,7 @@ final class MusicRecommendations extends ChangeNotifier {
               'items': page.items.map((i) => i.toJson()).toList(),
               'next': page.next,
               'total': page.total,
+              if (info != null) 'info': info.toJson(),
             }),
           ]),
         )

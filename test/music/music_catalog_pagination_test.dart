@@ -183,6 +183,41 @@ void _chartRetry() {
       var fail = true;
       final offsets = <int>[];
       final (api, _) = await _fixture((request) {
+        final payload = jsonDecode(request.uri.queryParameters['data']!) as Map;
+        if (payload.containsKey('req_0')) {
+          _json(request, {
+            'code': 0,
+            'req_0': {
+              'code': 0,
+              'data': {
+                'group': [
+                  {
+                    'groupName': '巅峰榜',
+                    'toplist': [
+                      {'topId': 26, 'title': '热歌榜'},
+                    ],
+                  },
+                ],
+              },
+            },
+            'req_1': {
+              'code': 0,
+              'data': {
+                'data': {
+                  'totalNum': 3,
+                  'song': [
+                    {'songId': 1, 'rank': 1},
+                  ],
+                },
+                'songInfoList': [
+                  {'id': 1, 'name': '歌曲'},
+                ],
+              },
+            },
+          });
+          offsets.add(0);
+          return;
+        }
         final req = _qqRequest(request);
         if (req['method'] == 'GetAll') {
           _qq(request, {

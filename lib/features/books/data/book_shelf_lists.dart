@@ -61,15 +61,15 @@ final class BookShelfLists {
           throw const FormatException('最多可保存 100 个书架列表');
         }
         final old = lists.where((list) => list.id == id).firstOrNull;
+        var nextId = DateTime.now().microsecondsSinceEpoch;
+        final usedIds = lists.map((list) => list.id).toSet();
+        while (usedIds.contains('$nextId')) {
+          nextId++;
+        }
         return [
           for (final list in lists)
             if (list.id != id) list,
-          ShelfList(
-            id ?? '${DateTime.now().microsecondsSinceEpoch}',
-            label,
-            kind,
-            old?.books ?? {},
-          ),
+          ShelfList(id ?? '$nextId', label, kind, old?.books ?? {}),
         ];
       });
 

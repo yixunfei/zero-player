@@ -238,7 +238,12 @@ final class BookClient {
             description: bookLabel(bookField(row, rule('description')), 600),
             cover: bookCoverAddress(base, cover),
             category: category,
-            wordCount: bookLabel(bookField(row, rule('wordCount'))),
+            wordCount: bookLabel(
+              bookField(
+                row,
+                rule('wordCount'),
+              ).replaceFirst(RegExp(r'^字数[:：]\s*'), ''),
+            ),
             latestChapter: bookLabel(bookField(row, rule('latest'))),
             updatedLabel: bookLabel(bookField(row, rule('updated'))),
             rankLabel: bookLabel(bookField(row, rule('rank'))),
@@ -349,9 +354,15 @@ final class BookClient {
         throw FormatException(imageOnly ? '章节仅提供图片，文本阅读器无法打开' : '来源未返回章节正文');
       }
       if (!parts.contains(body)) parts.add(body);
+      if (parts.fold<int>(0, (sum, part) => sum + part.length) > 500000) {
+        throw const FormatException('章节正文超过大小限制');
+      }
       final more = bookField(document, source.rules['nextContent'] ?? '');
       if (more.isEmpty) break;
       next = source.resolve(response.uri, more);
+      if (page == 9 && !visited.contains(next)) {
+        throw const FormatException('章节分页超过限制，正文未完整获取');
+      }
     }
     final result = parts.join('\n\n');
     if (result.length > 500000) throw const FormatException('章节正文超过大小限制');

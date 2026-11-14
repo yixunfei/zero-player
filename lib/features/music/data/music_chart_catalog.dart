@@ -12,11 +12,83 @@ typedef MusicChartSongs =
       CancellationToken token,
     );
 
+/// Source-side chart header shown above the song list.
+final class MusicChartInfo {
+  const MusicChartInfo({
+    this.title = '',
+    this.updateTime = '',
+    this.period = '',
+    this.updateTips = '',
+    this.listenNum,
+    this.totalNum,
+  });
+  final String title, updateTime, period, updateTips;
+  final int? listenNum, totalNum;
+
+  static MusicChartInfo? parse(Object? raw) {
+    if (raw is! Map) return null;
+    final info = MusicChartInfo(
+      title: musicCatalogLabel(raw['title']),
+      updateTime: musicCatalogLabel(raw['updateTime']),
+      period: musicCatalogLabel(raw['period']),
+      updateTips: musicCatalogLabel(raw['updateTips']),
+      listenNum: musicCatalogCount(raw['listenNum']),
+      totalNum: musicCatalogCount(raw['totalNum']),
+    );
+    return info.title.isEmpty &&
+            info.updateTime.isEmpty &&
+            info.listenNum == null &&
+            info.totalNum == null
+        ? null
+        : info;
+  }
+
+  Map<String, Object?> toJson() => {
+    'title': title,
+    'updateTime': updateTime,
+    'period': period,
+    'updateTips': updateTips,
+    if (listenNum != null) 'listenNum': listenNum,
+    if (totalNum != null) 'totalNum': totalNum,
+  };
+  factory MusicChartInfo.fromJson(Map row) => MusicChartInfo(
+    title: musicCatalogLabel(row['title']),
+    updateTime: musicCatalogLabel(row['updateTime']),
+    period: musicCatalogLabel(row['period']),
+    updateTips: musicCatalogLabel(row['updateTips']),
+    listenNum: musicCatalogCount(row['listenNum']),
+    totalNum: musicCatalogCount(row['totalNum']),
+  );
+}
+
+/// Callable page reader that can serve a prefetched first page and keeps the
+/// latest chart header for the UI.
+final class QqChartReader {
+  QqChartReader(this._catalog, this.id, {this.first, this.info});
+  final MusicChartCatalog _catalog;
+  final String id;
+  final MusicCatalogPage<MusicRecommendation>? first;
+  MusicChartInfo? info;
+
+  Future<MusicCatalogPage<MusicRecommendation>> call(
+    int offset,
+    CancellationToken token,
+  ) {
+    final prefetched = first;
+    if (offset == 0 && prefetched != null) return Future.value(prefetched);
+    return _catalog.qqSongs(id, offset, token, onInfo: (value) => info = value);
+  }
+}
+
 final class MusicChartCatalog {
   MusicChartCatalog(this.api);
   final MusicCatalogApi api;
   late final _netease = NeteaseMusicDetails(api.network, endpoint: api.netease);
   static const _qqModule = 'musicToplist.ToplistInfoServer';
+  static const qqPageSize = 30;
+
+  /// Hot songs chart; stable id used to prefetch the first page with GetAll.
+  static const qqDefaultId = '26';
 
   Future<List<MusicCatalogOption>> charts(
     String provider,
@@ -54,13 +126,66 @@ final class MusicChartCatalog {
     ];
   }
 
-  Future<List<MusicCatalogOption>> _qqCharts(CancellationToken token) async {
-    final data = await api.qqRequest(_qqModule, 'GetAll', {}, token);
-    return [
-      for (final group in musicCatalogRows(data['group']).whereType<Map>())
-        for (final row in musicCatalogRows(group['toplist']).whereType<Map>())
-          ?_option(row['topId'], row['title'], group['groupName']),
-    ];
+  Future<List<MusicCatalogOption>> _qqCharts(CancellationToken token) async =>
+      _parseQqCharts(await api.qqRequest(_qqModule, 'GetAll', {}, token));
+
+  List<MusicCatalogOption> _parseQqCharts(Map data) => [
+    for (final group in musicCatalogRows(data['group']).whereType<Map>())
+      for (final row in musicCatalogRows(group['toplist']).whereType<Map>())
+        ?_option(row['topId'], row['title'], group['groupName']),
+  ];
+
+  /// Directory plus the selected chart's first page in one QQ round trip.
+  Future<
+    ({
+      List<MusicCatalogOption> options,
+      MusicCatalogOption selected,
+      QqChartReader? reader,
+    })
+  >
+  qqDirectory(String? preferredId, CancellationToken token) async {
+    final target = preferredId ?? qqDefaultId;
+    List<Map> responses;
+    try {
+      responses = await api.qqBatch([
+        (module: _qqModule, method: 'GetAll', params: const {}),
+        (
+          module: _qqModule,
+          method: 'GetDetail',
+          params: {'topid': int.parse(target), 'offset': 0, 'num': qqPageSize},
+        ),
+      ], token);
+    } catch (_) {
+      token.check();
+      final options = await _qqCharts(token);
+      if (options.isEmpty) throw const FormatException('平台未返回公开榜单');
+      return (
+        options: options,
+        selected: options.firstWhere(
+          (option) => option.id == target,
+          orElse: () => options.first,
+        ),
+        reader: null,
+      );
+    }
+    final options = _parseQqCharts(responses[0]);
+    if (options.isEmpty) throw const FormatException('平台未返回公开榜单');
+    final selected =
+        options.where((option) => option.id == target).firstOrNull ??
+        options.first;
+    final first = _qqPage(responses[1]);
+    return (
+      options: options,
+      selected: selected,
+      reader: selected.id == target
+          ? QqChartReader(
+              this,
+              selected.id,
+              first: first.page,
+              info: first.info,
+            )
+          : null,
+    );
   }
 
   Future<List<MusicCatalogOption>> _kugouCharts(CancellationToken token) async {
@@ -107,7 +232,7 @@ final class MusicChartCatalog {
     }
     switch (provider) {
       case 'qqPlaylist':
-        return (offset, token) => qqSongs(id, offset, token);
+        return QqChartReader(this, id).call;
       case 'kugouPlaylist':
         return (offset, token) => _kugouSongs(id, offset, token);
       case 'neteasePlaylist':
@@ -131,21 +256,36 @@ final class MusicChartCatalog {
   Future<MusicCatalogPage<MusicRecommendation>> qqSongs(
     String id,
     int offset,
-    CancellationToken token,
-  ) async {
-    const size = 30;
+    CancellationToken token, {
+    void Function(MusicChartInfo)? onInfo,
+  }) async {
     final data = await api.qqRequest(_qqModule, 'GetDetail', {
       'topid': int.parse(id),
       'offset': offset,
-      'num': size,
+      'num': qqPageSize,
     }, token);
+    final result = _qqPage(data, offset);
+    if (result.info case final info?) onInfo?.call(info);
+    return result.page;
+  }
+
+  ({MusicCatalogPage<MusicRecommendation> page, MusicChartInfo? info}) _qqPage(
+    Map data, [
+    int offset = 0,
+  ]) {
     final rows = musicCatalogRows(data['songInfoList']);
-    final info = data['data'];
-    final total = musicCatalogCount(info is Map ? info['totalNum'] : null);
+    final raw = data['data'];
+    final info = MusicChartInfo.parse(raw);
+    final total =
+        info?.totalNum ??
+        musicCatalogCount(raw is Map ? raw['totalNum'] : null);
     return (
-      items: parseQqChartSongs(rows, chart: info),
-      total: total,
-      next: musicCatalogNext(offset, rows.length, size, total),
+      page: (
+        items: parseQqChartSongs(rows, chart: raw),
+        total: total,
+        next: musicCatalogNext(offset, rows.length, qqPageSize, total),
+      ),
+      info: info,
     );
   }
 

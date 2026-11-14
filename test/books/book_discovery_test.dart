@@ -19,6 +19,9 @@ import 'package:zero_player/features/supervision/domain/supervision_rules.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  _storageAudit();
+  _cancellationAudit();
+
   test(
     'restore defaults disables extra sources and respects blacklist',
     () async {
@@ -420,3 +423,123 @@ Map<String, Object?> _legado(String address) => {
   'ruleBookInfo': {'name': 'h1@text', 'coverUrl': 'img@src'},
   'ruleContent': {'content': 'p@text'},
 };
+
+void _storageAudit() {
+  test(
+    'rapid concurrent shelf creation keeps unique membership identities',
+    () async {
+      final repo = (await _services()).books;
+      final lists = BookShelfLists(repo.store, BookKind.text);
+      await Future.wait(
+        List.generate(
+          40,
+          (index) => lists.save('分组 $index', ShelfListKind.group),
+        ),
+      );
+      final created = await lists.load();
+      expect(created, hasLength(40));
+      expect(created.map((list) => list.id).toSet(), hasLength(40));
+      final book = Book(
+        'local',
+        BookKind.text,
+        '样本',
+        '',
+        Uri.parse('book:groups'),
+      );
+      await lists.assign(book, created.map((list) => list.id).toSet());
+      expect(
+        (await lists.load()).where((list) => list.books.contains(book.id)),
+        hasLength(1),
+      );
+    },
+  );
+
+  test('cached chapters and local details respect cancellation', () async {
+    final repo = (await _services()).books;
+    final book = Book(
+      'local',
+      BookKind.text,
+      '样本',
+      '',
+      Uri.parse('book:cancel'),
+    );
+    final chapter = BookChapter('第一章', Uri.parse('book:cancel#1'));
+    await repo.store.saveBook(book, chapters: [chapter]);
+    final token = CancellationToken()..cancel();
+    await expectLater(
+      repo.chapters(book, token),
+      throwsA(isA<RequestCancelled>()),
+    );
+    await expectLater(
+      repo.details(book, token),
+      throwsA(isA<RequestCancelled>()),
+    );
+    expect(await repo.chapters(book, CancellationToken()), hasLength(1));
+  });
+}
+
+void _cancellationAudit() {
+  test(
+    'blocked primary download never falls through to another edition',
+    () async {
+      final repo = (await _services()).books;
+      final source = BookSource.fromJson({
+        'name': '样本',
+        'kind': 'text',
+        'format': 'feed',
+        'url': 'https://fiction.test/feed',
+      });
+      final book = Book(source.id, BookKind.text, '样本', '作者', source.endpoint);
+      final chapter = BookChapter('第一章', source.endpoint.resolve('/1'));
+      final alternate = Book(
+        'local',
+        BookKind.text,
+        '样本',
+        '作者',
+        Uri.parse('book:alternate'),
+      );
+      final alternateChapter = BookChapter(
+        '第一章',
+        Uri.parse('book:alternate#1'),
+      );
+      await repo.store.saveText(alternate, alternateChapter, '替代正文');
+      await repo.store.write('books_source_blacklist', {
+        source.id: source.name,
+      });
+      await expectLater(
+        repo.download(
+          book,
+          chapter,
+          CancellationToken(),
+          alternatives: [
+            (book: alternate, chapters: [alternateChapter]),
+          ],
+        ),
+        throwsA(isA<ContentBlocked>()),
+      );
+      expect(await repo.store.text(book, chapter), isNull);
+    },
+  );
+
+  test(
+    'cancelled rule worker rejects work and a later worker still succeeds',
+    () async {
+      final source = parseBookSourceRecord(_legado('https://books.test'));
+      final job = LegadoJob(
+        source,
+        source.endpoint,
+        LegadoOperation.content,
+        input: '<p>正文</p>',
+      );
+      await expectLater(
+        runLegadoJob(job, CancellationToken()..cancel()),
+        throwsA(isA<RequestCancelled>()),
+      );
+      final token = CancellationToken();
+      final pending = runLegadoJob(job, token);
+      token.cancel();
+      await expectLater(pending, throwsA(isA<RequestCancelled>()));
+      expect((await runLegadoJob(job, CancellationToken())).content, '正文');
+    },
+  );
+}

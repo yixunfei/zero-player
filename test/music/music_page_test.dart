@@ -10,6 +10,36 @@ import 'package:zero_player/features/music/presentation/music_player.dart';
 import '../../test_support/fake_player_engine.dart';
 
 void main() {
+  testWidgets('search list offers one-tap return to top', (tester) async {
+    final (root, services, _) = (await tester.runAsync(_setup))!;
+    services.musicBrowser.result = MusicSearchResult([
+      for (var i = 0; i < 40; i++)
+        MusicTrack(
+          id: 'track-$i',
+          title: '测试音乐 $i',
+          artist: '测试歌手',
+          url: Uri.parse('https://example.com/$i.mp3'),
+          fetchedAt: DateTime.now(),
+        ),
+    ]);
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: MusicPage(services: services)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('返回页首'), findsOneWidget);
+      await tester.tap(find.byTooltip('返回页首'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('返回页首'), findsNothing);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _closeFixture(tester, services, root);
+    }
+  });
   testWidgets(
     'downloaded search result stays visible when online search fails',
     (tester) async {

@@ -333,7 +333,11 @@ final class _BookReaderPageState extends State<BookReaderPage>
     );
     _configuring = false;
     if (mounted) {
-      await _books.store.write('books_reader_preferences', _style.toJson());
+      try {
+        await _books.store.write('books_reader_preferences', _style.toJson());
+      } on Exception {
+        if (mounted) _readerNotice('阅读设置保存失败，请重试');
+      }
     }
   }
 

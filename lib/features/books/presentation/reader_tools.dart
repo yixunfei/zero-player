@@ -324,14 +324,18 @@ extension _ReaderTools on _BookReaderPageState {
                                   tooltip: '删除记录',
                                   icon: const Icon(Icons.delete_outline),
                                   onPressed: () async {
-                                    await _books.store.deleteAnnotation(
-                                      widget.book,
-                                      entry['id'] as String,
-                                    );
-                                    entries = await _books.store.annotations(
-                                      widget.book,
-                                    );
-                                    if (context.mounted) update(() {});
+                                    try {
+                                      await _books.store.deleteAnnotation(
+                                        widget.book,
+                                        entry['id'] as String,
+                                      );
+                                      entries = await _books.store.annotations(
+                                        widget.book,
+                                      );
+                                      if (context.mounted) update(() {});
+                                    } on Exception {
+                                      if (mounted) _readerNotice('删除书签失败，请重试');
+                                    }
                                   },
                                 ),
                               );

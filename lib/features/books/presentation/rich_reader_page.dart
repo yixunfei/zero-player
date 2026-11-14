@@ -615,10 +615,18 @@ class _RichReaderState extends State<RichReaderPage>
     );
     _configuring = false;
     if (mounted && _ready) {
-      await widget.repository.store.write(
-        'books_reader_preferences',
-        _style.toJson(),
-      );
+      try {
+        await widget.repository.store.write(
+          'books_reader_preferences',
+          _style.toJson(),
+        );
+      } on Exception {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('阅读设置保存失败，请重试')));
+        }
+      }
     }
   }
 

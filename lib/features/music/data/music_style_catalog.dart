@@ -19,9 +19,10 @@ final class MusicStylePlaylist {
     this.cover = '',
     this.creator = '',
     this.count,
+    this.plays,
   });
   final String provider, id, name, cover, creator;
-  final int? count;
+  final int? count, plays;
 
   Uri get uri => switch (provider) {
     'qqPlaylist' => Uri.https('y.qq.com', '/n/ryqq_v2/playlist/$id'),
@@ -63,7 +64,14 @@ final class MusicStyleCatalog {
   late final _netease = NeteaseMusicDetails(api.network, endpoint: api.netease);
   static const _kugouListing = '/yueku/v8/special/index/getData.js';
   static const _trackSize = 50;
+  static const _listSize = 20;
   static const _qqSquare = 'music.playlist.PlaylistSquare';
+  static const _categoryTtl = 3600000;
+  static const _pageTtl = 600000;
+  final _categoryCache =
+      <String, ({int time, List<MusicCatalogOption> options})>{};
+  final _pageCache =
+      <String, ({int time, MusicCatalogPage<MusicStylePlaylist> page})>{};
 
   bool providerAllowed(String provider) =>
       repository.policy?.sourceAllowed(repository.sourceFor(provider)) ?? true;
@@ -76,11 +84,18 @@ final class MusicStyleCatalog {
 
   Future<List<MusicCatalogOption>> categories(
     String provider,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    bool refresh = false,
+  }) async {
     final all = musicAllCategories[provider];
     if (all == null) throw const FormatException('未知歌单平台');
     _requireSource(provider);
+    final cached = _categoryCache[provider];
+    if (!refresh &&
+        cached != null &&
+        DateTime.now().millisecondsSinceEpoch - cached.time < _categoryTtl) {
+      return cached.options;
+    }
     final options = switch (provider) {
       'qqPlaylist' => await _qqCategories(token),
       'kugouPlaylist' => await _kugouCategories(token),
@@ -89,11 +104,64 @@ final class MusicStyleCatalog {
     token.check();
     _requireSource(provider);
     if (options.isEmpty) throw const FormatException('平台未返回歌单分类');
-    return {
+    final merged = {
       for (final option in [all, ...options]) option.id: option,
       all.id: all,
     }.values.toList();
+    _categoryCache[provider] = (
+      time: DateTime.now().millisecondsSinceEpoch,
+      options: merged,
+    );
+    return merged;
   }
+
+  /// QQ tag directory plus the recommended first page in one round trip.
+  Future<
+    ({List<MusicCatalogOption> options, MusicCatalogPage<MusicStylePlaylist> first})
+  >
+  qqDirectory(CancellationToken token, {bool refresh = false}) async {
+    _requireSource('qqPlaylist');
+    final cachedOptions = _categoryCache['qqPlaylist'];
+    final cachedFirst = _pageCache[_pageKey('qqPlaylist', '0', 0, null)];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!refresh &&
+        cachedOptions != null &&
+        cachedFirst != null &&
+        now - cachedOptions.time < _categoryTtl &&
+        now - cachedFirst.time < _pageTtl) {
+      return (options: cachedOptions.options, first: cachedFirst.page);
+    }
+    final responses = await api.qqBatch([
+      (module: _qqSquare, method: 'GetAllTag', params: const {}),
+      (
+        module: _qqSquare,
+        method: 'GetRecommendWhole',
+        params: {
+          'IsReqFeed': true,
+          'FeedReq': {'From': 0, 'Size': _listSize},
+        },
+      ),
+    ], token);
+    token.check();
+    _requireSource('qqPlaylist');
+    final tags = _parseQqTags(responses[0]);
+    if (tags.isEmpty) throw const FormatException('平台未返回歌单分类');
+    final all = musicAllCategories['qqPlaylist']!;
+    final options = {
+      for (final option in [all, ...tags]) option.id: option,
+      all.id: all,
+    }.values.toList();
+    final first = _qqFeedPage(responses[1], 0);
+    _categoryCache['qqPlaylist'] = (time: now, options: options);
+    _pageCache[_pageKey('qqPlaylist', '0', 0, null)] = (
+      time: now,
+      page: first,
+    );
+    return (options: options, first: first);
+  }
+
+  String _pageKey(String provider, String category, int cursor, String? query) =>
+      '$provider|$category|$cursor|${query ?? ''}';
 
   Future<List<MusicCatalogOption>> _neteaseCategories(
     CancellationToken token,
@@ -117,25 +185,24 @@ final class MusicStyleCatalog {
 
   Future<List<MusicCatalogOption>> _qqCategories(
     CancellationToken token,
-  ) async {
-    final data = await api.qqRequest(_qqSquare, 'GetAllTag', {}, token);
-    return [
-      for (final group in musicCatalogRows(data['v_group']).whereType<Map>())
-        if (musicCatalogLabel(group['group_name']) case final name
-            when name.isNotEmpty)
-          for (final row in musicCatalogRows(group['v_item']).whereType<Map>())
-            if (musicCatalogId.hasMatch('${row['id']}'))
-              if (musicCatalogLabel(row['name']) case final label
-                  when label.isNotEmpty)
-                (
-                  id: row['source'] == 1
-                      ? 'account:${row['id']}'
-                      : '${row['id']}',
-                  name: label,
-                  group: name,
-                ),
-    ];
-  }
+  ) async => _parseQqTags(
+    await api.qqRequest(_qqSquare, 'GetAllTag', {}, token),
+  );
+
+  List<MusicCatalogOption> _parseQqTags(Map data) => [
+    for (final group in musicCatalogRows(data['v_group']).whereType<Map>())
+      if (musicCatalogLabel(group['group_name']) case final name
+          when name.isNotEmpty)
+        for (final row in musicCatalogRows(group['v_item']).whereType<Map>())
+          if (musicCatalogId.hasMatch('${row['id']}'))
+            if (musicCatalogLabel(row['name']) case final label
+                when label.isNotEmpty)
+              (
+                id: row['source'] == 1 ? 'account:${row['id']}' : '${row['id']}',
+                name: label,
+                group: name,
+              ),
+  ];
 
   Future<List<MusicCatalogOption>> _kugouCategories(
     CancellationToken token,
@@ -165,17 +232,21 @@ final class MusicStyleCatalog {
     CancellationToken token, {
     String? query,
     int cursor = 0,
+    bool refresh = false,
   }) async {
     if (cursor < 0 || !musicAllCategories.containsKey(provider)) {
       throw const FormatException('歌单分类或页码无效');
     }
     _requireSource(provider);
     if (query == null && !optionAllowed(category)) throw const ContentBlocked();
-    final result = switch (provider) {
-      'qqPlaylist' => await _qqPlaylists(category.id, cursor, token),
-      'kugouPlaylist' => await _kugouPlaylists(category.id, cursor, token),
-      _ => await _neteasePlaylists(category.id, query, cursor, token),
-    };
+    final key = _pageKey(provider, category.id, cursor, query);
+    final cached = _pageCache[key];
+    final result =
+        !refresh &&
+            cached != null &&
+            DateTime.now().millisecondsSinceEpoch - cached.time < _pageTtl
+        ? cached.page
+        : await _fetchPlaylists(provider, category, token, query, cursor, key);
     token.check();
     _requireSource(provider);
     if (query == null) {
@@ -188,6 +259,24 @@ final class MusicStyleCatalog {
       next: result.next,
       total: result.total,
     );
+  }
+
+  Future<MusicCatalogPage<MusicStylePlaylist>> _fetchPlaylists(
+    String provider,
+    MusicCatalogOption category,
+    CancellationToken token,
+    String? query,
+    int cursor,
+    String key,
+  ) async {
+    final result = switch (provider) {
+      'qqPlaylist' => await _qqPlaylists(category.id, cursor, token),
+      'kugouPlaylist' => await _kugouPlaylists(category.id, cursor, token),
+      _ => await _neteasePlaylists(category.id, query, cursor, token),
+    };
+    token.check();
+    _pageCache[key] = (time: DateTime.now().millisecondsSinceEpoch, page: result);
+    return result;
   }
 
   Future<MusicCatalogPage<MusicStylePlaylist>> _neteasePlaylists(
@@ -258,6 +347,7 @@ final class MusicStyleCatalog {
             row['coverImgUrl'] ?? row['picUrl'],
             row['creator'] is Map ? (row['creator'] as Map)['nickname'] : null,
             row['trackCount'],
+            plays: row['playCount'],
           ),
     ];
     final more = data[normalized == null ? 'more' : 'hasMore'];
@@ -291,45 +381,53 @@ final class MusicStyleCatalog {
     if (id == null || (id != 0 && !musicCatalogId.hasMatch(category))) {
       throw const FormatException('歌单分类无效');
     }
-    const size = 20;
-    final recommended = id == 0;
-    final response = recommended
-        ? await api.qqRequest(_qqSquare, 'GetRecommendWhole', {
-            'IsReqFeed': true,
-            'FeedReq': {'From': cursor * size, 'Size': size},
-          }, token)
-        : await api.qqRequest(
-            'music.playlist.PlayListCategory',
-            'get_category_content',
-            {
-              'caller': '0',
-              'category_id': id,
-              'size': size,
-              'page': cursor,
-              'use_page': 1,
-            },
-            token,
-          );
-    if (!recommended && response['retcode'] != 0) {
+    if (id == 0) {
+      return _qqFeedPage(
+        await api.qqRequest(_qqSquare, 'GetRecommendWhole', {
+          'IsReqFeed': true,
+          'FeedReq': {'From': cursor * _listSize, 'Size': _listSize},
+        }, token),
+        cursor,
+      );
+    }
+    final response = await api.qqRequest(
+      'music.playlist.PlayListCategory',
+      'get_category_content',
+      {
+        'caller': '0',
+        'category_id': id,
+        'size': _listSize,
+        'page': cursor,
+        'use_page': 1,
+      },
+      token,
+    );
+    if (response['retcode'] != 0) {
       throw const FormatException('QQ 音乐歌单分类暂不可用');
     }
-    final data = musicCatalogObject(
-      response[recommended ? 'FeedRsp' : 'content'],
-    );
-    final rows = musicCatalogRows(data[recommended ? 'List' : 'v_item']);
+    final data = musicCatalogObject(response['content']);
+    final rows = musicCatalogRows(data['v_item']);
     final total = musicCatalogCount(data['total_cnt']);
-    final more = recommended
-        ? data['HasMore'] == true
-        : total == null
-        ? rows.length >= size
-        : (cursor + 1) * size < total;
+    final more = total == null
+        ? rows.length >= _listSize
+        : (cursor + 1) * _listSize < total;
+    return (
+      items: [for (final row in rows.whereType<Map>()) ?_qqPlaylist(row)],
+      total: total,
+      next: rows.isNotEmpty && more ? cursor + 1 : null,
+    );
+  }
+
+  MusicCatalogPage<MusicStylePlaylist> _qqFeedPage(Map response, int cursor) {
+    final data = musicCatalogObject(response['FeedRsp']);
+    final rows = musicCatalogRows(data['List']);
     return (
       items: [
         for (final row in rows.whereType<Map>())
-          ?_qqPlaylist(recommended ? row['Playlist'] : row),
+          ?_qqPlaylist(row['Playlist']),
       ],
-      total: total,
-      next: rows.isNotEmpty && more ? cursor + 1 : null,
+      total: musicCatalogCount(data['total_cnt']),
+      next: rows.isNotEmpty && data['HasMore'] == true ? cursor + 1 : null,
     );
   }
 
@@ -345,6 +443,7 @@ final class MusicStyleCatalog {
       cover is Map ? cover['default_url'] : null,
       creator is Map ? creator['nick'] : null,
       row['song_cnt'],
+      plays: row['play_cnt'],
     );
   }
 
@@ -413,8 +512,9 @@ final class MusicStyleCatalog {
     Object? title,
     Object? cover,
     Object? creator,
-    Object? count,
-  ) {
+    Object? count, {
+    Object? plays,
+  }) {
     final id = '$rawId';
     final name = musicCatalogLabel(title);
     if (!musicCatalogId.hasMatch(id) || name.isEmpty) return null;
@@ -425,6 +525,7 @@ final class MusicStyleCatalog {
       cover: musicThumbnail(cover is String ? cover : ''),
       creator: musicCatalogLabel(creator),
       count: musicCatalogCount(count),
+      plays: musicCatalogCount(plays),
     );
   }
 

@@ -16,7 +16,17 @@ class ReaderSystemUi {
   void apply(bool immersive) {
     if (kIsWeb) return;
     _applied = true;
-    unawaited(_set(immersive));
+    unawaited(
+      _set(immersive).onError((Object error, StackTrace stack) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'book reader system UI',
+          ),
+        );
+      }),
+    );
   }
 
   void restore() {

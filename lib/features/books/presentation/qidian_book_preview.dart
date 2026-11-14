@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/network/document_client.dart';
 import '../data/qidian_catalog.dart';
 import '../domain/book.dart';
 import 'book_links.dart';
+import 'qidian_browser_import.dart';
 
 final class QidianBookPreview extends StatefulWidget {
   const QidianBookPreview({
@@ -92,6 +94,14 @@ final class _QidianBookPreviewState extends State<QidianBookPreview> {
       fit: StackFit.expand,
       children: [
         widget.child,
+        if (_info?.cover case final cover? when cover.isNotEmpty)
+          Positioned.fill(
+            child: _WorkCover(
+              catalog: widget.catalog,
+              book: widget.book,
+              cover: cover,
+            ),
+          ),
         if (_showPreview)
           Positioned.fill(
             child: IgnorePointer(
@@ -162,10 +172,42 @@ final class _WorkInfoDialog extends StatefulWidget {
 final class _WorkInfoDialogState extends State<_WorkInfoDialog> {
   CancellationToken? _token;
   late Future<QidianInfo> _result = _load();
+  bool _pickingPage = false;
+  String? _importError;
 
   Future<QidianInfo> _load() {
     _token?.cancel();
+    _importError = null;
     return widget.catalog.details(widget.book, _token = CancellationToken());
+  }
+
+  Future<void> _importPage() async {
+    if (_pickingPage || !widget.catalog.allows(widget.book)) return;
+    setState(() {
+      _pickingPage = true;
+      _importError = null;
+    });
+    try {
+      final bytes = await pickQidianBrowserPage(
+        context,
+        widget.book.uri,
+        allowed: () => mounted && widget.catalog.allows(widget.book),
+      );
+      if (!mounted || bytes == null) return;
+      _token?.cancel();
+      final token = _token = CancellationToken();
+      setState(() {
+        _result = widget.catalog.importDetails(widget.book, bytes, token);
+      });
+    } on Exception catch (error) {
+      if (mounted) {
+        setState(() {
+          _importError = error is FormatException ? error.message : '无法读取网页文件';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _pickingPage = false);
+    }
   }
 
   @override
@@ -184,23 +226,49 @@ final class _WorkInfoDialogState extends State<_WorkInfoDialog> {
         builder: (context, snapshot) {
           final facts = _facts(widget.book, snapshot.data);
           final error = snapshot.error;
+          final cover = snapshot.data?.cover ?? '';
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (cover.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SizedBox(
+                      width: 120,
+                      height: 160,
+                      child: _WorkCover(
+                        catalog: widget.catalog,
+                        book: widget.book,
+                        cover: cover,
+                      ),
+                    ),
+                  ),
                 for (final line in facts) Text(line),
                 if (snapshot.connectionState != ConnectionState.done)
                   const LinearProgressIndicator(),
+                if (_importError case final message?) Text(message),
                 if (error != null) ...[
                   Text(switch (error) {
                     FormatException() => error.message,
                     RemoteFailure() => error.message,
                     _ => '暂时无法获取起点作品信息',
                   }),
-                  TextButton(
-                    onPressed: () => setState(() => _result = _load()),
-                    child: const Text('重试'),
+                  Wrap(
+                    children: [
+                      TextButton(
+                        onPressed: _pickingPage
+                            ? null
+                            : () => setState(() => _result = _load()),
+                        child: const Text('重试'),
+                      ),
+                      if (widget.catalog.allows(widget.book))
+                        TextButton(
+                          onPressed: _pickingPage ? null : _importPage,
+                          child: const Text('导入浏览器网页'),
+                        ),
+                    ],
                   ),
                 ],
                 if (snapshot.hasData && facts.isEmpty) const Text('起点未提供作品信息'),
@@ -221,4 +289,84 @@ final class _WorkInfoDialogState extends State<_WorkInfoDialog> {
       ),
     ],
   );
+}
+
+/// Fetches the hi-res cover parsed from the work page, replacing the discovery
+/// list's low-resolution thumbnail. Falls back to the underlying thumbnail when
+/// the cover cannot be retrieved.
+final class _WorkCover extends StatefulWidget {
+  const _WorkCover({
+    required this.catalog,
+    required this.book,
+    required this.cover,
+  });
+  final QidianCatalog catalog;
+  final Book book;
+  final String cover;
+
+  @override
+  State<_WorkCover> createState() => _WorkCoverState();
+}
+
+final class _WorkCoverState extends State<_WorkCover> {
+  CancellationToken? _token;
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_WorkCover oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cover != widget.cover ||
+        oldWidget.book.id != widget.book.id ||
+        !identical(oldWidget.catalog, widget.catalog)) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    _token?.cancel();
+    final token = _token = CancellationToken();
+    _bytes = null;
+    final book = widget.book;
+    final target = book.withDetails(
+      Book(book.sourceId, book.kind, book.title, book.author, book.uri,
+          cover: widget.cover),
+    );
+    try {
+      final bytes = await widget.catalog.cover(target, token);
+      if (mounted && !token.isCancelled) {
+        setState(
+          () => _bytes = bytes is Uint8List
+              ? bytes
+              : Uint8List.fromList(bytes),
+        );
+      }
+    } on Exception {
+      // Keep the list thumbnail when the work-page cover is unavailable.
+    }
+  }
+
+  @override
+  void dispose() {
+    _token?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _bytes == null
+      ? const SizedBox.shrink()
+      : ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: Image.memory(
+            _bytes!,
+            fit: BoxFit.cover,
+            excludeFromSemantics: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        );
 }

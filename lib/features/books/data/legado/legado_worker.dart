@@ -101,6 +101,7 @@ Future<LegadoPage> runLegadoJob(LegadoJob job, CancellationToken token) async {
       job,
     ), onError: receiver.sendPort);
     final value = await result.future;
+    token.check();
     if (value is Exception) throw value;
     if (value is LegadoPage) return value;
     throw const FormatException('Legado 规则无法解析此页面');
@@ -226,7 +227,10 @@ final class _LegadoEvaluation {
           request.uri,
           description: bookLabel(_optional('${prefix}Description', row), 600),
           request: request.reference,
-          cover: bookCoverAddress(job.uri, _optional('${prefix}Cover', row)),
+          cover: bookCoverAddress(
+            job.uri,
+            _optional('${prefix}Cover', row, single: true),
+          ),
           category: bookLabel(_optional('${prefix}Category', row)),
           wordCount: bookLabel(_optional('${prefix}WordCount', row)),
           latestChapter: bookLabel(_optional('${prefix}Latest', row)),
@@ -255,7 +259,10 @@ final class _LegadoEvaluation {
             source.requestTarget(job.uri),
             request: job.address,
             description: bookLabel(_optional('infoDescription', row), 4000),
-            cover: bookCoverAddress(job.uri, _optional('infoCover', row)),
+            cover: bookCoverAddress(
+              job.uri,
+              _optional('infoCover', row, single: true),
+            ),
             category: bookLabel(_optional('infoCategory', row)),
             wordCount: bookLabel(_optional('infoWordCount', row)),
             latestChapter: bookLabel(_optional('infoLatest', row)),
@@ -390,12 +397,21 @@ final class _LegadoEvaluation {
   Object? _details(Object? root) =>
       evaluator.elements(rules['infoInit'] ?? '', root).firstOrNull ?? root;
 
-  String _field(String name, Object? value, {bool long = false}) =>
-      evaluator.field(rules[name] ?? '', value, long: long);
+  String _field(
+    String name,
+    Object? value, {
+    bool long = false,
+    bool single = false,
+  }) => evaluator.field(rules[name] ?? '', value, long: long, single: single);
 
-  String _optional(String name, Object? value, {bool long = false}) {
+  String _optional(
+    String name,
+    Object? value, {
+    bool long = false,
+    bool single = false,
+  }) {
     try {
-      return _field(name, value, long: long);
+      return _field(name, value, long: long, single: single);
     } on FormatException {
       return '';
     }

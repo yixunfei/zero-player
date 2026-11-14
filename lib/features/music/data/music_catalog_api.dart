@@ -86,4 +86,32 @@ final class MusicCatalogApi {
     final raw = musicCatalogObject((await get(uri, token)).json, 0);
     return musicCatalogObject(musicCatalogObject(raw['req'], 0)['data']);
   }
+
+  /// One round trip for several QQ modules; the site batches them the same way.
+  Future<List<Map>> qqBatch(
+    List<({String module, String method, Map<String, Object?> params})> requests,
+    CancellationToken token,
+  ) async {
+    if (requests.isEmpty) return [];
+    final uri = qq
+        .resolve('/cgi-bin/musicu.fcg')
+        .replace(
+          queryParameters: {
+            'data': jsonEncode({
+              'comm': {'ct': 24},
+              for (var i = 0; i < requests.length; i++)
+                'req_$i': {
+                  'module': requests[i].module,
+                  'method': requests[i].method,
+                  'param': requests[i].params,
+                },
+            }),
+          },
+        );
+    final raw = musicCatalogObject((await get(uri, token)).json, 0);
+    return [
+      for (var i = 0; i < requests.length; i++)
+        musicCatalogObject(musicCatalogObject(raw['req_$i'], 0)['data']),
+    ];
+  }
 }

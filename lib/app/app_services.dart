@@ -44,6 +44,7 @@ import '../features/music/application/music_browser.dart';
 import '../features/music/data/music_library.dart';
 import '../features/music/application/music_downloads.dart';
 import '../features/music/data/music_recommendations.dart';
+import '../features/music/data/music_style_catalog.dart';
 import '../features/music/application/music_open_api.dart';
 import '../features/playback/domain/player_engine.dart';
 import '../features/books/data/books_repository.dart';
@@ -95,6 +96,7 @@ final class AppServices {
       _musicRecommendations ??= MusicRecommendations(
         network,
         db,
+        styleCatalog: MusicStyleCatalog(music),
         sourceAllowed: (provider) =>
             contentPolicy.sourceAllowed(music.sourceFor(provider)),
         textAllowed: contentPolicy.textAllowed,

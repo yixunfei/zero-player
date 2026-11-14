@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../application/music_controller.dart';
 
 Future<void> showMusicLyrics(
@@ -22,6 +23,7 @@ final class _MusicLyricsPage extends StatefulWidget {
 final class _MusicLyricsPageState extends State<_MusicLyricsPage> {
   final _scroll = ScrollController();
   Object? _lastLine;
+  DateTime? _manualScrollUntil;
 
   @override
   void dispose() {
@@ -42,7 +44,12 @@ final class _MusicLyricsPageState extends State<_MusicLyricsPage> {
       if (_lastLine != line) {
         _lastLine = line;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || _lastLine != line || !_scroll.hasClients) return;
+          if (!mounted ||
+              _lastLine != line ||
+              !_scroll.hasClients ||
+              (_manualScrollUntil?.isAfter(DateTime.now()) ?? false)) {
+            return;
+          }
           _scroll.jumpTo(
             (current * extent).clamp(0.0, _scroll.position.maxScrollExtent),
           );
@@ -69,32 +76,46 @@ final class _MusicLyricsPageState extends State<_MusicLyricsPage> {
                         builder: (context, constraints) {
                           final margin = ((constraints.maxHeight - extent) / 2)
                               .clamp(0.0, double.infinity);
-                          return ListView.builder(
-                            controller: _scroll,
-                            itemCount: lines.length,
-                            itemExtent: extent,
-                            padding: EdgeInsets.symmetric(
-                              vertical: margin,
-                              horizontal: 24,
-                            ),
-                            itemBuilder: (context, index) {
-                              final lyric = lines[index];
-                              return TextButton(
-                                onPressed: () => controller.seek(lyric.time),
-                                child: Text(
-                                  [
-                                    lyric.text,
-                                    lyric.translation,
-                                  ].where((text) => text.isNotEmpty).join('\n'),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: index == current
-                                      ? Theme.of(context).textTheme.titleMedium
-                                      : Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              );
+                          return NotificationListener<UserScrollNotification>(
+                            onNotification: (notification) {
+                              if (notification.direction !=
+                                  ScrollDirection.idle) {
+                                _manualScrollUntil = DateTime.now().add(
+                                  const Duration(seconds: 5),
+                                );
+                              }
+                              return false;
                             },
+                            child: ListView.builder(
+                              controller: _scroll,
+                              itemCount: lines.length,
+                              itemExtent: extent,
+                              padding: EdgeInsets.symmetric(
+                                vertical: margin,
+                                horizontal: 24,
+                              ),
+                              itemBuilder: (context, index) {
+                                final lyric = lines[index];
+                                return TextButton(
+                                  onPressed: () => controller.seek(lyric.time),
+                                  child: Text(
+                                    [lyric.text, lyric.translation]
+                                        .where((text) => text.isNotEmpty)
+                                        .join('\n'),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: index == current
+                                        ? Theme.of(
+                                            context,
+                                          ).textTheme.titleMedium
+                                        : Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                  ),
+                                );
+                              },
+                            ),
                           );
                         },
                       ),

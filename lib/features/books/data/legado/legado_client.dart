@@ -333,6 +333,7 @@ final class LegadoBookClient {
           .where((link) => !visited.contains(link.targetKey))
           .firstOrNull;
       if (more == null) break;
+      if (page == 10) throw const FormatException('章节分页超过限制，正文未完整获取');
       next = more;
     }
     return parts.join('\n\n');

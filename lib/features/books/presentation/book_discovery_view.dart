@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/cancellation_token.dart';
 import '../../../core/network/document_client.dart';
@@ -14,8 +13,9 @@ import '../domain/legado_source.dart';
 import 'book_category_picker.dart';
 import 'book_cover.dart';
 import 'book_links.dart';
-import 'qidian_book_preview.dart';
 import 'book_source_favorite.dart';
+import 'qidian_book_preview.dart';
+import 'qidian_browser_import.dart';
 
 final class BookDiscoveryView extends StatefulWidget {
   const BookDiscoveryView({
@@ -53,6 +53,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   final _qidianSections = <String, LegadoCategory>{};
   String _qidianAddress = '/';
   DateTime? _qidianCachedAt;
+  bool _qidianImported = false;
   CancellationToken? _token;
   String? _sourceId, _categorySource, _error;
   bool _favorites = false, _busy = false, _needsLoad = true;
@@ -183,6 +184,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
       _error = null;
       _resetPaging();
       _qidianCachedAt = null;
+      _qidianImported = false;
       _completed = _total = 0;
       _results.clear();
       _resultOrder.clear();
@@ -289,10 +291,60 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
 
   void _applyQidianPage(String address, QidianListing listing) {
     final page = listing.page;
-    _qidianCachedAt = listing.cachedAt;
+    if (_page == 1 || listing.imported) {
+      _qidianCachedAt = listing.cachedAt;
+      _qidianImported = listing.imported;
+    }
     _addQidianSections(page.sections);
     _seenPages.add(qidianHome.resolve(address).toString());
     _appendPage(_recommended, page.books, page.next?.toString());
+  }
+
+  Future<void> _importQidianPage({bool nextPage = false}) async {
+    final address = nextPage ? _next : _qidianAddress;
+    if (_busy || !_showQidian || address == null) return;
+    _token?.cancel();
+    final token = _token = CancellationToken();
+    final catalog = widget.repository.qidian;
+    bool isCurrent() =>
+        mounted && !token.isCancelled && _showQidian && catalog.allowed;
+    setState(() => _busy = true);
+    try {
+      final bytes = await pickQidianBrowserPage(
+        context,
+        qidianHome.resolve(address),
+        allowed: isCurrent,
+      );
+      if (bytes == null || !isCurrent()) return;
+      final listing = await catalog.importListing(
+        address,
+        bytes,
+        token,
+        firstPage: !nextPage,
+      );
+      if (!isCurrent()) return;
+      setState(() {
+        _error = _moreError = null;
+        if (!nextPage) {
+          _resetPaging();
+          _recommended.clear();
+        }
+        _applyQidianPage(address, listing);
+      });
+      if (!nextPage && _scroll.hasClients) _scroll.jumpTo(0);
+    } on Exception catch (error) {
+      if (!isCurrent()) return;
+      final message = error is FormatException ? error.message : '无法读取网页文件';
+      setState(() {
+        if (nextPage) {
+          _moreError = message;
+        } else {
+          _error = message;
+        }
+      });
+    } finally {
+      if (mounted && identical(_token, token)) setState(() => _busy = false);
+    }
   }
 
   void _appendPage(List<Book> books, List<Book> fetched, String? next) {
@@ -396,6 +448,7 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
         _error == null &&
         !_busy &&
         !_channelsOnly &&
+        !(_showQidian && _qidianImported) &&
         _scroll.hasClients &&
         _scroll.position.hasContentDimensions &&
         _scroll.position.extentAfter < 480) {
@@ -860,6 +913,13 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
           ),
           onPressed: _pickQidianSection,
         ),
+      if (_showQidian &&
+          _recommended.isNotEmpty &&
+          (_qidianCachedAt != null || _error != null))
+        ActionChip(
+          label: const Text('导入浏览器网页'),
+          onPressed: _busy ? null : () => _importQidianPage(),
+        ),
     ],
   );
 
@@ -875,19 +935,22 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
   List<Widget> _qidianContent(double gutter, double width) {
     if (_recommended.isNotEmpty || _next != null) {
       final cachedAt = _qidianCachedAt;
+      final date = cachedAt == null
+          ? null
+          : MaterialLocalizations.of(context).formatShortDate(cachedAt);
       return [
         if (cachedAt != null)
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: gutter),
               child: Text(
-                '起点暂不可用，显示 ${MaterialLocalizations.of(context).formatShortDate(cachedAt)} 保存的书单',
+                _qidianImported ? '显示 $date 导入的起点书单' : '起点暂不可用，显示 $date 保存的书单',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ),
         _grid(_recommended, gutter, width),
-        if (cachedAt == null) _pageFooter(),
+        if (cachedAt == null || _qidianImported) _pageFooter(),
       ];
     }
     return [
@@ -908,8 +971,8 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
                   children: [
                     TextButton(onPressed: _load, child: const Text('重试')),
                     TextButton(
-                      onPressed: _openQidianWebsite,
-                      child: const Text('在浏览器打开起点'),
+                      onPressed: () => _importQidianPage(),
+                      child: const Text('导入浏览器网页'),
                     ),
                     if (_enabled.isNotEmpty)
                       TextButton(
@@ -923,17 +986,6 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
         ),
       ),
     ];
-  }
-
-  Future<void> _openQidianWebsite() async {
-    if (!widget.repository.qidian.allowed) return;
-    final uri = qidianHome.resolve(_qidianAddress);
-    try {
-      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
-    } on Exception {
-      // Copying keeps the original URL available when external launch fails.
-    }
-    if (mounted) await copyBookLink(context, uri);
   }
 
   List<Widget> _content(double gutter, double width) {
@@ -986,10 +1038,28 @@ final class _BookDiscoveryViewState extends State<BookDiscoveryView> {
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Center(
-        child: _moreError != null
-            ? TextButton(onPressed: _loadMore, child: Text('$_moreError · 重试'))
-            : _busy
+        child: _busy
             ? const CircularProgressIndicator()
+            : _showQidian &&
+                  _next != null &&
+                  (_qidianImported || _moreError != null)
+            ? Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: _loadMore,
+                    child: Text(
+                      _moreError == null ? '加载下一页' : '$_moreError · 重试',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _importQidianPage(nextPage: true),
+                    child: const Text('导入下一页网页'),
+                  ),
+                ],
+              )
+            : _moreError != null
+            ? TextButton(onPressed: _loadMore, child: Text('$_moreError · 重试'))
             : _next == null
             ? const Text('没有更多作品')
             : const SizedBox.shrink(),

@@ -98,21 +98,17 @@ final class AudiobookFiles {
     token.check();
     authorize();
     if (await contains(book, targetChapter)) return;
+    // close() may run while the filesystem check is pending.
+    if (_closed) throw StateError('音频存储已关闭');
+    token.check();
+    authorize();
     _running.add(token);
     Directory? staging;
     try {
       final uri = await client.audio(source, chapter, token, book: book);
       authorize();
       await root.create(recursive: true);
-      var size = 0;
-      await for (final entity in root.list(
-        recursive: true,
-        followLinks: false,
-      )) {
-        if (entity is File) size += await entity.length();
-      }
-      final budget = (512 * 1024 * 1024 - size).clamp(0, 96 * 1024 * 1024);
-      if (budget <= 0) throw const FormatException('听书离线空间已满');
+      final budget = await _downloadBudget();
       staging = await root.createTemp('.pending-');
       final transfer = CancellationToken();
       final unlink = token.listen(transfer.cancel);
@@ -185,6 +181,16 @@ final class AudiobookFiles {
         await staging.delete(recursive: true);
       }
     }
+  }
+
+  Future<int> _downloadBudget() async {
+    var size = 0;
+    await for (final entity in root.list(recursive: true, followLinks: false)) {
+      if (entity is File) size += await entity.length();
+    }
+    final budget = (512 * 1024 * 1024 - size).clamp(0, 96 * 1024 * 1024);
+    if (budget <= 0) throw const FormatException('听书离线空间已满');
+    return budget;
   }
 
   Future<void> remove(Book book, BookChapter chapter) {

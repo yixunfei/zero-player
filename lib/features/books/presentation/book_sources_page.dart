@@ -142,9 +142,15 @@ final class _BookSourcesPageState extends State<BookSourcesPage> {
       ],
     );
     if (file == null || !mounted) return;
+    final token = _token = CancellationToken();
     final path = file.path;
     final parsed = await readBookSourceFile(path);
-    final result = await _services.books.importSources(parsed.sources);
+    token.check();
+    if (!mounted) return;
+    final result = await _services.books.importSources(
+      parsed.sources,
+      token: token,
+    );
     _importNotice(parsed, result);
   }, protected: true);
 

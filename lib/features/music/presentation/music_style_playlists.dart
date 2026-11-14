@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/app_services.dart';
-import '../../../app/poster_image.dart';
 import '../../../core/network/cancellation_token.dart';
 import '../../supervision/domain/supervision_rules.dart';
 import '../data/music_catalog_api.dart';
 import '../data/music_style_catalog.dart';
 import '../domain/music_track.dart';
 import 'music_actions.dart';
+import 'music_cards.dart';
 import 'music_catalog_controls.dart';
 
 final class MusicStylePlaylists extends StatefulWidget {
@@ -18,11 +18,13 @@ final class MusicStylePlaylists extends StatefulWidget {
     required this.services,
     this.initialProvider = 'neteasePlaylist',
     this.initialSection,
+    this.initialPlaylist,
     this.catalog,
   });
   final AppServices services;
   final String initialProvider;
   final String? initialSection;
+  final MusicStylePlaylist? initialPlaylist;
   final MusicStyleCatalog? catalog;
 
   @override
@@ -55,8 +57,20 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
     _category = musicAllCategories[_provider]!;
     final initial = widget.initialSection;
     if (initial == 'recommended') _category = neteaseRecommendedPlaylists;
-    unawaited(_loadDirectory(initialGroup: initial));
-    if (initial == null || initial == 'recommended') unawaited(_browse());
+    final playlist = widget.initialPlaylist;
+    if (playlist != null) {
+      _provider = playlist.provider;
+      _category = musicAllCategories[_provider]!;
+      unawaited(_loadDirectory());
+      unawaited(_open(playlist));
+      return;
+    }
+    if (_provider == 'qqPlaylist') {
+      unawaited(_loadDirectory(browseAfter: true));
+    } else {
+      unawaited(_loadDirectory(initialGroup: initial));
+      if (initial == null || initial == 'recommended') unawaited(_browse());
+    }
   }
 
   @override
@@ -68,7 +82,10 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
     super.dispose();
   }
 
-  Future<void> _loadDirectory({String? initialGroup}) async {
+  Future<void> _loadDirectory({
+    String? initialGroup,
+    bool browseAfter = false,
+  }) async {
     _directoryRequest?.cancel();
     final token = CancellationToken();
     final provider = _provider;
@@ -78,10 +95,17 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
       _directoryError = null;
     });
     try {
-      final options = await _catalog.categories(provider, token);
-      token.check();
-      if (!mounted) return;
-      setState(() => _options[provider] = options);
+      if (provider == 'qqPlaylist' && !_options.containsKey(provider)) {
+        final directory = await _catalog.qqDirectory(token);
+        token.check();
+        if (!mounted) return;
+        setState(() => _options[provider] = directory.options);
+      } else {
+        final options = await _catalog.categories(provider, token);
+        token.check();
+        if (!mounted) return;
+        setState(() => _options[provider] = options);
+      }
     } catch (failure) {
       if (mounted && !token.isCancelled) {
         setState(() => _directoryError = _message(failure, '歌单分类暂不可用'));
@@ -89,7 +113,12 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
     } finally {
       if (mounted && !token.isCancelled) {
         setState(() => _directoryRequest = null);
-        if (initialGroup != null &&
+        if (browseAfter &&
+            identical(previousRequest, _request) &&
+            _keyword == null &&
+            _selected == null) {
+          await _browse();
+        } else if (initialGroup != null &&
             initialGroup != 'recommended' &&
             identical(previousRequest, _request) &&
             _keyword == null &&
@@ -108,15 +137,17 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
 
   void _selectProvider(String provider) {
     if (_provider == provider) return;
-    _provider = provider;
+    setState(() {
+      _provider = provider;
+      _directoryError = null;
+    });
     if (!_options.containsKey(provider)) {
-      unawaited(_loadDirectory());
+      unawaited(_loadDirectory(browseAfter: true));
     } else {
       _directoryRequest?.cancel();
       _directoryRequest = null;
-      _directoryError = null;
+      unawaited(_browse(category: musicAllCategories[provider]));
     }
-    unawaited(_browse(category: musicAllCategories[provider]));
   }
 
   Future<void> _browse({MusicCatalogOption? category, String? keyword}) {
@@ -140,19 +171,21 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
     );
     token.check();
     if (!mounted) return;
-    setState(() {
-      final known = _lists.map((item) => item.id).toSet();
-      final added = result.items.where((item) => known.add(item.id)).toList();
-      _lists = [..._lists, ...added];
-      final next = result.next;
-      _nextList =
-          next != null &&
-              next != cursor &&
-              (added.isNotEmpty || result.items.isEmpty)
-          ? next
-          : null;
-      _listTotal = result.total ?? _listTotal;
-    });
+    setState(() => _applyListPage(result, cursor));
+  }
+
+  void _applyListPage(MusicCatalogPage<MusicStylePlaylist> result, int cursor) {
+    final known = _lists.map((item) => item.id).toSet();
+    final added = result.items.where((item) => known.add(item.id)).toList();
+    _lists = [..._lists, ...added];
+    final next = result.next;
+    _nextList =
+        next != null &&
+            next != cursor &&
+            (added.isNotEmpty || result.items.isEmpty)
+        ? next
+        : null;
+    _listTotal = result.total ?? _listTotal;
   }
 
   Future<void> _open(MusicStylePlaylist list) {
@@ -249,39 +282,45 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
       final lists = allowed
           ? _lists.where(_catalog.allowed).toList()
           : <MusicStylePlaylist>[];
-      return ListView.builder(
-        key: const PageStorageKey('music-style-lists'),
-        controller: _scroll,
-        padding: const EdgeInsets.all(16),
-        itemCount: lists.length + 2,
-        itemBuilder: (context, i) {
-          if (i == 0) return _controls(allowed);
-          if (i > lists.length) {
-            return allowed
-                ? _footer(
-                    empty: lists.isEmpty ? '没有可显示的歌单' : null,
-                    next: _nextList,
-                    label: '加载更多歌单',
-                    load: _listPage,
-                  )
-                : const SizedBox.shrink();
+      return NotificationListener<ScrollUpdateNotification>(
+        onNotification: (notification) {
+          final metrics = notification.metrics;
+          if (metrics.axis == Axis.vertical &&
+              allowed &&
+              _nextList != null &&
+              _request == null &&
+              metrics.pixels >= metrics.maxScrollExtent - 360) {
+            unawaited(_moreLists());
           }
-          final list = lists[i - 1];
-          return ListTile(
-            leading: _cover(list),
-            title: Text(
-              list.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: _subtitle(list),
-            trailing: MusicCatalogCopyButton(uri: list.uri, label: '复制歌单网页链接'),
-            onTap: () => _open(list),
-          );
+          return false;
         },
+        child: CustomScrollView(
+          key: const PageStorageKey('music-style-lists'),
+          controller: _scroll,
+          slivers: [
+            SliverToBoxAdapter(child: _controls(allowed)),
+            MusicPlaylistSliver(lists: lists, onOpen: _open),
+            SliverToBoxAdapter(
+              child: allowed
+                  ? _footer(
+                      empty: lists.isEmpty ? '没有可显示的歌单' : null,
+                      next: _nextList,
+                      label: '加载更多歌单',
+                      load: _listPage,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       );
     },
   );
+
+  Future<void> _moreLists() {
+    final cursor = _nextList;
+    if (cursor == null) return Future.value();
+    return _load(() {}, (token) => _listPage(cursor, token), more: true);
+  }
 
   Widget _controls(bool allowed) {
     final total = _listTotal;
@@ -292,73 +331,76 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
         neteaseHighQualityPlaylists,
       ],
     ].where(_catalog.optionAllowed).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final entry in musicPlaylistProviders.entries)
-              ChoiceChip(
-                selected: _provider == entry.key,
-                label: Text(entry.value),
-                onSelected: _catalog.providerAllowed(entry.key)
-                    ? (_) => _selectProvider(entry.key)
-                    : null,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final entry in musicPlaylistProviders.entries)
+                ChoiceChip(
+                  selected: _provider == entry.key,
+                  label: Text(entry.value),
+                  onSelected: _catalog.providerAllowed(entry.key)
+                      ? (_) => _selectProvider(entry.key)
+                      : null,
+                ),
+              if (allowed)
+                MusicCatalogCopyButton(
+                  label: '复制歌单平台网页链接',
+                  uri: switch (_provider) {
+                    'qqPlaylist' => Uri.https('y.qq.com', '/n/ryqq_v2/category'),
+                    'kugouPlaylist' => Uri.https(
+                      'www.kugou.com',
+                      '/yy/special/index/1.html',
+                    ),
+                    _ => Uri.https('music.163.com', '/discover/playlist'),
+                  },
+                ),
+            ],
+          ),
+          if (_catalog.providerAllowed(_provider) &&
+              _provider == 'neteasePlaylist')
+            TextField(
+              controller: _query,
+              maxLength: 100,
+              textInputAction: TextInputAction.search,
+              onSubmitted: _search,
+              decoration: InputDecoration(
+                labelText: '搜索歌单风格或名称',
+                counterText: '',
+                suffixIcon: IconButton(
+                  tooltip: '搜索歌单',
+                  onPressed: () => _search(_query.text),
+                  icon: const Icon(Icons.search),
+                ),
               ),
-            if (allowed)
-              MusicCatalogCopyButton(
-                label: '复制歌单平台网页链接',
-                uri: switch (_provider) {
-                  'qqPlaylist' => Uri.https('y.qq.com', '/n/ryqq_v2/category'),
-                  'kugouPlaylist' => Uri.https(
-                    'www.kugou.com',
-                    '/yy/special/index/1.html',
-                  ),
-                  _ => Uri.https('music.163.com', '/discover/playlist'),
-                },
-              ),
+            ),
+          if (_catalog.providerAllowed(_provider)) ...[
+            const SizedBox(height: 8),
+            MusicTagGrid(
+              options: options,
+              selected: _keyword == null ? _category.id : null,
+              onSelected: (option) => _browse(category: option),
+            ),
           ],
-        ),
-        if (_catalog.providerAllowed(_provider) &&
-            _provider == 'neteasePlaylist')
-          TextField(
-            controller: _query,
-            maxLength: 100,
-            textInputAction: TextInputAction.search,
-            onSubmitted: _search,
-            decoration: InputDecoration(
-              labelText: '搜索歌单风格或名称',
-              counterText: '',
-              suffixIcon: IconButton(
-                tooltip: '搜索歌单',
-                onPressed: () => _search(_query.text),
-                icon: const Icon(Icons.search),
+          if (_directoryRequest != null) const LinearProgressIndicator(),
+          if (_directoryError case final error?)
+            ListTile(
+              title: Text(error),
+              trailing: TextButton(
+                onPressed: _loadDirectory,
+                child: const Text('重试分类'),
               ),
             ),
-          ),
-        if (_catalog.providerAllowed(_provider))
-          MusicCatalogPicker(
-            options: options,
-            group: options.any((item) => item.group == _category.group)
-                ? _category.group
-                : options.firstOrNull?.group,
-            selected: _keyword == null ? _category.id : null,
-            label: '选择歌单分类',
-            onSelected: (option) => _browse(category: option),
-          ),
-        if (_directoryRequest != null) const LinearProgressIndicator(),
-        if (_directoryError case final error?)
-          ListTile(
-            title: Text(error),
-            trailing: TextButton(
-              onPressed: _loadDirectory,
-              child: const Text('重试分类'),
-            ),
-          ),
-        if (!allowed) const Text('当前平台或分类已被过滤'),
-        if (allowed && total != null) Text('源站 $total 个歌单'),
-      ],
+          if (!allowed) const Text('当前平台或分类已被过滤'),
+          if (allowed && total != null) Text('源站 $total 个歌单'),
+          if (allowed) Text('已加载 ${_lists.length} 个歌单'),
+        ],
+      ),
     );
   }
 
@@ -459,7 +501,12 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
     required String label,
     required Future<void> Function(int, CancellationToken) load,
   }) {
-    if (_request != null) return const LinearProgressIndicator();
+    if (_request != null) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: LinearProgressIndicator(),
+      );
+    }
     final error = _error;
     final cursor = error != null && !_failedMore ? 0 : next;
     if (cursor != null) {
@@ -469,34 +516,11 @@ final class _MusicStylePlaylistsState extends State<MusicStylePlaylists> {
         child: Text(error == null ? label : '重试'),
       );
       return error == null
-          ? button
+          ? Center(child: button)
           : ListTile(title: Text(error), trailing: button);
     }
-    return empty == null ? const SizedBox.shrink() : Text(empty);
-  }
-
-  Widget _cover(MusicStylePlaylist list) => list.cover.isEmpty
-      ? const Icon(Icons.library_music_outlined)
-      : SizedBox.square(
-          dimension: 48,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: PosterImage(
-              url: list.cover,
-              width: 120,
-              showRetry: false,
-              placeholderIcon: Icons.library_music_outlined,
-            ),
-          ),
-        );
-
-  Widget? _subtitle(MusicStylePlaylist list) {
-    final text = [
-      if (list.creator.isNotEmpty) list.creator,
-      if (list.count case final count?) '$count 首',
-    ].join(' · ');
-    return text.isEmpty
-        ? null
-        : Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
+    return empty == null
+        ? const SizedBox(height: 24)
+        : Padding(padding: const EdgeInsets.all(16), child: Text(empty));
   }
 }

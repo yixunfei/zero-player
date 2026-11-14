@@ -773,7 +773,13 @@ final class BooksRepository {
     if (!bookAllowed(book) || await _blocked(book.sourceId)) {
       throw const ContentBlocked();
     }
+    token.check();
     final saved = await store.entry(book);
+    token.check();
+    if (!bookAllowed(book) || await _blocked(book.sourceId)) {
+      throw const ContentBlocked();
+    }
+    token.check();
     if (saved != null && saved.chapters.isNotEmpty && !refresh) {
       return saved.chapters.where((c) => policy.textAllowed(c.title)).toList();
     }
@@ -784,18 +790,29 @@ final class BooksRepository {
       token,
     )).where((c) => policy.textAllowed(c.title)).toList();
     token.check();
-    if (!sourceAllowed(source) || !bookAllowed(book)) {
+    if (!sourceAllowed(source) ||
+        !bookAllowed(book) ||
+        await _blocked(book.sourceId)) {
       throw const ContentBlocked();
     }
+    token.check();
     return chapters;
   }
 
   Future<Book> details(Book book, CancellationToken token) async {
+    token.check();
+    if (!bookAllowed(book)) throw const ContentBlocked();
     if (book.sourceId == 'local') return book;
     final source = await _active(book);
     final result = await client.details(source, book, token);
     token.check();
-    return sourceAllowed(source) && bookAllowed(result) ? result : book;
+    if (!sourceAllowed(source) ||
+        !bookAllowed(result) ||
+        await _blocked(book.sourceId)) {
+      throw const ContentBlocked();
+    }
+    token.check();
+    return result;
   }
 
   Future<void> checkFollowing(BookKind kind, CancellationToken token) async {
@@ -953,9 +970,12 @@ final class BooksRepository {
       maxBytes: 2 * 1024 * 1024,
     );
     token.check();
-    if (!sourceAllowed(source) || !bookAllowed(book)) {
+    if (!sourceAllowed(source) ||
+        !bookAllowed(book) ||
+        await _blocked(book.sourceId)) {
       throw const ContentBlocked();
     }
+    token.check();
     return document.bytes;
   }
 
@@ -1000,6 +1020,8 @@ final class BooksRepository {
           }, targetChapter: chapter);
         }
         return;
+      } on ContentBlocked {
+        rethrow;
       } on Exception catch (error) {
         last = error;
       }

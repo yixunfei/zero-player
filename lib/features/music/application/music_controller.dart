@@ -46,6 +46,7 @@ final class MusicController extends ChangeNotifier
   MusicDownloads? get downloads => _downloads ??= downloadsFactory?.call();
   OfflineSession? _offline;
   DateTime _lastRecord = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastPlaybackUi = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastPreflight = DateTime.fromMillisecondsSinceEpoch(0);
   final _visited = <int>{};
   final _playNext = <String>[];
@@ -494,7 +495,7 @@ final class MusicController extends ChangeNotifier
     if (!current()) return;
     if (!repository.allowed(track)) throw const FormatException('歌曲已被过滤');
     _playingTrack = track;
-    if (local == null && repository.supportsLyrics(track)) {
+    if (repository.supportsLyrics(track)) {
       unawaited(_loadLyrics(track));
     }
     final engine = _engine = createEngine();
@@ -564,7 +565,10 @@ final class MusicController extends ChangeNotifier
     var completed = false;
     _states = engine.states.listen((state) {
       if (_closed || generation != _generation || _engine != engine) return;
-      final progressed = snapshot.position != state.position;
+      final previous = snapshot;
+      final progressed = previous.position != state.position;
+      final lyricChanged =
+          lyrics.indexAt(previous.position) != lyrics.indexAt(state.position);
       snapshot = state;
       _watchStall(generation, progressed: progressed);
       if (progressed &&
@@ -580,7 +584,17 @@ final class MusicController extends ChangeNotifier
         _lastRecord = DateTime.now();
         _record();
       }
-      notifyListeners();
+      final now = DateTime.now();
+      if (previous.playing != state.playing ||
+          previous.buffering != state.buffering ||
+          previous.completed != state.completed ||
+          previous.duration != state.duration ||
+          lyricChanged ||
+          now.difference(_lastPlaybackUi) >=
+              const Duration(milliseconds: 250)) {
+        _lastPlaybackUi = now;
+        notifyListeners();
+      }
       if (state.completed && !completed) {
         completed = true;
         unawaited(_advance(automatic: true));
